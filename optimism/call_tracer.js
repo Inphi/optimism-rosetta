@@ -198,11 +198,27 @@
 	// result is invoked when all the opcodes have been iterated over and returns
 	// the final result of the tracing.
 	result: function(ctx, db) {
+		// Handle the case where there are no traces on L2 (ex: when deploying non-whitelisted contracts)
+		var value = ctx.value;
+		if (value === undefined) {
+			value = '0x0';
+		} else {
+			value = '0x' + value.toString(16);
+		}
+		var from = ctx.from;
+		var to = ctx.to;
+		if (from !== undefined) {
+			from = toHex(from);
+		}
+		if (to !== undefined) {
+			to = toHex(to);
+		}
+
 		var result = {
 			type:    ctx.type,
-			from:    toHex(ctx.from),
-			to:      toHex(ctx.to),
-			value:   '0x' + ctx.value.toString(16),
+			from:    from,
+			to:      to,
+			value:   value,
 			gas:     '0x' + bigInt(ctx.gas).toString(16),
 			gasUsed: '0x' + bigInt(ctx.gasUsed).toString(16),
 			input:   toHex(ctx.input),

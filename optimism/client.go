@@ -487,6 +487,11 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 	for _, trace := range calls {
 		//fmt.Printf("TRACEOPS: type=%v to=%v value=%v\n", trace.Type, trace.To.String(), trace.Value)
 
+		// Rejected transactions do not produce traces (ex: attempts to deploy contracts that aren't in the whitelist)
+		if trace.Type == "" {
+			continue
+		}
+
 		// Handle partial transaction success
 		metadata := map[string]interface{}{}
 		opStatus := SuccessStatus
