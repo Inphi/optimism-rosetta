@@ -538,6 +538,35 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 			return burnedAmt, burnedFromAddr
 		}()
 
+		l2Mint, l2MintAddr := func() (*big.Int, common.Address) {
+			const MINT_ADDRESS = "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000"
+			var mintAddress = common.HexToAddress(MINT_ADDRESS)
+			if trace.Type != CallOpType {
+				return nil, common.Address{}
+			}
+			if trace.To.Hex() != mintAddress.Hex() {
+				return nil, common.Address{}
+			}
+			if len(trace.Input) != 138 { // 0x | 4-byte selector | 32-byte padded address | 32-byte uint256 amount
+				return nil, common.Address{}
+			}
+			// function selector for mint(address,uint256)
+			if !strings.HasPrefix(trace.Input, "0x40c10f19") {
+				return nil, common.Address{}
+			}
+
+			mintedFrom := trace.Input[10:74]
+			mintedToAddr := common.HexToAddress(mintedFrom)
+
+			mintedAmtHex := fmt.Sprintf("0x%s", strings.TrimLeft(trace.Input[74:], "0"))
+			mintedAmt, err := hexutil.DecodeBig(mintedAmtHex)
+			if err != nil {
+				return nil, common.Address{}
+			}
+
+			return mintedAmt, mintedToAddr
+		}()
+
 		//fmt.Printf("TRACE TYPE: %v\n", trace.Type)
 
 		// Checksum addresses
@@ -588,6 +617,24 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 				Metadata: metadata,
 			}
 			ops = append(ops, burnOp)
+		}
+		if l2Mint != nil {
+			mintOp := &RosettaTypes.Operation{
+				OperationIdentifier: &RosettaTypes.OperationIdentifier{
+					Index: int64(len(ops) + startIndex),
+				},
+				Type:   trace.Type,
+				Status: RosettaTypes.String(opStatus),
+				Account: &RosettaTypes.AccountIdentifier{
+					Address: l2MintAddr.String(),
+				},
+				Amount: &RosettaTypes.Amount{
+					Value:    l2Mint.String(),
+					Currency: Currency,
+				},
+				Metadata: metadata,
+			}
+			ops = append(ops, mintOp)
 		}
 
 		// Add to destroyed accounts if SELFDESTRUCT
