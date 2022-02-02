@@ -1026,7 +1026,11 @@ func (ec *Client) populateTransactions(
 
 	// TODO(inphi): load the gasOracleOwner from config (also, need to figure
 	// out how to update owner updates to CB)
-	var gasOracleOwner = common.HexToAddress("0x7107142636C85c549690b1Aca12Bdb8052d26Ae6")
+	var (
+		gasOracleOwnerMainnet = common.HexToAddress("0x7107142636C85c549690b1Aca12Bdb8052d26Ae6")
+		gasOracleOwnerKovan   = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
+		gasOracleOwnerGoerli  = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
+	)
 	var gasOracleAddr = common.HexToAddress(GAS_ORACLE_CONTRACT)
 	for i, tx := range loadedTransactions {
 		if tx.From != nil && tx.Transaction != nil && tx.Transaction.To() != nil {
@@ -1036,8 +1040,8 @@ func (ec *Client) populateTransactions(
 			if from == "0x0000000000000000000000000000000000000000" && to == L2_CROSS_DOMAIN_MESSAGER_CONTRACT {
 				fmt.Printf("skipping relay %#v\n", tx)
 				tx.FeeAmount.SetUint64(0)
-			} else if from == gasOracleOwner.Hex() && to == gasOracleAddr.Hex() {
-				// HACK: The sequencer doesn't charge the owner of the gpo.
+			} else if (from == gasOracleOwnerMainnet.Hex() || from == gasOracleOwnerKovan.Hex() || from == gasOracleOwnerGoerli.Hex()) && to == gasOracleAddr.Hex() {
+				// The sequencer doesn't charge the owner of the gpo.
 				// Set the fee mount to zero to not affect gas oracle owner balances
 				tx.FeeAmount.SetUint64(0)
 			} else if from == "0x0000000000000000000000000000000000000000" {
