@@ -276,7 +276,9 @@ func (ec *Client) getBlock(
 		loadedTxs[i] = tx.LoadedTransaction()
 		loadedTxs[i].Transaction = txs[i]
 		loadedTxs[i].FeeAmount = feeAmount
-		loadedTxs[i].Miner = MustChecksum(head.Coinbase.Hex())
+		// Miner is fixed on Optimism
+		// TODO: at some point, we'll need to update the coinbase in the block on l2geth in case we change the miner in the future
+		loadedTxs[i].Miner = "0x4200000000000000000000000000000000000011"
 		loadedTxs[i].Receipt = receipt
 
 		// Continue if calls does not exist (occurs at genesis)
@@ -794,29 +796,25 @@ func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
 				Currency: Currency,
 			},
 		},
-
-		// TODO: No miner fees on Optimism?
-		/*
-			{
-				OperationIdentifier: &RosettaTypes.OperationIdentifier{
-					Index: 1,
-				},
-				RelatedOperations: []*RosettaTypes.OperationIdentifier{
-					{
-						Index: 0,
-					},
-				},
-				Type:   FeeOpType,
-				Status: RosettaTypes.String(SuccessStatus),
-				Account: &RosettaTypes.AccountIdentifier{
-					Address: MustChecksum(tx.Miner),
-				},
-				Amount: &RosettaTypes.Amount{
-					Value:    tx.FeeAmount.String(),
-					Currency: Currency,
+		{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 1,
+			},
+			RelatedOperations: []*RosettaTypes.OperationIdentifier{
+				{
+					Index: 0,
 				},
 			},
-		*/
+			Type:   MinerRewardOpType,
+			Status: RosettaTypes.String(SuccessStatus),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: MustChecksum(tx.Miner),
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    tx.FeeAmount.String(),
+				Currency: Currency,
+			},
+		},
 	}
 }
 
@@ -1021,8 +1019,10 @@ func (ec *Client) populateTransactions(
 	// 	block.Uncles(),
 	// )
 
-	const GAS_ORACLE_CONTRACT = "0x420000000000000000000000000000000000000f"
-	const L2_CROSS_DOMAIN_MESSAGER_CONTRACT = "0x4200000000000000000000000000000000000007"
+	const (
+		GAS_ORACLE_CONTRACT               = "0x420000000000000000000000000000000000000f"
+		L2_CROSS_DOMAIN_MESSAGER_CONTRACT = "0x4200000000000000000000000000000000000007"
+	)
 
 	// TODO(inphi): load the gasOracleOwner from config (also, need to figure
 	// out how to update owner updates to CB)
