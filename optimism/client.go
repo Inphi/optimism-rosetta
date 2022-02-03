@@ -1020,8 +1020,7 @@ func (ec *Client) populateTransactions(
 	// )
 
 	const (
-		GAS_ORACLE_CONTRACT               = "0x420000000000000000000000000000000000000f"
-		L2_CROSS_DOMAIN_MESSAGER_CONTRACT = "0x4200000000000000000000000000000000000007"
+		GAS_ORACLE_CONTRACT = "0x420000000000000000000000000000000000000f"
 	)
 
 	// TODO(inphi): load the gasOracleOwner from config (also, need to figure
@@ -1036,16 +1035,13 @@ func (ec *Client) populateTransactions(
 		if tx.From != nil && tx.Transaction != nil && tx.Transaction.To() != nil {
 			from, to := tx.From.Hex(), tx.Transaction.To().Hex()
 
-			// Skip L1 -> L2 messages
-			if from == "0x0000000000000000000000000000000000000000" && to == L2_CROSS_DOMAIN_MESSAGER_CONTRACT {
-				fmt.Printf("skipping relay %#v\n", tx)
+			// These are tx across L1 and L2. These cost zero gas as they're manufactured by the sequencer
+			if from == "0x0000000000000000000000000000000000000000" {
 				tx.FeeAmount.SetUint64(0)
 			} else if (from == gasOracleOwnerMainnet.Hex() || from == gasOracleOwnerKovan.Hex() || from == gasOracleOwnerGoerli.Hex()) && to == gasOracleAddr.Hex() {
 				// The sequencer doesn't charge the owner of the gpo.
 				// Set the fee mount to zero to not affect gas oracle owner balances
 				tx.FeeAmount.SetUint64(0)
-			} else if from == "0x0000000000000000000000000000000000000000" {
-				panic(fmt.Sprintf("unhandled tx: %s", to))
 			}
 		}
 
