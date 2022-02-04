@@ -42,6 +42,38 @@ const (
 
 	maxTraceConcurrency  = int64(16) // nolint:gomnd
 	semaphoreTraceWeight = int64(1)  // nolint:gomnd
+
+	burnSelector  = "0x9dc29fac" // keccak(burn(address,uint256))
+	mintSelector  = "0x40c10f19" // keccak(mint(address,uint256))
+	fnSelectorLen = 10
+
+	sequencerFeeVaultAddr = "0x4200000000000000000000000000000000000011"
+)
+
+var (
+	ovmEthAddr         = common.HexToAddress("0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000")
+	gasPriceOracleAddr = common.HexToAddress("0x420000000000000000000000000000000000000f")
+	// TODO: load the gpo owner from a config
+	gasPriceOracleOwnerMainnet = common.HexToAddress("0x7107142636C85c549690b1Aca12Bdb8052d26Ae6")
+	gasPriceOracleOwnerKovan   = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
+	gasPriceOracleOwnerGoerli  = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
+
+	// The following mainnet block hashes have transaction (hashes) that are also present in succeeding blocks.
+	// This occured due to a bug in contract whitelisting. Unfortunately eth_getTransactionByX now returns the succeeding block rather than the original.
+	// This is only an issue when reconciling account balances of the affected contracts.
+	// We fix this by hardcoding the original tx fees rather using the computed fees in the succeeding block (which had different block fee parameters at the time).
+	originalFeeAmountInDupTx = map[string]string{
+		"0x09b353fbfa414ff7765e9af807f488110775d55cfeee7df9ef3ee47e2aa0e9b9": "0x1c749d072a0258", // block height 985
+		"0x5471d82d53ccbddaf43c0fe223d97b125a80fc10ef006eb0fdf6ba3ec326ff39": "0x208e99382fa09c", // 19022
+		"0x5572ca94f6ef220f754ee486190a15c43aadcdfb2371ed3be1cd2d20f6edd96f": "0x19d4bf57ba1d5c", // 45036
+		"0x14a46bae4ae839106d7b45c6110dcf3935b38ed9b5701eb51c0450317b4abd2e": "0xab05782f225c1",  // 123322
+		"0x5a24e459391c24d364497d914024edb75823547dc44573ee3ae965cb613fca16": "0xae5ab279b6d9f",  // 123542
+		"0x336c8e5427d7049b0469aa23a61f52cecedcb5f41bde3a1684ba84136c6068e3": "0x1faece70f1455b", // 1133328
+		"0x1b3207bf43acb6a72e188edd91bced8abea2dd0edc47587db3e142ba10b7e001": "0x1f25f9be77ec1a", // 1135391
+		"0x638a3a797476c8a9b9ed5d6aa88e2e59e1b562fb4853f253c7c08753a7a285fb": "0x14c4434ea24463", // 1144468
+		"0x8fb9a287ccbe52b9ad39b47c95837ef257c3b684028e3ce2185bdf41d18646fa": "0x2f0664e5df8938", // 1244152
+		"0x2c987042c2af3e009ef8d2cebcdf659faaa694089e0f9231202f3efdcb6562b8": "0x3f69ca816a72d6", // 1272994
+	}
 )
 
 // Client allows for querying a set of specific Ethereum endpoints in an
@@ -268,17 +300,26 @@ func (ec *Client) getBlock(
 	for i, tx := range body.Transactions {
 		txs[i] = tx.tx
 		receipt := receipts[i]
-		gasUsedBig := new(big.Int).SetUint64(receipt.GasUsed)
-		l2feeAmount := gasUsedBig.Mul(gasUsedBig, txs[i].GasPrice())
-		feeAmount := l2feeAmount.Add(l2feeAmount, receipts[i].L1Fee)
-		//fmt.Printf("Fee is %v for from=%v at block=%v\n", feeAmount, tx.From.String(), *tx.BlockNumber)
+
+		var feeAmount *big.Int
+		if feeAmountInDupTx := originalFeeAmountInDupTx[string(body.Hash.Hex())]; feeAmountInDupTx == "" {
+			gasUsedBig := new(big.Int).SetUint64(receipt.GasUsed)
+			l2feeAmount := gasUsedBig.Mul(gasUsedBig, txs[i].GasPrice())
+			feeAmount = l2feeAmount.Add(l2feeAmount, receipts[i].L1Fee)
+		} else {
+			// The fees reported in the tx receipt refers to the succeeding duplicate tx rather thaan the original.
+			// We fix the feeAmount here to use the original so that balances are accounted for
+			// Note that these duplicate transactions all failed to complete, so there aren't any additional mint/burn operations to account for.
+			feeAmount = hexutil.MustDecodeBig(feeAmountInDupTx)
+		}
 
 		loadedTxs[i] = tx.LoadedTransaction()
 		loadedTxs[i].Transaction = txs[i]
 		loadedTxs[i].FeeAmount = feeAmount
-		// Miner is fixed on Optimism
-		// TODO: at some point, we'll need to update the coinbase in the block on l2geth in case we change the miner in the future
-		loadedTxs[i].Miner = "0x4200000000000000000000000000000000000011"
+		// Miner is fixed on Optimism and block rewards are sent internally to the OVM_SEQUENCER_FEE_VAULT contract.
+		// However, the block.coinbase is set to 0x0, rather than the vault contract.
+		// It would be nice for l2geth to populate the appropriate coinbase so we're robust against changes to the vault addresss.
+		loadedTxs[i].Miner = sequencerFeeVaultAddr
 		loadedTxs[i].Receipt = receipt
 
 		// Continue if calls does not exist (occurs at genesis)
@@ -354,8 +395,7 @@ func (ec *Client) getBlockReceipts(
 		if receipts[i] == nil {
 			return nil, fmt.Errorf("got empty receipt for %x", txs[i].tx.Hash().Hex())
 		}
-
-		if receipts[i].BlockHash != blockHash {
+		if receipts[i].BlockHash != blockHash && !blockContainsDuplicateTransaction(blockHash) {
 			return nil, fmt.Errorf(
 				"%w: expected block hash %s for transaction but got %s",
 				ErrBlockOrphaned,
@@ -368,12 +408,8 @@ func (ec *Client) getBlockReceipts(
 	return receipts, nil
 }
 
-type rpcCall struct {
-	Result *Call `json:"result"`
-}
-
-type rpcRawCall struct {
-	Result json.RawMessage `json:"result"`
+func blockContainsDuplicateTransaction(blockHash common.Hash) bool {
+	return originalFeeAmountInDupTx[blockHash.Hex()] != ""
 }
 
 // Call is an Ethereum debug trace.
@@ -487,9 +523,7 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 
 	destroyedAccounts := map[string]*big.Int{}
 	for _, trace := range calls {
-		//fmt.Printf("TRACEOPS: type=%v to=%v value=%v\n", trace.Type, trace.To.String(), trace.Value)
-
-		// Rejected transactions do not produce traces (ex: attempts to deploy contracts that aren't in the whitelist)
+		// Rejected transactions do not produce traces (ex: attempts to deploy contracts that aren't in the Optimism whitelist)
 		if trace.Type == "" {
 			continue
 		}
@@ -516,65 +550,25 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 			shouldAdd = false
 		}
 
-		l2Withdraw, l2WithdrawAddr := func() (*big.Int, common.Address) {
-			const BURN_ADDRESS = "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000"
-			var burnAddress = common.HexToAddress(BURN_ADDRESS)
-			if trace.Type != CallOpType {
-				return nil, common.Address{}
-			}
-			if trace.To.Hex() != burnAddress.Hex() {
-				return nil, common.Address{}
-			}
-			if len(trace.Input) != 138 { // 0x | 4-byte selector | 32-byte padded address | 32-byte uint256 amount
-				return nil, common.Address{}
-			}
-			// function selector for burn(address,uint256)
-			if !strings.HasPrefix(trace.Input, "0x9dc29fac") {
-				return nil, common.Address{}
-			}
+		var (
+			burnCall     bool
+			mintCall     bool
+			burnMintAddr common.Address
+			burnMintAmt  *big.Int
+		)
 
-			burnedFrom := trace.Input[10:74]
-			burnedFromAddr := common.HexToAddress(burnedFrom)
-
-			burnedAmtHex := fmt.Sprintf("0x%s", strings.TrimLeft(trace.Input[74:], "0"))
-			burnedAmt, err := hexutil.DecodeBig(burnedAmtHex)
-			if err != nil {
-				return nil, common.Address{}
+		// either we're burning or minting OVM_ETH
+		if trace.Type == CallOpType && trace.To.Hex() == ovmEthAddr.Hex() {
+			burnCall = strings.HasPrefix(trace.Input, burnSelector)
+			mintCall = strings.HasPrefix(trace.Input, mintSelector)
+			if burnCall || mintCall {
+				var err error
+				burnMintAddr, burnMintAmt, err = decodeAddressUint256(trace.Input[fnSelectorLen:])
+				if err != nil {
+					burnMintAddr, burnMintAmt = common.Address{}, nil
+				}
 			}
-
-			return burnedAmt, burnedFromAddr
-		}()
-
-		l2Mint, l2MintAddr := func() (*big.Int, common.Address) {
-			const MINT_ADDRESS = "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000"
-			var mintAddress = common.HexToAddress(MINT_ADDRESS)
-			if trace.Type != CallOpType {
-				return nil, common.Address{}
-			}
-			if trace.To.Hex() != mintAddress.Hex() {
-				return nil, common.Address{}
-			}
-			if len(trace.Input) != 138 { // 0x | 4-byte selector | 32-byte padded address | 32-byte uint256 amount
-				return nil, common.Address{}
-			}
-			// function selector for mint(address,uint256)
-			if !strings.HasPrefix(trace.Input, "0x40c10f19") {
-				return nil, common.Address{}
-			}
-
-			mintedFrom := trace.Input[10:74]
-			mintedToAddr := common.HexToAddress(mintedFrom)
-
-			mintedAmtHex := fmt.Sprintf("0x%s", strings.TrimLeft(trace.Input[74:], "0"))
-			mintedAmt, err := hexutil.DecodeBig(mintedAmtHex)
-			if err != nil {
-				return nil, common.Address{}
-			}
-
-			return mintedAmt, mintedToAddr
-		}()
-
-		//fmt.Printf("TRACE TYPE: %v\n", trace.Type)
+		}
 
 		// Checksum addresses
 		from := MustChecksum(trace.From.String())
@@ -607,7 +601,7 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 
 			ops = append(ops, fromOp)
 		}
-		if l2Withdraw != nil {
+		if burnCall {
 			burnOp := &RosettaTypes.Operation{
 				OperationIdentifier: &RosettaTypes.OperationIdentifier{
 					Index: int64(len(ops) + startIndex),
@@ -615,17 +609,17 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 				Type:   trace.Type,
 				Status: RosettaTypes.String(opStatus),
 				Account: &RosettaTypes.AccountIdentifier{
-					Address: l2WithdrawAddr.String(),
+					Address: burnMintAddr.String(),
 				},
 				Amount: &RosettaTypes.Amount{
-					Value:    new(big.Int).Neg(l2Withdraw).String(),
+					Value:    new(big.Int).Neg(burnMintAmt).String(),
 					Currency: Currency,
 				},
 				Metadata: metadata,
 			}
 			ops = append(ops, burnOp)
 		}
-		if l2Mint != nil {
+		if mintCall {
 			mintOp := &RosettaTypes.Operation{
 				OperationIdentifier: &RosettaTypes.OperationIdentifier{
 					Index: int64(len(ops) + startIndex),
@@ -633,10 +627,10 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 				Type:   trace.Type,
 				Status: RosettaTypes.String(opStatus),
 				Account: &RosettaTypes.AccountIdentifier{
-					Address: l2MintAddr.String(),
+					Address: burnMintAddr.String(),
 				},
 				Amount: &RosettaTypes.Amount{
-					Value:    l2Mint.String(),
+					Value:    burnMintAmt.String(),
 					Currency: Currency,
 				},
 				Metadata: metadata,
@@ -736,6 +730,22 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 	return ops
 }
 
+func decodeAddressUint256(hex string) (common.Address, *big.Int, error) {
+	if len(hex) != 128 {
+		return common.Address{}, nil, fmt.Errorf("invalid hex string length")
+	}
+
+	addrB := hex[:64]
+	addr := common.HexToAddress(addrB)
+
+	bigHex := fmt.Sprintf("0x%s", strings.TrimLeft(hex[64:], "0"))
+	uint256, err := hexutil.DecodeBig(bigHex)
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+	return addr, uint256, nil
+}
+
 type txExtraInfo struct {
 	BlockNumber *string         `json:"blockNumber,omitempty"`
 	BlockHash   *common.Hash    `json:"blockHash,omitempty"`
@@ -779,8 +789,6 @@ type loadedTransaction struct {
 }
 
 func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
-	//fmt.Printf("FEEOPS: %s, %v\n", tx.From.String(), tx.FeeAmount.String())
-
 	return []*RosettaTypes.Operation{
 		{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
@@ -1011,26 +1019,6 @@ func (ec *Client) populateTransactions(
 		len(block.Transactions()),
 	)
 
-	// TODO: do not need this for optimism, but need to confirm
-	// // Compute reward transaction (block + uncle reward)
-	// transactions[0] = ec.blockRewardTransaction(
-	// 	blockIdentifier,
-	// 	block.Coinbase().String(),
-	// 	block.Uncles(),
-	// )
-
-	const (
-		GAS_ORACLE_CONTRACT = "0x420000000000000000000000000000000000000f"
-	)
-
-	// TODO(inphi): load the gasOracleOwner from config (also, need to figure
-	// out how to update owner updates to CB)
-	var (
-		gasOracleOwnerMainnet = common.HexToAddress("0x7107142636C85c549690b1Aca12Bdb8052d26Ae6")
-		gasOracleOwnerKovan   = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
-		gasOracleOwnerGoerli  = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
-	)
-	var gasOracleAddr = common.HexToAddress(GAS_ORACLE_CONTRACT)
 	for i, tx := range loadedTransactions {
 		if tx.From != nil && tx.Transaction != nil && tx.Transaction.To() != nil {
 			from, to := tx.From.Hex(), tx.Transaction.To().Hex()
@@ -1038,9 +1026,9 @@ func (ec *Client) populateTransactions(
 			// These are tx across L1 and L2. These cost zero gas as they're manufactured by the sequencer
 			if from == "0x0000000000000000000000000000000000000000" {
 				tx.FeeAmount.SetUint64(0)
-			} else if (from == gasOracleOwnerMainnet.Hex() || from == gasOracleOwnerKovan.Hex() || from == gasOracleOwnerGoerli.Hex()) && to == gasOracleAddr.Hex() {
+			} else if (to == gasPriceOracleAddr.Hex()) && (from == gasPriceOracleOwnerMainnet.Hex() || from == gasPriceOracleOwnerKovan.Hex() || from == gasPriceOracleOwnerGoerli.Hex()) {
 				// The sequencer doesn't charge the owner of the gpo.
-				// Set the fee mount to zero to not affect gas oracle owner balances
+				// Set the fee mount to zero to not affect gpo owner balances
 				tx.FeeAmount.SetUint64(0)
 			}
 		}
@@ -1067,8 +1055,6 @@ func (ec *Client) populateTransaction(
 	feeOps := feeOps(tx)
 	ops = append(ops, feeOps...)
 
-	// TODO: figure out why trace ops look different???
-	// Compute trace operations
 	traces := flattenTraces(tx.Trace, []*flatCall{})
 
 	traceOps := traceOps(traces, len(ops))

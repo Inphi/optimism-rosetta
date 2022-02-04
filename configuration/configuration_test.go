@@ -89,23 +89,6 @@ func TestLoadConfiguration(t *testing.T) {
 				SkipGethAdmin:          true,
 			},
 		},
-		"all set (rinkeby)": {
-			Mode:    string(Online),
-			Network: Rinkeby,
-			Port:    "1000",
-			cfg: &Configuration{
-				Mode: Online,
-				Network: &types.NetworkIdentifier{
-					Network:    optimism.RinkebyNetwork,
-					Blockchain: optimism.Blockchain,
-				},
-				Params:                 params.RinkebyChainConfig,
-				GenesisBlockIdentifier: optimism.RinkebyGenesisBlockIdentifier,
-				Port:                   1000,
-				GethURL:                DefaultGethURL,
-				GethArguments:          optimism.RinkebyGethArguments,
-			},
-		},
 		"all set (goerli)": {
 			Mode:    string(Online),
 			Network: Goerli,
