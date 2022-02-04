@@ -760,8 +760,6 @@ type loadedTransaction struct {
 }
 
 func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
-	//fmt.Printf("FEEOPS: %s, %v\n", tx.From.String(), tx.FeeAmount.String())
-
 	return []*RosettaTypes.Operation{
 		{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{

@@ -1,0 +1,82 @@
+{
+    "block": {
+        "block_identifier": {
+            "index": 87673,
+            "hash": "0x12b4f18d042959d977964c54a675e2613faf0d7fae35dc2394a652bf3ef3f2da"
+        },
+        "parent_block_identifier": {
+            "index": 87672,
+            "hash": "0x750068b640e0f5a355439a3650a2999741868c727f9860b08f1adc1b583bc247"
+        },
+        "timestamp": 1636955312000,
+        "transactions": [
+            {
+                "transaction_identifier": {
+                    "hash": "0xcf6e46a1f41e1678fba10590f9d092690c5e8fd2e85a3614715fb21caa74655d"
+                },
+                "operations": [
+                    {
+                        "operation_identifier": {
+                            "index": 0
+                        },
+                        "type": "FEE",
+                        "status": "SUCCESS",
+                        "account": {
+                            "address": "0x6C3F14DA26556585706c02af737a44E67Dc6954D"
+                        },
+                        "amount": {
+                            "value": "-4824374488020200",
+                            "currency": {
+                                "symbol": "ETH",
+                                "decimals": 18
+                            }
+                        }
+                    },
+                    {
+                        "operation_identifier": {
+                            "index": 1
+                        },
+                        "related_operations": [
+                            {
+                                "index": 0
+                            }
+                        ],
+                        "type": "MINER_REWARD",
+                        "status": "SUCCESS",
+                        "account": {
+                            "address": "0x4200000000000000000000000000000000000011"
+                        },
+                        "amount": {
+                            "value": "4824374488020200",
+                            "currency": {
+                                "symbol": "ETH",
+                                "decimals": 18
+                            }
+                        }
+                    }
+                ],
+                "metadata": {
+                    "gas_limit": "0x2dc6c0",
+                    "gas_price": "0xf4240",
+                    "receipt": {
+                        "blockHash": "0x12b4f18d042959d977964c54a675e2613faf0d7fae35dc2394a652bf3ef3f2da",
+                        "blockNumber": "0x15679",
+                        "contractAddress": "0xbfd340eb52d77adeda7622367877072e72e5bfdb",
+                        "cumulativeGasUsed": "0x12398",
+                        "gasUsed": "0x12398",
+                        "l1Fee": "0x1123acd6411ee8",
+                        "l1FeeScalar": "1.5",
+                        "l1GasPrice": "0x1d125d9588",
+                        "l1GasUsed": "0x649e",
+                        "logs": [],
+                        "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                        "root": "0x",
+                        "status": "0x0",
+                        "transactionHash": "0xcf6e46a1f41e1678fba10590f9d092690c5e8fd2e85a3614715fb21caa74655d",
+                        "transactionIndex": "0x0"
+                    }
+                }
+            }
+        ]
+    }
+}
