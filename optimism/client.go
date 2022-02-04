@@ -57,6 +57,23 @@ var (
 	gasPriceOracleOwnerMainnet = common.HexToAddress("0x7107142636C85c549690b1Aca12Bdb8052d26Ae6")
 	gasPriceOracleOwnerKovan   = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
 	gasPriceOracleOwnerGoerli  = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
+
+	// The following mainnet block hashes have transaction (hashes) that are also present in succeeding blocks.
+	// This occured due to a bug in contract whitelisting. Unfortunately eth_getTransactionByX now returns the succeeding block rather than the original.
+	// This is only an issue when reconciling account balances of the affected contracts.
+	// We fix this by hardcoding the original tx fees rather using the computed fees in the succeeding block (which had different block fee parameters at the time).
+	originalFeeAmountInDupTx = map[string]string{
+		"0x09b353fbfa414ff7765e9af807f488110775d55cfeee7df9ef3ee47e2aa0e9b9": "0x1c749d072a0258", // block height 985
+		"0x5471d82d53ccbddaf43c0fe223d97b125a80fc10ef006eb0fdf6ba3ec326ff39": "0x208e99382fa09c", // 19022
+		"0x5572ca94f6ef220f754ee486190a15c43aadcdfb2371ed3be1cd2d20f6edd96f": "0x19d4bf57ba1d5c", // 45036
+		"0x14a46bae4ae839106d7b45c6110dcf3935b38ed9b5701eb51c0450317b4abd2e": "0xab05782f225c1",  // 123322
+		"0x5a24e459391c24d364497d914024edb75823547dc44573ee3ae965cb613fca16": "0xae5ab279b6d9f",  // 123542
+		"0x336c8e5427d7049b0469aa23a61f52cecedcb5f41bde3a1684ba84136c6068e3": "0x1faece70f1455b", // 1133328
+		"0x1b3207bf43acb6a72e188edd91bced8abea2dd0edc47587db3e142ba10b7e001": "0x1f25f9be77ec1a", // 1135391
+		"0x638a3a797476c8a9b9ed5d6aa88e2e59e1b562fb4853f253c7c08753a7a285fb": "0x14c4434ea24463", // 1144468
+		"0x8fb9a287ccbe52b9ad39b47c95837ef257c3b684028e3ce2185bdf41d18646fa": "0x2f0664e5df8938", // 1244152
+		"0x2c987042c2af3e009ef8d2cebcdf659faaa694089e0f9231202f3efdcb6562b8": "0x3f69ca816a72d6", // 1272994
+	}
 )
 
 // Client allows for querying a set of specific Ethereum endpoints in an
@@ -283,9 +300,18 @@ func (ec *Client) getBlock(
 	for i, tx := range body.Transactions {
 		txs[i] = tx.tx
 		receipt := receipts[i]
-		gasUsedBig := new(big.Int).SetUint64(receipt.GasUsed)
-		l2feeAmount := gasUsedBig.Mul(gasUsedBig, txs[i].GasPrice())
-		feeAmount := l2feeAmount.Add(l2feeAmount, receipts[i].L1Fee)
+
+		var feeAmount *big.Int
+		if feeAmountInDupTx := originalFeeAmountInDupTx[string(body.Hash.Hex())]; feeAmountInDupTx == "" {
+			gasUsedBig := new(big.Int).SetUint64(receipt.GasUsed)
+			l2feeAmount := gasUsedBig.Mul(gasUsedBig, txs[i].GasPrice())
+			feeAmount = l2feeAmount.Add(l2feeAmount, receipts[i].L1Fee)
+		} else {
+			// The fees reported in the tx receipt refers to the succeeding duplicate tx rather thaan the original.
+			// We fix the feeAmount here to use the original so that balances are accounted for
+			// Note that these duplicate transactions all failed to complete, so there aren't any additional mint/burn operations to account for.
+			feeAmount = hexutil.MustDecodeBig(feeAmountInDupTx)
+		}
 
 		loadedTxs[i] = tx.LoadedTransaction()
 		loadedTxs[i].Transaction = txs[i]
@@ -369,8 +395,7 @@ func (ec *Client) getBlockReceipts(
 		if receipts[i] == nil {
 			return nil, fmt.Errorf("got empty receipt for %x", txs[i].tx.Hash().Hex())
 		}
-
-		if receipts[i].BlockHash != blockHash {
+		if receipts[i].BlockHash != blockHash && !blockContainsDuplicateTransaction(blockHash) {
 			return nil, fmt.Errorf(
 				"%w: expected block hash %s for transaction but got %s",
 				ErrBlockOrphaned,
@@ -381,6 +406,10 @@ func (ec *Client) getBlockReceipts(
 	}
 
 	return receipts, nil
+}
+
+func blockContainsDuplicateTransaction(blockHash common.Hash) bool {
+	return originalFeeAmountInDupTx[blockHash.Hex()] != ""
 }
 
 // Call is an Ethereum debug trace.
