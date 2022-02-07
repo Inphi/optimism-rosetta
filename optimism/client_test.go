@@ -1410,6 +1410,125 @@ func TestBlock_Index(t *testing.T) {
 	mockGraphQL.AssertExpectations(t)
 }
 
+// Block with duplicate transaction bug
+func TestBlock_985(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	mockGraphQL := &mocks.GraphQL{}
+
+	tc, err := testTraceConfig()
+	assert.NoError(t, err)
+	c := &Client{
+		c:              mockJSONRPC,
+		g:              mockGraphQL,
+		tc:             tc,
+		p:              params.GoerliChainConfig,
+		traceSemaphore: semaphore.NewWeighted(100),
+	}
+
+	ctx := context.Background()
+	mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		"eth_getBlockByNumber",
+		"0x3d9",
+		true,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+
+			file, err := ioutil.ReadFile("testdata/block_985.json")
+			assert.NoError(t, err)
+
+			*r = json.RawMessage(file)
+		},
+	).Once()
+	mockJSONRPC.On(
+		"BatchCallContext",
+		ctx,
+		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
+			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
+		}),
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).([]rpc.BatchElem)
+
+			assert.Len(t, r, 1)
+			assert.Len(t, r[0].Args, 2)
+			assert.Equal(
+				t,
+				common.HexToHash("0x9ed8f713b2cc6439657db52dcd2fdb9cc944915428f3c6e2a7703e242b259cb9").Hex(),
+				r[0].Args[0],
+			)
+			assert.Equal(t, tc, r[0].Args[1])
+
+			file, err := ioutil.ReadFile(
+				"testdata/tx_trace_985.json",
+			)
+			assert.NoError(t, err)
+
+			call := new(Call)
+			assert.NoError(t, call.UnmarshalJSON(file))
+			*(r[0].Result.(**Call)) = call
+		},
+	).Once()
+	mockJSONRPC.On(
+		"BatchCallContext",
+		ctx,
+		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
+			return len(rpcs) == 1 && rpcs[0].Method == "eth_getTransactionReceipt"
+		}),
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).([]rpc.BatchElem)
+
+			assert.Len(t, r, 1)
+			assert.Equal(
+				t,
+				"0x9ed8f713b2cc6439657db52dcd2fdb9cc944915428f3c6e2a7703e242b259cb9",
+				r[0].Args[0],
+			)
+
+			file, err := ioutil.ReadFile(
+				"testdata/tx_receipt_0x9ed8f713b2cc6439657db52dcd2fdb9cc944915428f3c6e2a7703e242b259cb9.json",
+			) // nolint
+			assert.NoError(t, err)
+
+			receipt := new(types.Receipt)
+			assert.NoError(t, receipt.UnmarshalJSON(file))
+			*(r[0].Result.(**types.Receipt)) = receipt
+		},
+	).Once()
+
+	correctRaw, err := ioutil.ReadFile("testdata/block_response_985.json")
+	assert.NoError(t, err)
+	var correctResp *RosettaTypes.BlockResponse
+	assert.NoError(t, json.Unmarshal(correctRaw, &correctResp))
+
+	resp, err := c.Block(
+		ctx,
+		&RosettaTypes.PartialBlockIdentifier{
+			Index: RosettaTypes.Int64(985),
+		},
+	)
+	assert.NoError(t, err)
+
+	// Ensure types match
+	jsonResp, err := jsonifyBlock(resp)
+	assert.NoError(t, err)
+	assert.Equal(t, correctResp.Block, jsonResp)
+
+	mockJSONRPC.AssertExpectations(t)
+	mockGraphQL.AssertExpectations(t)
+
+}
+
 // Block with tx send to non-whitelisted contract
 func TestBlock_87673(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
