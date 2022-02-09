@@ -21,9 +21,11 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	l2geth "github.com/ethereum-optimism/optimism/l2geth"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
@@ -33,6 +35,7 @@ import (
 	"github.com/ethereum-optimism/optimism/l2geth/rlp"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"golang.org/x/sync/semaphore"
 )
@@ -48,6 +51,12 @@ const (
 	fnSelectorLen = 10
 
 	sequencerFeeVaultAddr = "0x4200000000000000000000000000000000000011"
+
+	erc20TransferEventLogTopics = "Transfer(address,address,uint256)"
+
+	// While parsing ERC20 ops, we will ignore any event logs that we think are an ERC20 tansfer
+	// that do not contain 3 topics and who's 'data' field is not a single 32 byte hex string representing the amount of the transfer
+	numTopicsERC20Transfer = 3
 )
 
 var (
@@ -88,6 +97,8 @@ type Client struct {
 	c JSONRPC
 	g GraphQL
 
+	currencyFetcher CurrencyFetcher
+
 	traceSemaphore *semaphore.Weighted
 
 	skipAdminCalls bool
@@ -112,7 +123,20 @@ func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool) (*Cl
 		return nil, fmt.Errorf("%w: unable to create GraphQL client", err)
 	}
 
-	return &Client{params, tc, c, g, semaphore.NewWeighted(maxTraceConcurrency), skipAdminCalls}, nil
+	currencyFetcher, err := newERC20CurrencyFetcher(c)
+	if err != nil {
+		return nil, fmt.Errorf("%w: unable to create CurrencyFetcher", err)
+	}
+
+	return &Client{
+		p:               params,
+		tc:              tc,
+		c:               c,
+		g:               g,
+		currencyFetcher: currencyFetcher,
+		traceSemaphore:  semaphore.NewWeighted(maxTraceConcurrency),
+		skipAdminCalls:  skipAdminCalls,
+	}, nil
 }
 
 // Close shuts down the RPC client connection.
@@ -408,6 +432,113 @@ func (ec *Client) getBlockReceipts(
 	return receipts, nil
 }
 
+func (ec *Client) erc20TokenOps(
+	ctx context.Context,
+	block *types.Block,
+	receipt *types.Receipt,
+	startIndex int,
+) ([]*RosettaTypes.Operation, error) {
+	ops := []*RosettaTypes.Operation{}
+	var status string
+	if receipt.Status == 1 {
+		status = SuccessStatus
+	} else {
+		status = FailureStatus
+	}
+
+	keccak := crypto.Keccak256([]byte(erc20TransferEventLogTopics))
+	encodedTransferMethod := hexutil.Encode(keccak)
+
+	for _, receiptLog := range receipt.Logs {
+		// If this isn't an ERC20 transfer, skip
+		if !containsTopic(receiptLog, encodedTransferMethod) {
+			continue
+		}
+		if len(receiptLog.Topics) != numTopicsERC20Transfer {
+			continue
+		}
+
+		value := new(big.Int).SetBytes(receiptLog.Data)
+		// If value <= 0, skip to the next receiptLog. Otherwise, proceed to generate the debit + credit operations.
+		if value.Cmp(big.NewInt(0)) < 1 {
+			continue
+		}
+
+		contractAddress := receiptLog.Address.String()
+		_, ok := ChecksumAddress(contractAddress)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a valid address", contractAddress)
+		}
+
+		fromAddress := common.HexToAddress(receiptLog.Topics[1].Hex()).String()
+		_, ok = ChecksumAddress(fromAddress)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a valid address", fromAddress)
+		}
+
+		toAddress := common.HexToAddress(receiptLog.Topics[2].Hex()).String()
+		_, ok = ChecksumAddress(toAddress)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a valid address", toAddress)
+		}
+
+		currency, err := ec.currencyFetcher.fetchCurrency(ctx, block, contractAddress)
+		// If an error is encountered while fetching currency details, return a default value and let the client handle it.
+		if err != nil {
+			log.Print(fmt.Sprintf("error while fetching currency details for currency: %s", contractAddress), err)
+			currency = &RosettaTypes.Currency{
+				Symbol:   defaultERC20Symbol,
+				Decimals: defaultERC20Decimals,
+				Metadata: map[string]interface{}{
+					ContractAddressKey: contractAddress,
+				},
+			}
+		}
+
+		fromOp := &RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: int64(len(ops) + startIndex),
+			},
+			Type:   PaymentOpType,
+			Status: RosettaTypes.String(status),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: fromAddress,
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    new(big.Int).Neg(value).String(),
+				Currency: currency,
+			},
+		}
+
+		ops = append(ops, fromOp)
+
+		lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
+		toOp := &RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: lastOpIndex + 1,
+			},
+			RelatedOperations: []*RosettaTypes.OperationIdentifier{
+				{
+					Index: lastOpIndex,
+				},
+			},
+			Type:   PaymentOpType,
+			Status: RosettaTypes.String(status),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: toAddress,
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    value.String(),
+				Currency: currency,
+			},
+		}
+
+		ops = append(ops, toOp)
+	}
+
+	return ops, nil
+}
+
 func blockContainsDuplicateTransaction(blockHash common.Hash) bool {
 	return originalFeeAmountInDupTx[blockHash.Hex()] != ""
 }
@@ -511,6 +642,16 @@ func flattenTraces(data *Call, flattened []*flatCall) []*flatCall {
 		results = append(results, children...)
 	}
 	return results
+}
+
+func containsTopic(log *types.Log, topic string) bool {
+	for _, t := range log.Topics {
+		hex := t.Hex()
+		if hex == topic {
+			return true
+		}
+	}
+	return false
 }
 
 // traceOps returns all *RosettaTypes.Operation for a given
@@ -992,7 +1133,7 @@ func (ec *Client) getParsedBlock(
 		}
 	}
 
-	txs, err := ec.populateTransactions(blockIdentifier, block, loadedTransactions)
+	txs, err := ec.populateTransactions(ctx, blockIdentifier, block, loadedTransactions)
 	if err != nil {
 		return nil, err
 	}
@@ -1010,6 +1151,7 @@ func convertTime(time uint64) int64 {
 }
 
 func (ec *Client) populateTransactions(
+	ctx context.Context,
 	blockIdentifier *RosettaTypes.BlockIdentifier,
 	block *types.Block,
 	loadedTransactions []*loadedTransaction,
@@ -1033,9 +1175,7 @@ func (ec *Client) populateTransactions(
 			}
 		}
 
-		transaction, err := ec.populateTransaction(
-			tx,
-		)
+		transaction, err := ec.populateTransaction(ctx, block, tx)
 		if err != nil {
 			return nil, fmt.Errorf("%w: cannot parse %s", err, tx.Transaction.Hash().Hex())
 		}
@@ -1047,6 +1187,8 @@ func (ec *Client) populateTransactions(
 }
 
 func (ec *Client) populateTransaction(
+	ctx context.Context,
+	block *types.Block,
 	tx *loadedTransaction,
 ) (*RosettaTypes.Transaction, error) {
 	ops := []*RosettaTypes.Operation{}
@@ -1054,6 +1196,12 @@ func (ec *Client) populateTransaction(
 	// Compute fee operations
 	feeOps := feeOps(tx)
 	ops = append(ops, feeOps...)
+
+	erc20TokenOps, err := ec.erc20TokenOps(ctx, block, tx.Receipt, len(ops))
+	if err != nil {
+		return nil, err
+	}
+	ops = append(ops, erc20TokenOps...)
 
 	traces := flattenTraces(tx.Trace, []*flatCall{})
 
@@ -1148,17 +1296,22 @@ type graphqlBalance struct {
 	} `json:"data"`
 }
 
+// decodeHexData accepts a fully formed hex string (including the 0x prefix) and returns a big.Int
+func decodeHexData(data string) (*big.Int, error) {
+	decoded, ok := new(big.Int).SetString(data[2:], 16)
+	if !ok {
+		return nil, fmt.Errorf("could not extract data from %s", data)
+	}
+	return decoded, nil
+}
+
 // Balance returns the balance of a *RosettaTypes.AccountIdentifier
 // at a *RosettaTypes.PartialBlockIdentifier.
-//
-// We must use graphql to get the balance atomically (the
-// rpc method for balance does not allow for querying
-// by block hash nor return the block hash where
-// the balance was fetched).
 func (ec *Client) Balance(
 	ctx context.Context,
 	account *RosettaTypes.AccountIdentifier,
 	block *RosettaTypes.PartialBlockIdentifier,
+	currencies []*RosettaTypes.Currency,
 ) (*RosettaTypes.AccountBalanceResponse, error) {
 	var raw json.RawMessage
 	if block != nil {
@@ -1213,13 +1366,55 @@ func (ec *Client) Balance(
 		}
 	}
 
+	nativeBalance := &RosettaTypes.Amount{
+		Value:    balance.ToInt().String(),
+		Currency: Currency,
+	}
+
+	erc20Data, err := artifacts.ERC20ABI.Pack("balanceOf", common.HexToAddress(account.Address))
+	if err != nil {
+		return nil, err
+	}
+	encodedERC20Data := hexutil.Encode(erc20Data)
+
+	var balances []*RosettaTypes.Amount
+	for _, curr := range currencies {
+		if reflect.DeepEqual(curr, Currency) {
+			balances = append(balances, nativeBalance)
+			continue
+		}
+
+		contractAddress := fmt.Sprintf("%s", curr.Metadata[ContractAddressKey])
+		_, ok := ChecksumAddress(contractAddress)
+		if !ok {
+			return nil, fmt.Errorf("invalid contract address %s", contractAddress)
+		}
+
+		callParams := map[string]string{
+			"to":   contractAddress,
+			"data": encodedERC20Data,
+		}
+		var resp string
+		if err := ec.c.CallContext(ctx, &resp, "eth_call", callParams, blockNum); err != nil {
+			return nil, err
+		}
+		balance, err := decodeHexData(resp)
+		if err != nil {
+			return nil, fmt.Errorf("err encountered for currency %s, token address %s; %v", curr.Symbol, contractAddress, err)
+		}
+
+		balances = append(balances, &RosettaTypes.Amount{
+			Value:    balance.String(),
+			Currency: curr,
+		})
+	}
+
+	if len(currencies) == 0 {
+		balances = append(balances, nativeBalance)
+	}
+
 	return &RosettaTypes.AccountBalanceResponse{
-		Balances: []*RosettaTypes.Amount{
-			{
-				Value:    balance.ToInt().String(),
-				Currency: Currency,
-			},
-		},
+		Balances: balances,
 		BlockIdentifier: &RosettaTypes.BlockIdentifier{
 			Hash:  head.Hash().Hex(),
 			Index: head.Number.Int64(),

@@ -342,6 +342,7 @@ func TestBalance(t *testing.T) {
 			Address: "0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55",
 		},
 		nil,
+		nil,
 	)
 	assert.Equal(t, &RosettaTypes.AccountBalanceResponse{
 		BlockIdentifier: &RosettaTypes.BlockIdentifier{
@@ -435,6 +436,7 @@ func TestBalance_Historical_Hash(t *testing.T) {
 			),
 			Index: RosettaTypes.Int64(8165),
 		},
+		nil,
 	)
 	assert.Equal(t, &RosettaTypes.AccountBalanceResponse{
 		BlockIdentifier: &RosettaTypes.BlockIdentifier{
@@ -523,6 +525,7 @@ func TestBalance_Historical_Index(t *testing.T) {
 		&RosettaTypes.PartialBlockIdentifier{
 			Index: RosettaTypes.Int64(10992),
 		},
+		nil,
 	)
 	assert.Equal(t, &RosettaTypes.AccountBalanceResponse{
 		BlockIdentifier: &RosettaTypes.BlockIdentifier{
@@ -599,6 +602,7 @@ func TestBalance_InvalidAddress(t *testing.T) {
 			Address: "0x4cfc400fed52f9681b42454c2db4b18ab98f8de",
 		},
 		nil,
+		nil,
 	)
 	assert.Nil(t, resp)
 	assert.Error(t, err)
@@ -646,6 +650,7 @@ func TestBalance_InvalidHash(t *testing.T) {
 				invalidHash,
 			),
 		},
+		nil,
 	)
 	assert.Nil(t, resp)
 	assert.Error(t, err)

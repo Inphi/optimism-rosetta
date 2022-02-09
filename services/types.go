@@ -45,6 +45,7 @@ type Client interface {
 		context.Context,
 		*types.AccountIdentifier,
 		*types.PartialBlockIdentifier,
+		[]*types.Currency,
 	) (*types.AccountBalanceResponse, error)
 
 	PendingNonceAt(context.Context, common.Address) (uint64, error)

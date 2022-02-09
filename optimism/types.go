@@ -46,9 +46,13 @@ const (
 	// used in Currency.
 	Symbol = "ETH"
 
+	TokenSymbol = "OP"
+
 	// Decimals is the decimals value
 	// used in Currency.
 	Decimals = 18
+
+	TokenDecimals = 18
 
 	// MinerRewardOpType is used to describe
 	// a miner block reward.
@@ -56,6 +60,9 @@ const (
 
 	// FeeOpType is used to represent fee operations.
 	FeeOpType = "FEE"
+
+	// PaymentOpType is used to represent token transfer operations
+	PaymentOpType = "PAYMENT"
 
 	// CallOpType is used to represent CALL trace operations.
 	CallOpType = "CALL"
@@ -108,6 +115,10 @@ const (
 
 	// IncludeMempoolCoins does not apply to rosetta-ethereum as it is not UTXO-based.
 	IncludeMempoolCoins = false
+
+	// ContractAddressKey is the key used to denote the contract address
+	// for a token, provided via Currency metadata.
+	ContractAddressKey string = "token_address"
 )
 
 var (
@@ -146,6 +157,7 @@ var (
 	Currency = &types.Currency{
 		Symbol:   Symbol,
 		Decimals: Decimals,
+		// TODO(inphi): populate metadata with token address
 	}
 
 	// OperationTypes are all suppoorted operation types.
