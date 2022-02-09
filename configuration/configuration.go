@@ -46,7 +46,7 @@ const (
 	// Goerli is the Ethereum Görli testnet.
 	Goerli string = "GOERLI"
 
-	// Testnet defaults to `Ropsten` for backwards compatibility.
+	// Testnet defaults to `Ropsten` for backwards compatibility (even though we don't have a ropsten network on Optimism).
 	Testnet string = "TESTNET"
 
 	// DataDirectory is the default location for all

@@ -114,14 +114,14 @@ func TestLoadConfiguration(t *testing.T) {
 			cfg: &Configuration{
 				Mode: Online,
 				Network: &types.NetworkIdentifier{
-					Network:    optimism.GoerliNetwork,
+					Network:    optimism.TestnetNetwork,
 					Blockchain: optimism.Blockchain,
 				},
-				Params:                 params.GoerliChainConfig,
-				GenesisBlockIdentifier: optimism.GoerliGenesisBlockIdentifier,
+				Params:                 params.TestnetChainConfig,
+				GenesisBlockIdentifier: optimism.TestnetGenesisBlockIdentifier,
 				Port:                   1000,
 				GethURL:                DefaultGethURL,
-				GethArguments:          optimism.GoerliGethArguments,
+				GethArguments:          optimism.TestnetGethArguments,
 				SkipGethAdmin:          true,
 			},
 		},
