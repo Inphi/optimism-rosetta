@@ -5,7 +5,7 @@ require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.8.0 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20211221213803-35110c587616 // indirect
-	github.com/coinbase/rosetta-sdk-go v0.7.2
+	github.com/coinbase/rosetta-sdk-go v0.7.3
 	github.com/elastic/gosigar v0.14.2 // indirect
 	github.com/ethereum-optimism/optimism/l2geth v0.0.0-20220120004223-a8763df79616
 	github.com/ethereum/go-ethereum v1.10.15
