@@ -46,6 +46,14 @@ func TestAccountBalance_Offline(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+var mockCurrency = &types.Currency{
+	Symbol:   "mock",
+	Decimals: 18,
+	Metadata: map[string]interface{}{
+		"contractAddress": "0x9A4240883d1b4b82f8E9F21bEdD1b95Fb5176e4d",
+	},
+}
+
 func TestAccountBalance_Online(t *testing.T) {
 	cfg := &configuration.Configuration{
 		Mode: configuration.Online,
@@ -71,6 +79,10 @@ func TestAccountBalance_Online(t *testing.T) {
 				Value:    "25",
 				Currency: optimism.Currency,
 			},
+			{
+				Value:    "1000",
+				Currency: mockCurrency,
+			},
 		},
 	}
 
@@ -79,11 +91,15 @@ func TestAccountBalance_Online(t *testing.T) {
 		ctx,
 		account,
 		types.ConstructPartialBlockIdentifier(block),
+		[]*types.Currency{mockCurrency},
 	).Return(resp, nil).Once()
 
 	bal, err := servicer.AccountBalance(ctx, &types.AccountBalanceRequest{
 		AccountIdentifier: account,
 		BlockIdentifier:   types.ConstructPartialBlockIdentifier(block),
+		Currencies: []*types.Currency{
+			mockCurrency,
+		},
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, resp, bal)
