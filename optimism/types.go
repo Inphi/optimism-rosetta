@@ -164,6 +164,7 @@ var (
 	OperationTypes = []string{
 		MinerRewardOpType,
 		FeeOpType,
+		PaymentOpType,
 		CallOpType,
 		CreateOpType,
 		Create2OpType,

@@ -43,7 +43,7 @@ import (
 const (
 	gethHTTPTimeout = 120 * time.Second
 
-	maxTraceConcurrency  = int64(8) // nolint:gomnd
+	maxTraceConcurrency  = int64(2) // nolint:gomnd
 	semaphoreTraceWeight = int64(1) // nolint:gomnd
 
 	burnSelector  = "0x9dc29fac" // keccak(burn(address,uint256))
@@ -477,6 +477,10 @@ func (ec *Client) erc20TokenOps(
 		}
 		// If it's a deposit tx, skip
 		if contractAddress == ovmEthAddr.String() {
+			continue
+		}
+		// TODO(inphi): For now, we're hardcoding the supported OP token contracts on kovan. Need to put this in a config for later
+		if contractAddress != "0x9A4240883d1b4b82f8E9F21bEdD1b95Fb5176e4d" {
 			continue
 		}
 
