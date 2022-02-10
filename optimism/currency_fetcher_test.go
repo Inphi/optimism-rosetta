@@ -12,55 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package optimism 
+package optimism
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
 	"testing"
 
 	mocks "github.com/coinbase/rosetta-ethereum/mocks/optimism"
+	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
+	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
+	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 )
 
 const (
-	MOTContractAddress = "0xAA3aE75e8118FC1b6DeBC99Bc52dB28F7403A54c"
-	MOTSymbol          = "MOT"
-	MOTDecimals        = 18
+	OPContractAddress = "0xAA3aE75e8118FC1b6DeBC99Bc52dB28F7403A54c"
+	OPSymbol          = "symbol"
+	OPDecimals        = 18
 
-	// emptySymbolContractAddress has *no* symbol; Polygonscan displays it as "N/A"
-	emptySymbolContractAddress = "0xE5961bDFc48023f9f02E2d05b1115fB1e5695B08"
-	emptySymbolDecimals        = 0
+	emptySymbolDecimals = 0
 
 	blankSymbol                = ""
 	blankSymbolContractAddress = "0x6bd4e69abe087be7c09f094087d5c7f75b010abc"
 	blankSymbolDecimals        = 18
 
-	invalidContractAddressNonHex        = "0xdeadbeefdeadbeefdeadbeefdeadbeefzzzzzzzz"
-	invalidContractAddressTooShort      = "0xdeadbeef"
-	invalidContractAddressMissingPrefix = "deadbeef"
-
-	// mumbai currency
 	invalidWETHContractAddress = "0x00dD3599Ae4813F3528C0d532851B937Cee1B489"
 	invalidWETHSymbol          = "WETH"
 	invalidWETHDecimals        = 0 // raw payload overflow
 
-	// mainnet currency
-	invalidXSDOContractAddress = "0x9A28226CF889Af5B7339CD3117978F5216b72d05"
-	invalidXSDOSymbol          = "XSDO"
-	invalidXSDODecimals        = 0 // raw payload returns 18000000000000000000, resulting in overflow
+	invalidContractAddressNonHex        = "0xdeadbeefdeadbeefdeadbeefdeadbeefzzzzzzzz"
+	invalidContractAddressTooShort      = "0xdeadbeef"
+	invalidContractAddressMissingPrefix = "deadbeef"
 
 	unknownContractAddress = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 )
 
-var MOTCurrency = &RosettaTypes.Currency{
-	Symbol:   MOTSymbol,
-	Decimals: int32(MOTDecimals),
+var OPCurrency = &RosettaTypes.Currency{
+	Symbol:   OPSymbol,
+	Decimals: int32(OPDecimals),
 	Metadata: map[string]interface{}{
-		ContractAddressKey: MOTContractAddress,
+		ContractAddressKey: OPContractAddress,
 	},
 }
 
@@ -69,14 +63,6 @@ var blankSymbolCurrency = &RosettaTypes.Currency{
 	Decimals: int32(blankSymbolDecimals),
 	Metadata: map[string]interface{}{
 		ContractAddressKey: blankSymbolContractAddress,
-	},
-}
-
-var emptySymbolCurrency = &RosettaTypes.Currency{
-	Symbol:   defaultERC20Symbol,
-	Decimals: int32(emptySymbolDecimals),
-	Metadata: map[string]interface{}{
-		ContractAddressKey: emptySymbolContractAddress,
 	},
 }
 
@@ -96,51 +82,49 @@ var invalidWETHCurrency = &RosettaTypes.Currency{
 	},
 }
 
-var invalidXSDOCurrency = &RosettaTypes.Currency{
-	Symbol:   invalidXSDOSymbol,
-	Decimals: int32(invalidXSDODecimals),
-	Metadata: map[string]interface{}{
-		ContractAddressKey: invalidXSDOContractAddress,
-	},
+func erc20ABIPack(method string) string {
+	data, err := artifacts.ERC20ABI.Pack(method)
+	if err != nil {
+		panic(err)
+	}
+	return hexutil.Encode(data)
 }
 
-func mockFetchSymbol(
+var encodedDecimalsData = erc20ABIPack("decimals")
+var encodedSymbolData = erc20ABIPack("symbol")
+
+func mockCalls(
 	t *testing.T,
-	mockGraphQL *mocks.GraphQL,
+	mockJSONRPC *mocks.JSONRPC,
 	contractAddress string,
+	blockNum uint64,
+	decimals string,
+	symbol string,
 ) {
 	ctx := context.Background()
-
-	// Mock symbol call
-	result, err := ioutil.ReadFile(fmt.Sprintf("testdata/token_contracts/symbol_%s.json", contractAddress))
-	assert.NoError(t, err)
-	mockGraphQL.On(
-		"Query",
+	mockJSONRPC.On(
+		"BatchCallContext",
 		ctx,
-		buildGraphqlCallQuery("", contractAddress, symbolABIEncoded),
+		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
+			return len(rpcs) == 2 && rpcs[0].Method == "eth_call" && rpcs[1].Method == "eth_call"
+		}),
 	).Return(
-		string(result),
 		nil,
-	).Once()
-}
+	).Run(
+		func(args mock.Arguments) {
+			blockNumHex := hexutil.EncodeUint64(blockNum)
 
-func mockFetchDecimals(
-	t *testing.T,
-	mockGraphQL *mocks.GraphQL,
-	contractAddress string,
-) {
-	ctx := context.Background()
+			r := args.Get(1).([]rpc.BatchElem)
+			assert.Len(t, r, 2)
+			assert.Equal(t, r[0].Args[0], map[string]string{"to": contractAddress, "data": encodedDecimalsData})
+			assert.Equal(t, r[0].Args[1], blockNumHex)
+			assert.Equal(t, r[1].Args[0], map[string]string{"to": contractAddress, "data": encodedSymbolData})
+			assert.Equal(t, r[1].Args[1], blockNumHex)
 
-	// Mock decimals call
-	result, err := ioutil.ReadFile(fmt.Sprintf("testdata/token_contracts/decimals_%s.json", contractAddress))
-	assert.NoError(t, err)
-	mockGraphQL.On(
-		"Query",
-		ctx,
-		buildGraphqlCallQuery("", contractAddress, decimalsABIEncoded),
-	).Return(
-		string(result),
-		nil,
+			//encodedDecimals, _ := rlp.EncodeToBytes(decimals)
+			*(r[0].Result.(*string)) = decimals
+			*(r[1].Result.(*string)) = symbol
+		},
 	).Once()
 }
 
@@ -150,17 +134,18 @@ func TestFetchCurrency(t *testing.T) {
 		expectedCurrency *RosettaTypes.Currency
 		decimals         int
 		symbol           string
-		mockFn           func(mockGraphQL *mocks.GraphQL, contractAddress string)
+		mockFn           func(mockJSONRPC *mocks.JSONRPC, contractAddress string, blockNum uint64)
 		error            error
 	}{
 		"happy path: valid contract address": {
-			contractAddress:  MOTContractAddress,
-			expectedCurrency: MOTCurrency,
-			decimals:         MOTDecimals,
-			symbol:           MOTSymbol,
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-				mockFetchSymbol(t, mockGraphQL, contractAddress)
+			contractAddress:  OPContractAddress,
+			expectedCurrency: OPCurrency,
+			decimals:         OPDecimals,
+			symbol:           OPSymbol,
+			mockFn: func(mockJSONRPC *mocks.JSONRPC, contractAddress string, blockNum uint64) {
+				decimals := "0x0000000000000000000000000000000000000000000000000000000000000012"                                                                                                                               // 18
+				symbol := "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000673796d626f6c0000000000000000000000000000000000000000000000000000" // symbol
+				mockCalls(t, mockJSONRPC, contractAddress, blockNum, decimals, symbol)
 			},
 			error: nil,
 		},
@@ -169,20 +154,8 @@ func TestFetchCurrency(t *testing.T) {
 			expectedCurrency: unknownCurrency,
 			decimals:         defaultERC20Decimals,
 			symbol:           defaultERC20Symbol,
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-				mockFetchSymbol(t, mockGraphQL, contractAddress)
-			},
-			error: nil,
-		},
-		"happy path: empty symbol parsed as UNKNOWN": {
-			contractAddress:  emptySymbolContractAddress,
-			expectedCurrency: emptySymbolCurrency,
-			decimals:         emptySymbolDecimals,
-			symbol:           defaultERC20Symbol,
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-				mockFetchSymbol(t, mockGraphQL, contractAddress)
+			mockFn: func(mockJSONRPC *mocks.JSONRPC, contractAddress string, blockNum uint64) {
+				mockCalls(t, mockJSONRPC, contractAddress, blockNum, "0x", "0x")
 			},
 			error: nil,
 		},
@@ -191,90 +164,38 @@ func TestFetchCurrency(t *testing.T) {
 			expectedCurrency: invalidWETHCurrency,
 			decimals:         invalidWETHDecimals,
 			symbol:           invalidWETHSymbol,
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-				mockFetchSymbol(t, mockGraphQL, contractAddress)
+			mockFn: func(mockJSONRPC *mocks.JSONRPC, contractAddress string, blockNum uint64) {
+				mockCalls(t, mockJSONRPC, contractAddress, blockNum, "0x00000000000000000000000000000000000000000000021e19e0c9bab2400000", "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000045745544800000000000000000000000000000000000000000000000000000000")
 			},
 			error: nil,
-		},
-		"happy path: overflow (> int64) token decimals parsed as 0": {
-			contractAddress:  invalidXSDOContractAddress,
-			expectedCurrency: invalidXSDOCurrency,
-			decimals:         invalidXSDODecimals,
-			symbol:           invalidXSDOSymbol,
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-				mockFetchSymbol(t, mockGraphQL, contractAddress)
-			},
-			error: nil,
-		},
-		"invalid currency: successful call to fetch decimals, unsuccessful call to fetch symbol": {
-			contractAddress:  blankSymbolContractAddress,
-			expectedCurrency: blankSymbolCurrency,
-			decimals:         blankSymbolDecimals,
-			symbol:           defaultERC20Symbol,
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-				mockFetchSymbol(t, mockGraphQL, contractAddress)
-			},
-			error: nil,
-		},
-		"invalid contract address: non-hex": {
-			contractAddress:  invalidContractAddressNonHex,
-			expectedCurrency: nil,
-			decimals:         0,
-			symbol:           blankSymbol,
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-			},
-			error: fmt.Errorf("[{\"message\":\"invalid hex string\",\"path\":null}]"),
-		},
-		"invalid contract address: too short": {
-			contractAddress:  invalidContractAddressTooShort,
-			expectedCurrency: nil,
-			decimals:         0,
-			symbol:           "",
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-			},
-			error: fmt.Errorf("[{\"message\":\"hex string has length 8, want 40 for Address\",\"path\":null}]"), //nolint
-		},
-		"invalid contract address: missing 0x prefix": {
-			contractAddress:  invalidContractAddressMissingPrefix,
-			expectedCurrency: nil,
-			decimals:         0,
-			symbol:           "",
-			mockFn: func(mockGraphQL *mocks.GraphQL, contractAddress string) {
-				mockFetchDecimals(t, mockGraphQL, contractAddress)
-			},
-			error: fmt.Errorf("[{\"message\":\"hex string without 0x prefix\",\"path\":null}]"),
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
-			mockGraphQL := &mocks.GraphQL{}
+			mockJSONRPC := &mocks.JSONRPC{}
 
-			test.mockFn(mockGraphQL, test.contractAddress)
-
-			cf, err := newERC20CurrencyFetcher(mockGraphQL)
+			cf, err := newERC20CurrencyFetcher(mockJSONRPC)
 			assert.NoError(t, err)
 
-			fetchedCurrency, err := cf.fetchCurrency(ctx, test.contractAddress)
+			var blockNum uint64 = 1
+			test.mockFn(mockJSONRPC, test.contractAddress, blockNum)
+
+			fetchedCurrency, err := cf.fetchCurrency(ctx, blockNum, test.contractAddress)
 			assert.Equal(t, test.expectedCurrency, fetchedCurrency)
 			assert.Equal(t, test.error, err)
 
-			mockGraphQL.AssertExpectations(t)
+			mockJSONRPC.AssertExpectations(t)
 
 			// Currencies for which we were able to successfully fetch details should be cached,
 			// such that subsequent queries are not needed (hence we don't need to re-mock)
 			if test.error == nil {
-				fetchedCurrency, err = cf.fetchCurrency(ctx, test.contractAddress)
+				fetchedCurrency, err = cf.fetchCurrency(ctx, blockNum, test.contractAddress)
 				assert.Equal(t, test.expectedCurrency, fetchedCurrency)
 				assert.NoError(t, err)
 
-				mockGraphQL.AssertExpectations(t)
+				mockJSONRPC.AssertExpectations(t)
 			}
 		})
 	}

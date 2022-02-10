@@ -18,7 +18,6 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
@@ -40,7 +39,7 @@ const (
 // CurrencyFetcher interface describes a struct that can fetch the details of
 // an Ethereum-based token given its contract address.
 type CurrencyFetcher interface {
-	fetchCurrency(ctx context.Context, block *types.Block, contractAddress string) (*RosettaTypes.Currency, error)
+	fetchCurrency(ctx context.Context, blockNum uint64, contractAddress string) (*RosettaTypes.Currency, error)
 }
 
 // ERC20CurrencyFetcher type has a global currencyCache (lru) to cache results of fetching currency details,
@@ -86,7 +85,7 @@ func parseIntReturn(parsedABI abi.ABI, methodName string, data []byte) (*big.Int
 // If we encounter a failure while fetching currency details, we return a default value.
 func (ecf ERC20CurrencyFetcher) fetchCurrency(
 	ctx context.Context,
-	block *types.Block,
+	blockNum uint64,
 	contractAddress string,
 ) (*RosettaTypes.Currency, error) {
 	if cachedCurrency, ok := ecf.currencyCache.Get(contractAddress); ok {
@@ -107,7 +106,7 @@ func (ecf ERC20CurrencyFetcher) fetchCurrency(
 
 	var decimalsResult string
 	var symbolResult string
-	blockNumHex := hexutil.EncodeUint64(block.NumberU64())
+	blockNumHex := hexutil.EncodeUint64(blockNum)
 	reqs := []rpc.BatchElem{
 		{Method: "eth_call", Args: []interface{}{map[string]string{"to": contractAddress, "data": encodedDecimalsData}, blockNumHex}, Result: &decimalsResult},
 		{Method: "eth_call", Args: []interface{}{map[string]string{"to": contractAddress, "data": encodedSymbolData}, blockNumHex}, Result: &symbolResult},

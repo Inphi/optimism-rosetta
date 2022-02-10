@@ -26,7 +26,7 @@ import (
 var erc20ABIString string
 
 var (
-	ERC20ABI  = mustParse(erc20ABIString)
+	ERC20ABI = mustParse(erc20ABIString)
 )
 
 func mustParse(str string) abi.ABI {

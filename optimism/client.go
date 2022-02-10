@@ -469,6 +469,10 @@ func (ec *Client) erc20TokenOps(
 		if !ok {
 			return nil, fmt.Errorf("%s is not a valid address", contractAddress)
 		}
+		// If it's a deposit tx, skip
+		if contractAddress == ovmEthAddr.String() {
+			continue
+		}
 
 		fromAddress := common.HexToAddress(receiptLog.Topics[1].Hex()).String()
 		_, ok = ChecksumAddress(fromAddress)
@@ -482,7 +486,7 @@ func (ec *Client) erc20TokenOps(
 			return nil, fmt.Errorf("%s is not a valid address", toAddress)
 		}
 
-		currency, err := ec.currencyFetcher.fetchCurrency(ctx, block, contractAddress)
+		currency, err := ec.currencyFetcher.fetchCurrency(ctx, block.NumberU64(), contractAddress)
 		// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 		if err != nil {
 			log.Print(fmt.Sprintf("error while fetching currency details for currency: %s", contractAddress), err)

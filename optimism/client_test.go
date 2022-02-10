@@ -43,10 +43,14 @@ func TestStatus_NotReady(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
 
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
+
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -125,11 +129,15 @@ func TestStatus_NotSyncing_SkipAdminCalls(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
 
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
+
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
-		skipAdminCalls: true,
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
+		skipAdminCalls:  true,
 	}
 
 	ctx := context.Background()
@@ -177,11 +185,14 @@ func TestStatus_NotSyncing_SkipAdminCalls(t *testing.T) {
 func TestStatus_Syncing(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -226,12 +237,15 @@ func TestStatus_Syncing(t *testing.T) {
 func TestStatus_Syncing_SkipAdminCalls(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
-		skipAdminCalls: true,
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
+		skipAdminCalls:  true,
 	}
 
 	ctx := context.Background()
@@ -279,11 +293,14 @@ func TestStatus_Syncing_SkipAdminCalls(t *testing.T) {
 func TestBalance(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -368,11 +385,14 @@ func TestBalance(t *testing.T) {
 func TestBalance_Historical_Hash(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -463,11 +483,14 @@ func TestBalance_Historical_Hash(t *testing.T) {
 func TestBalance_Historical_Index(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -552,11 +575,14 @@ func TestBalance_Historical_Index(t *testing.T) {
 func TestBalance_InvalidAddress(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -614,11 +640,14 @@ func TestBalance_InvalidAddress(t *testing.T) {
 func TestBalance_InvalidHash(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -662,11 +691,14 @@ func TestBalance_InvalidHash(t *testing.T) {
 func TestCall_GetBlockByNumber(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -720,11 +752,14 @@ func TestCall_GetBlockByNumber(t *testing.T) {
 func TestCall_GetBlockByNumber_InvalidArgs(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -748,11 +783,14 @@ func TestCall_GetBlockByNumber_InvalidArgs(t *testing.T) {
 func TestCall_GetTransactionReceipt(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -814,11 +852,14 @@ func TestCall_GetTransactionReceipt(t *testing.T) {
 func TestCall_GetTransactionReceipt_InvalidArgs(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -838,11 +879,14 @@ func TestCall_GetTransactionReceipt_InvalidArgs(t *testing.T) {
 func TestCall_Call(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -903,11 +947,14 @@ func TestCall_Call(t *testing.T) {
 func TestCall_Call_InvalidArgs(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -933,11 +980,14 @@ func TestCall_Call_InvalidArgs(t *testing.T) {
 func TestCall_EstimateGas(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1000,11 +1050,14 @@ func TestCall_EstimateGas(t *testing.T) {
 func TestCall_EstimateGas_InvalidArgs(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1028,11 +1081,14 @@ func TestCall_EstimateGas_InvalidArgs(t *testing.T) {
 func TestCall_InvalidMethod(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1065,15 +1121,18 @@ func testTraceConfig() (*tracers.TraceConfig, error) {
 func TestBlock_Current(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		tc:             tc,
-		p:              params.GoerliChainConfig,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		tc:              tc,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1176,15 +1235,18 @@ func TestBlock_Current(t *testing.T) {
 func TestBlock_Hash(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		tc:             tc,
-		p:              params.GoerliChainConfig,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		tc:              tc,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1305,15 +1367,18 @@ func jsonifyBlock(b *RosettaTypes.Block) (*RosettaTypes.Block, error) {
 func TestBlock_Index(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		tc:             tc,
-		p:              params.MainnetChainConfig,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		tc:              tc,
+		p:               params.MainnetChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1419,15 +1484,18 @@ func TestBlock_Index(t *testing.T) {
 func TestBlock_985(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		tc:             tc,
-		p:              params.GoerliChainConfig,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		tc:              tc,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1538,15 +1606,18 @@ func TestBlock_985(t *testing.T) {
 func TestBlock_87673(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		tc:             tc,
-		p:              params.GoerliChainConfig,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		tc:              tc,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1656,15 +1727,18 @@ func TestBlock_87673(t *testing.T) {
 func TestBlock_22698(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		tc:             tc,
-		p:              params.GoerliChainConfig,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		tc:              tc,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1773,11 +1847,14 @@ func TestBlock_22698(t *testing.T) {
 func TestPendingNonceAt(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1811,11 +1888,14 @@ func TestPendingNonceAt(t *testing.T) {
 func TestSuggestGasPrice(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1846,11 +1926,14 @@ func TestSuggestGasPrice(t *testing.T) {
 func TestSendTransaction(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
 
 	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		traceSemaphore:  semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
