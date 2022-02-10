@@ -43,8 +43,8 @@ import (
 const (
 	gethHTTPTimeout = 120 * time.Second
 
-	maxTraceConcurrency  = int64(16) // nolint:gomnd
-	semaphoreTraceWeight = int64(1)  // nolint:gomnd
+	maxTraceConcurrency  = int64(8) // nolint:gomnd
+	semaphoreTraceWeight = int64(1) // nolint:gomnd
 
 	burnSelector  = "0x9dc29fac" // keccak(burn(address,uint256))
 	mintSelector  = "0x40c10f19" // keccak(mint(address,uint256))
@@ -364,11 +364,17 @@ func (ec *Client) getTransactionTraces(
 	ctx context.Context,
 	txs []rpcTransaction,
 ) ([]*Call, error) {
+	if err := ec.traceSemaphore.Acquire(ctx, semaphoreTraceWeight); err != nil {
+		return nil, err
+	}
+	defer ec.traceSemaphore.Release(semaphoreTraceWeight)
+
 	traces := make([]*Call, len(txs))
 	if len(txs) == 0 {
 		return traces, nil
 	}
 	reqs := make([]rpc.BatchElem, len(txs))
+	// TODO(inphi): Run this sequentially to avoid DoS'ing l2geth
 	for i := range reqs {
 		reqs[i] = rpc.BatchElem{
 			Method: "debug_traceTransaction",
