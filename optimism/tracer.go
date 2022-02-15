@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/ethereum/go-ethereum/eth/tracers"
+    "github.com/ethereum/go-ethereum/eth/tracers"
 )
 
 // convert raw eth data from client to rosetta

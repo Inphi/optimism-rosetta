@@ -19,13 +19,13 @@ import (
 	"math/big"
 
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
-	"github.com/ethereum/go-ethereum/accounts/abi"
+    "github.com/ethereum/go-ethereum/accounts/abi"
 
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
-	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+    RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
+    "github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 const (

@@ -108,7 +108,7 @@ const (
 
 	// TransferGasLimit is the gas limit
 	// of a transfer.
-	TransferGasLimit = int64(21000) //nolint:gomnd
+	TransferGasLimit = uint64(21000) //nolint:gomnd
 
 	// MainnetGethArguments are the arguments to start a mainnet geth instance.
 	MainnetGethArguments = `--config=/app/optimism/geth.toml --gcmode=archive --graphql`
@@ -157,7 +157,6 @@ var (
 	Currency = &types.Currency{
 		Symbol:   Symbol,
 		Decimals: Decimals,
-		// TODO(inphi): populate metadata with token address
 	}
 
 	// OperationTypes are all suppoorted operation types.

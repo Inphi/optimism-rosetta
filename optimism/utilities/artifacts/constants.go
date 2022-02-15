@@ -19,7 +19,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+    "github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 //go:embed abi/ERC20.abi
