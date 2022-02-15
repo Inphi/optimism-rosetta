@@ -27,17 +27,16 @@ import (
 
 	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	l2geth "github.com/ethereum-optimism/optimism/l2geth"
+	ethereum "github.com/ethereum-optimism/optimism/l2geth"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	"github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rlp"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
-	"github.com/ethereum-optimism/optimism/l2geth"
 
-    "github.com/ethereum/go-ethereum/crypto"
-    "github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth/tracers"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -1107,29 +1106,29 @@ func (ec *Client) estimateGas(
 
 //  EstimateGas retrieves the currently gas limit
 func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
-    arg := map[string]interface{}{
-        "from": msg.From,
-        "to":   msg.To,
-    }
-    if len(msg.Data) > 0 {
-        arg["data"] = hexutil.Bytes(msg.Data)
-    }
-    if msg.Value != nil {
-        arg["value"] = (*hexutil.Big)(msg.Value)
-    }
-    if msg.Gas != 0 {
-        arg["gas"] = hexutil.Uint64(msg.Gas)
-    }
-    if msg.GasPrice != nil {
-        arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
-    }
+	arg := map[string]interface{}{
+		"from": msg.From,
+		"to":   msg.To,
+	}
+	if len(msg.Data) > 0 {
+		arg["data"] = hexutil.Bytes(msg.Data)
+	}
+	if msg.Value != nil {
+		arg["value"] = (*hexutil.Big)(msg.Value)
+	}
+	if msg.Gas != 0 {
+		arg["gas"] = hexutil.Uint64(msg.Gas)
+	}
+	if msg.GasPrice != nil {
+		arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
+	}
 
-    var hex hexutil.Uint64
-    err := ec.c.CallContext(ctx, &hex, "eth_estimateGas", arg)
-    if err != nil {
-        return 0, err
-    }
-    return uint64(hex), nil
+	var hex hexutil.Uint64
+	err := ec.c.CallContext(ctx, &hex, "eth_estimateGas", arg)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(hex), nil
 }
 
 func validateCallInput(params map[string]interface{}) (*GetCallInput, error) {

@@ -28,9 +28,9 @@ import (
 
 	"github.com/coinbase/rosetta-ethereum/configuration"
 	"github.com/coinbase/rosetta-ethereum/optimism"
+	ethereum "github.com/ethereum-optimism/optimism/l2geth"
 	"github.com/ethereum-optimism/optimism/l2geth/accounts/abi"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
-	"github.com/ethereum-optimism/optimism/l2geth"
 
 	ethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/crypto"
@@ -982,7 +982,7 @@ func rosettaOperations(
 // contractCallMethodID calculates the first 4 bytes of the method
 // signature for function call on contract
 func contractCallMethodID(methodSig string) []byte {
-        fnSignature := []byte(methodSig)
-	    hash := crypto.Keccak256(fnSignature)
-        return hash[:4]
+	fnSignature := []byte(methodSig)
+	hash := crypto.Keccak256(fnSignature)
+	return hash[:4]
 }
