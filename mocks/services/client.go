@@ -10,6 +10,8 @@ import (
 
 	coretypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 
+	ethereum "github.com/ethereum-optimism/optimism/l2geth"
+
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/coinbase/rosetta-sdk-go/types"
@@ -82,6 +84,27 @@ func (_m *Client) Call(ctx context.Context, request *types.CallRequest) (*types.
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *types.CallRequest) error); ok {
 		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// EstimateGas provides a mock function with given fields: ctx, msg
+func (_m *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
+	ret := _m.Called(ctx, msg)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, ethereum.CallMsg) uint64); ok {
+		r0 = rf(ctx, msg)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, ethereum.CallMsg) error); ok {
+		r1 = rf(ctx, msg)
 	} else {
 		r1 = ret.Error(1)
 	}

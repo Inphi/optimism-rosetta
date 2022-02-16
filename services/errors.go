@@ -36,6 +36,14 @@ var (
 		ErrBlockOrphaned,
 		ErrInvalidAddress,
 		ErrGethNotReady,
+		ErrInvalidNonce,
+		ErrInvalidTokenContractAddress,
+		ErrBadRequest,
+		ErrUnableToParseTransaction,
+		ErrInvalidGasPrice,
+		ErrInvalidSignature,
+		ErrFetchFunctionSignatureMethodID,
+		ErrInvalidTransaction,
 	}
 
 	// ErrUnimplemented is returned when an endpoint
@@ -143,6 +151,60 @@ var (
 		Code:      13, //nolint
 		Message:   "geth not ready",
 		Retriable: true,
+	}
+
+	// ErrInvalidNonce is returned when input nonce
+	// is invalid.
+	ErrInvalidNonce = &types.Error{
+		Code:    14, //nolint
+		Message: "Nonce invalid",
+	}
+
+	// ErrInvalidTokenContractAddress is returned when the token
+	// contract address is invalid
+	ErrInvalidTokenContractAddress = &types.Error{
+		Code:    15, //nolint
+		Message: "Invalid token contract address",
+	}
+
+	// ErrBadRequest is returned when the request is invalid
+	ErrBadRequest = &types.Error{
+		Code:    16, //nolint
+		Message: "Bad request",
+	}
+
+	// ErrUnableToParseTransaction is returned when the transaction
+	// cannot be parsed
+	ErrUnableToParseTransaction = &types.Error{
+		Code:    17, //nolint
+		Message: "unable to parse the transaction",
+	}
+
+	// ErrInvalidGasPrice is returned when input gas price
+	// is invalid.
+	ErrInvalidGasPrice = &types.Error{
+		Code:    18, //nolint
+		Message: "Gas price invalid",
+	}
+
+	// ErrInvalidSignature is returned when a signature
+	// cannot be parsed.
+	ErrInvalidSignature = &types.Error{
+		Code:    19, //nolint
+		Message: "Signature invalid",
+	}
+
+	// ErrFetchFunctionSignatureMethodID is returned when
+	// hash.Write fails to hash a function signature
+	ErrFetchFunctionSignatureMethodID = &types.Error{
+		Code:    20, //nolint
+		Message: "Failed to hash function signature",
+	}
+
+	// ErrInvalidTransaction is returned when a transaction is invalid
+	ErrInvalidTransaction = &types.Error{
+		Code:    21, //nolint
+		Message: "Transaction invalid",
 	}
 )
 

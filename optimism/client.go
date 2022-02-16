@@ -27,14 +27,14 @@ import (
 
 	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	l2geth "github.com/ethereum-optimism/optimism/l2geth"
+	ethereum "github.com/ethereum-optimism/optimism/l2geth"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	"github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rlp"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
-	"github.com/ethereum/go-ethereum"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"golang.org/x/sync/semaphore"
@@ -258,7 +258,7 @@ func (ec *Client) blockHeader(ctx context.Context, number *big.Int) (*types.Head
 	var head *types.Header
 	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", toBlockNumArg(number), false)
 	if err == nil && head == nil {
-		return nil, l2geth.NotFound
+		return nil, ethereum.NotFound
 	}
 
 	return head, err
@@ -284,7 +284,7 @@ func (ec *Client) getBlock(
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: block fetch failed", err)
 	} else if len(raw) == 0 {
-		return nil, nil, l2geth.NotFound
+		return nil, nil, ethereum.NotFound
 	}
 
 	// Decode header and transactions
@@ -425,7 +425,7 @@ func (ec *Client) getBlockReceipts(
 		if receipts[i] == nil {
 			return nil, fmt.Errorf("got empty receipt for %x", txs[i].tx.Hash().Hex())
 		}
-		if receipts[i].BlockHash != blockHash && !blockContainsDuplicateTransaction(blockHash) {
+		if receipts[i].BlockHash.Hex() != blockHash.Hex() && !blockContainsDuplicateTransaction(blockHash) {
 			return nil, fmt.Errorf(
 				"%w: expected block hash %s for transaction but got %s",
 				ErrBlockOrphaned,
@@ -991,7 +991,7 @@ func (ec *Client) transactionReceipt(
 	err := ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
 	if err == nil {
 		if r == nil {
-			return nil, l2geth.NotFound
+			return nil, ethereum.NotFound
 		}
 	}
 
@@ -1014,7 +1014,7 @@ func (ec *Client) blockByNumber(
 	err := ec.c.CallContext(ctx, &r, "eth_getBlockByNumber", blockIndex, showTxDetails)
 	if err == nil {
 		if r == nil {
-			return nil, l2geth.NotFound
+			return nil, ethereum.NotFound
 		}
 	}
 
@@ -1102,6 +1102,33 @@ func (ec *Client) estimateGas(
 	return map[string]interface{}{
 		"data": resp,
 	}, nil
+}
+
+//  EstimateGas retrieves the currently gas limit
+func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
+	arg := map[string]interface{}{
+		"from": msg.From,
+		"to":   msg.To,
+	}
+	if len(msg.Data) > 0 {
+		arg["data"] = hexutil.Bytes(msg.Data)
+	}
+	if msg.Value != nil {
+		arg["value"] = (*hexutil.Big)(msg.Value)
+	}
+	if msg.Gas != 0 {
+		arg["gas"] = hexutil.Uint64(msg.Gas)
+	}
+	if msg.GasPrice != nil {
+		arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
+	}
+
+	var hex hexutil.Uint64
+	err := ec.c.CallContext(ctx, &hex, "eth_estimateGas", arg)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(hex), nil
 }
 
 func validateCallInput(params map[string]interface{}) (*GetCallInput, error) {
@@ -1351,7 +1378,7 @@ func (ec *Client) Balance(
 		}
 	}
 	if len(raw) == 0 {
-		return nil, l2geth.NotFound
+		return nil, ethereum.NotFound
 	}
 
 	var head *types.Header
