@@ -82,6 +82,95 @@ type options struct {
 	MethodArgs      []string `json:"method_args,omitempty"`
 }
 
+type optionsWire struct {
+	From            string   `json:"from"`
+	Nonce           string   `json:"nonce,omitempty"`
+	Data            string   `json:"data,omitempty"`
+	To              string   `json:"to"`
+	TokenAddress    string   `json:"token_address,omitempty"`
+	ContractAddress string   `json:"contract_address,omitempty"`
+	Value           string   `json:"value,omitempty"`
+	GasPrice        string   `json:"gas_price,omitempty"`
+	MethodSignature string   `json:"method_signature,omitempty"`
+	MethodArgs      []string `json:"method_args,omitempty"`
+}
+
+func (o *options) MarshalJSON() ([]byte, error) {
+	ow := &optionsWire{
+		From:            o.From,
+		To:              o.To,
+		ContractAddress: o.ContractAddress,
+		MethodSignature: o.MethodSignature,
+		MethodArgs:      o.MethodArgs,
+		TokenAddress:    o.TokenAddress,
+	}
+
+	if o.Nonce != nil {
+		ow.Nonce = hexutil.EncodeBig(o.Nonce)
+	}
+
+	if len(o.Data) > 0 {
+		ow.Data = hexutil.Encode(o.Data)
+	}
+
+	if o.Value != nil {
+		ow.Value = hexutil.EncodeBig(o.Value)
+	}
+
+	if o.GasPrice != nil {
+		ow.GasPrice = hexutil.EncodeBig(o.GasPrice)
+	}
+
+	return json.Marshal(ow)
+}
+
+func (o *options) UnmarshalJSON(data []byte) error {
+	var ow optionsWire
+	if err := json.Unmarshal(data, &ow); err != nil {
+		return err
+	}
+	o.From = ow.From
+	o.To = ow.To
+	o.TokenAddress = ow.TokenAddress
+	o.ContractAddress = ow.ContractAddress
+	o.MethodSignature = ow.MethodSignature
+	o.MethodArgs = ow.MethodArgs
+
+	if len(ow.Nonce) > 0 {
+		nonce, err := hexutil.DecodeBig(ow.Nonce)
+		if err != nil {
+			return err
+		}
+		o.Nonce = nonce
+	}
+
+	if len(ow.Data) > 0 {
+		owData, err := hexutil.Decode(ow.Data)
+		if err != nil {
+			return err
+		}
+		o.Data = owData
+	}
+
+	if len(ow.Value) > 0 {
+		value, err := hexutil.DecodeBig(ow.Value)
+		if err != nil {
+			return err
+		}
+		o.Value = value
+	}
+
+	if len(ow.GasPrice) > 0 {
+		gasPrice, err := hexutil.DecodeBig(ow.GasPrice)
+		if err != nil {
+			return err
+		}
+		o.GasPrice = gasPrice
+	}
+
+	return nil
+}
+
 type metadata struct {
 	Nonce           uint64   `json:"nonce"`
 	GasPrice        *big.Int `json:"gas_price"`

@@ -97,7 +97,7 @@ func TestConstructionService(t *testing.T) {
 		},
 	)
 	assert.Nil(t, err)
-	optionsRaw := `{"from":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309"}`
+	optionsRaw := `{"from":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309", "to":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d", "value": "0x9864aac3510d02"}`
 	var options options
 	assert.NoError(t, json.Unmarshal([]byte(optionsRaw), &options))
 	assert.Equal(t, &types.ConstructionPreprocessResponse{

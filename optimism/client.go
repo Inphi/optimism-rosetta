@@ -258,7 +258,7 @@ func (ec *Client) blockHeader(ctx context.Context, number *big.Int) (*types.Head
 	var head *types.Header
 	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", toBlockNumArg(number), false)
 	if err == nil && head == nil {
-		return nil, l2geth.NotFound
+		return nil, ethereum.NotFound
 	}
 
 	return head, err
@@ -284,7 +284,7 @@ func (ec *Client) getBlock(
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: block fetch failed", err)
 	} else if len(raw) == 0 {
-		return nil, nil, l2geth.NotFound
+		return nil, nil, ethereum.NotFound
 	}
 
 	// Decode header and transactions
@@ -991,7 +991,7 @@ func (ec *Client) transactionReceipt(
 	err := ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
 	if err == nil {
 		if r == nil {
-			return nil, l2geth.NotFound
+			return nil, ethereum.NotFound
 		}
 	}
 
@@ -1014,7 +1014,7 @@ func (ec *Client) blockByNumber(
 	err := ec.c.CallContext(ctx, &r, "eth_getBlockByNumber", blockIndex, showTxDetails)
 	if err == nil {
 		if r == nil {
-			return nil, l2geth.NotFound
+			return nil, ethereum.NotFound
 		}
 	}
 
@@ -1378,7 +1378,7 @@ func (ec *Client) Balance(
 		}
 	}
 	if len(raw) == 0 {
-		return nil, l2geth.NotFound
+		return nil, ethereum.NotFound
 	}
 
 	var head *types.Header
