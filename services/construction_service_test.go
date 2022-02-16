@@ -101,13 +101,16 @@ func TestConstructionService(t *testing.T) {
 	var options options
 	assert.NoError(t, json.Unmarshal([]byte(optionsRaw), &options))
 	assert.Equal(t, &types.ConstructionPreprocessResponse{
-		Options: forceMarshalMap(t, options),
+		Options: forceMarshalMap(t, &options),
 	}, preprocessResponse)
 
 	// Test Metadata
 	metadata := &metadata{
+		GasLimit: big.NewInt(21000),
 		GasPrice: big.NewInt(1000000000),
 		Nonce:    0,
+		To:       "0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d",
+		Value:    big.NewInt(42894881044106498),
 	}
 
 	mockClient.On(
@@ -127,7 +130,7 @@ func TestConstructionService(t *testing.T) {
 	).Once()
 	metadataResponse, err := servicer.ConstructionMetadata(ctx, &types.ConstructionMetadataRequest{
 		NetworkIdentifier: networkIdentifier,
-		Options:           forceMarshalMap(t, options),
+		Options:           forceMarshalMap(t, &options),
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, &types.ConstructionMetadataResponse{
@@ -169,6 +172,7 @@ func TestConstructionService(t *testing.T) {
 	parseMetadata := &parseMetadata{
 		Nonce:    metadata.Nonce,
 		GasPrice: metadata.GasPrice,
+		GasLimit: metadata.GasLimit.Uint64(),
 		ChainID:  big.NewInt(3),
 	}
 	assert.Equal(t, &types.ConstructionParseResponse{
