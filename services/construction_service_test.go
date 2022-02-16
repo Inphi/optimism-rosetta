@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -26,10 +27,32 @@ import (
 	"github.com/coinbase/rosetta-ethereum/optimism"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
+	ethereum "github.com/ethereum-optimism/optimism/l2geth"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
+	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+)
+
+var (
+	fromAddress          = "0x966fbC4E1F3a938Cf7798695C3244d9C7C190015"
+	toAddress            = "0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7"
+	tokenContractAddress = "0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e"
+
+	transferValue         = uint64(20211004)
+	transferGasPrice      = uint64(5000000000)
+	transferGasLimit      = uint64(21000)
+	transferGasLimitERC20 = uint64(65000)
+	transferNonce         = uint64(67)
+	transferData          = "0xa9059cbb000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7000000000000000000000000000000000000000000000000000000000134653c" //nolint
+
+	transferValueHex         = hexutil.EncodeUint64(transferValue)
+	transferGasPriceHex      = hexutil.EncodeUint64(transferGasPrice)
+	transferGasLimitHex      = hexutil.EncodeUint64(transferGasLimit)
+	transferGasLimitERC20Hex = hexutil.EncodeUint64(transferGasLimitERC20)
+	transferNonceHex         = hexutil.EncodeUint64(transferNonce)
+	transferNonceHex2        = "0x22"
 )
 
 func forceHexDecode(t *testing.T, s string) []byte {
@@ -244,4 +267,251 @@ func TestConstructionService(t *testing.T) {
 	}, submitResponse)
 
 	mockClient.AssertExpectations(t)
+}
+
+func TestMetadata_Offline(t *testing.T) {
+	t.Run("unavailable in offline mode", func(t *testing.T) {
+		service := ConstructionAPIService{
+			config: &configuration.Configuration{Mode: configuration.Offline},
+		}
+
+		resp, err := service.ConstructionMetadata(
+			context.Background(),
+			&types.ConstructionMetadataRequest{},
+		)
+		assert.Nil(t, resp)
+		assert.Equal(t, ErrUnavailableOffline.Code, err.Code)
+	})
+}
+
+func TestMetadata(t *testing.T) {
+	var (
+		metadataFrom        = fromAddress
+		metadataTo          = toAddress
+		metadataData        = transferData
+		metadataGenericData = "0x095ea7b3000000000000000000000000d10a72cf054650931365cc44d912a4fd7525705800000000000000000000000000000000000000000000000000000000000003e8"
+	)
+
+	var tests = map[string]struct {
+		options          map[string]interface{}
+		mocks            func(context.Context, *mocks.Client)
+		expectedResponse *types.ConstructionMetadataResponse
+		expectedError    *types.Error
+	}{
+		"happy path: native currency with nonce": {
+			options: map[string]interface{}{
+				"from":  metadataFrom,
+				"to":    metadataTo,
+				"value": transferValueHex,
+				"nonce": transferNonceHex2,
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":        metadataTo,
+					"value":     transferValueHex,
+					"nonce":     transferNonceHex2,
+					"gas_price": transferGasPriceHex,
+					"gas_limit": transferGasLimitHex,
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", transferGasPrice*transferGasLimit),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				client.On("SuggestGasPrice", ctx).
+					Return(big.NewInt(int64(transferGasPrice)), nil)
+			},
+		},
+		"happy path: native currency without nonce": {
+			options: map[string]interface{}{
+				"from":  metadataFrom,
+				"to":    metadataTo,
+				"value": transferValueHex,
+			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				client.On("PendingNonceAt", ctx, common.HexToAddress(metadataFrom)).
+					Return(transferNonce, nil)
+
+				client.On("SuggestGasPrice", ctx).
+					Return(big.NewInt(int64(transferGasPrice)), nil)
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":        metadataTo,
+					"value":     transferValueHex,
+					"nonce":     transferNonceHex,
+					"gas_price": transferGasPriceHex,
+					"gas_limit": transferGasLimitHex,
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", transferGasPrice*transferGasLimit),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+		},
+		"happy path: ERC20 currency with nonce": {
+			options: map[string]interface{}{
+				"from":          metadataFrom,
+				"to":            metadataTo,
+				"value":         "0x0",
+				"nonce":         transferNonceHex2,
+				"token_address": tokenContractAddress,
+				"data":          metadataData,
+			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				to := common.HexToAddress(tokenContractAddress)
+				dataBytes, _ := hexutil.Decode(metadataData)
+				client.On("EstimateGas", ctx, ethereum.CallMsg{
+					From: common.HexToAddress(metadataFrom),
+					To:   &to,
+					Data: dataBytes,
+				}).Return(transferGasLimitERC20, nil)
+
+				client.On("SuggestGasPrice", ctx).
+					Return(big.NewInt(int64(transferGasPrice)), nil)
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":        tokenContractAddress,
+					"value":     "0x0",
+					"nonce":     transferNonceHex2,
+					"gas_price": transferGasPriceHex,
+					"gas_limit": transferGasLimitERC20Hex,
+					"data":      metadataData,
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", transferGasPrice*transferGasLimitERC20),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+		},
+		"happy path: Generic contract call metadata": {
+			options: map[string]interface{}{
+				"from":             metadataFrom,
+				"to":               metadataTo,
+				"value":            "0x0",
+				"nonce":            transferNonceHex2,
+				"contract_address": tokenContractAddress,
+				"data":             metadataGenericData,
+				"method_signature": "approve(address,uint256)",
+				"method_args":      []string{"0xD10a72Cf054650931365Cc44D912a4FD75257058", "1000"},
+			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				to := common.HexToAddress(tokenContractAddress)
+				dataBytes, _ := hexutil.Decode(metadataGenericData)
+				client.On("EstimateGas", ctx, ethereum.CallMsg{
+					From: common.HexToAddress(metadataFrom),
+					To:   &to,
+					Data: dataBytes,
+				}).Return(transferGasLimitERC20, nil)
+
+				client.On("SuggestGasPrice", ctx).
+					Return(big.NewInt(int64(transferGasPrice)), nil)
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":               tokenContractAddress,
+					"value":            "0x0",
+					"nonce":            transferNonceHex2,
+					"gas_price":        transferGasPriceHex,
+					"gas_limit":        transferGasLimitERC20Hex,
+					"data":             metadataGenericData,
+					"method_signature": "approve(address,uint256)",
+					"method_args":      []interface{}{"0xD10a72Cf054650931365Cc44D912a4FD75257058", "1000"},
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", transferGasPrice*transferGasLimitERC20),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+		},
+		"error: missing source address": {
+			options: map[string]interface{}{
+				"to":    metadataTo,
+				"nonce": transferNonceHex2,
+				"value": transferValueHex,
+			},
+			expectedResponse: nil,
+			expectedError: templateError(
+				ErrInvalidAddress, "source address is not provided"),
+		},
+		"error: invalid source address": {
+			options: map[string]interface{}{
+				"from":  "invalid_from",
+				"to":    metadataTo,
+				"nonce": transferNonceHex2,
+				"value": transferValueHex,
+			},
+			expectedResponse: nil,
+			expectedError: templateError(
+				ErrInvalidAddress, "invalid_from is not a valid address"),
+		},
+		"error: missing destination address": {
+			options: map[string]interface{}{
+				"from":  metadataFrom,
+				"nonce": transferNonceHex,
+				"value": transferValueHex,
+			},
+			expectedResponse: nil,
+			expectedError: templateError(
+				ErrInvalidAddress, "destination address is not provided"),
+		},
+		"error: invalid destination address": {
+			options: map[string]interface{}{
+				"from":  metadataFrom,
+				"to":    "invalid_to",
+				"nonce": transferNonceHex,
+				"value": transferValueHex,
+			},
+			expectedResponse: nil,
+			expectedError: templateError(
+				ErrInvalidAddress, "invalid_to is not a valid address"),
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockClient := &mocks.Client{}
+			service := NewConstructionAPIService(
+				&configuration.Configuration{Mode: configuration.Online},
+				mockClient,
+			)
+
+			if test.mocks != nil {
+				test.mocks(context.Background(), mockClient)
+			}
+
+			resp, err := service.ConstructionMetadata(context.Background(), &types.ConstructionMetadataRequest{
+				NetworkIdentifier: networkIdentifier,
+				Options:           test.options,
+			})
+
+			if err != nil {
+				assert.Equal(t, test.expectedError, err)
+			} else {
+				assert.Equal(t, test.expectedResponse, resp)
+			}
+		})
+	}
+
+}
+
+func templateError(error *types.Error, context string) *types.Error {
+	return &types.Error{
+		Code:      error.Code,
+		Message:   error.Message,
+		Retriable: false,
+		Details: map[string]interface{}{
+			"context": context,
+		},
+	}
 }

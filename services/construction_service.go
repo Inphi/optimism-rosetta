@@ -265,6 +265,25 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		}
 	}
 
+	// Only work for Generic Contract calls
+	if len(input.ContractAddress) > 0 {
+		checkContractAddress, ok := optimism.ChecksumAddress(input.ContractAddress)
+		if !ok {
+			return nil, wrapErr(
+				ErrInvalidAddress,
+				fmt.Errorf("%s is not a valid address", input.ContractAddress),
+			)
+		}
+		// Override the destination address to be the contract address
+		to = checkContractAddress
+
+		var err *types.Error
+		gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkContractAddress, input.Data)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// TODO(inphi): Upgrade to use EIP1559 on mainnet once avaialble
 	gasPrice, err := s.client.SuggestGasPrice(ctx)
 	if err != nil {
