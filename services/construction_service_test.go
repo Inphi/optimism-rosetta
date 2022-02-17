@@ -39,7 +39,7 @@ var (
 	chainID    = uint64(69)
 	chainIDHex = hexutil.EncodeUint64(chainID)
 
-	fromAddress          = "0x966fbC4E1F3a938Cf7798695C3244d9C7C190015"
+	fromAddress          = "0x14791697260E4c9A71f18484C9f997B308e59325"
 	toAddress            = "0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7"
 	tokenContractAddress = "0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e"
 
@@ -509,12 +509,12 @@ func TestMetadata(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	var (
-		unsignedOPTransferTx            = `{"from":"0x966fbC4E1F3a938Cf7798695C3244d9C7C190015","to":"0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x13881"}`                                                                                                                                                                                                                                                                                                      //nolint:lll
-		signedOPTransferTx              = `{"nonce":"0x43","gasPrice":"0x12a05f200","gas":"0x5208","to":"0xefd3dc58d60af3295b92ecd484caeb3a2f30b3e7","value":"0x134653c","input":"0x","v":"0x27125","r":"0x733a6097719aab45c9209c77e967f057c60036360d839a55316eaec60dbedcd9","s":"0x1fe4a59a206403cd09e0ff5b29f5062abb784c003590f84b7bb3daa4e0ade039","hash":"0xa4984c3f6767ec4465f4b11652a3b60fed1f006096f381aba5cf4800a30c5a53"}`                                                                                                                                   //nolint:lll
-		unsignedERC20TransferTx         = `{"from":"0x966fbC4E1F3a938Cf7798695C3244d9C7C190015","to":"0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e","value":"0x0","data":"0xa9059cbb000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7000000000000000000000000000000000000000000000000000000000134653c","nonce":"0x43","gas_price":"0x12a05f200","gas":"0xfde8","chain_id":"0x13881"}`                                                                                                                                                                    //nolint:lll
-		signedERC20TransferTx           = `{"nonce":"0x43","gasPrice":"0x12a05f200","gas":"0xfde8","to":"0x2d7882bedcbfddce29ba99965dd3cdf7fcb10a1e","value":"0x0","input":"0xa9059cbb000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7000000000000000000000000000000000000000000000000000000000134653c","v":"0x27126","r":"0x66705f88684114cedeaa1d3dca1f1613591e1dae270cd3eafcaaa7c772c28093","s":"0x4e7f3d52f236cf80af661f4465416ac6954f0e65f60f4644bc97f2085e439fd7","hash":"0xcc3fb58789635d41d025d57ca3d973354bdb136b1812e63df6f0e9912ed1c608"}` //nolint:lll
-		unsignedOPTransferTxInvalidFrom = `{"from":"invalid_from","to":"0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x13881"}`                                                                                                                                                                                                                                                                                                                                    //nolint:lll
-		unsignedOPTransferTxInvalidTo   = `{"from":"0x966fbC4E1F3a938Cf7798695C3244d9C7C190015","to":"invalid_to","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x13881"}`                                                                                                                                                                                                                                                                                                                                      //nolint:lll
+		unsignedOPTransferTx            = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x45"}`                                                                                                                                                                                                                                                                                                      //nolint:lll
+		signedOPTransferTx              = `{"nonce":"0x43","gasPrice":"0x12a05f200","gas":"0x5208","to":"0xefd3dc58d60af3295b92ecd484caeb3a2f30b3e7","value":"0x134653c","input":"0x","v":"0xad","r":"0xb01f5371d2d9bf33e17b910ea262cce459e2503bf6355b0fc45b6ef1582facb6","s":"0x37c813abca8ba5962dc7808ba9305544980c19208bf6fcde2fe8a66f2bab4ebc","hash":"0x3ace0a1d293b99f2ad4083a17b19f3b204858b051dc235802346bf0b73d34b09"}`                                                                                                                                   //nolint:lll
+		unsignedERC20TransferTx         = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e","value":"0x0","data":"0xa9059cbb000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7000000000000000000000000000000000000000000000000000000000134653c","nonce":"0x43","gas_price":"0x12a05f200","gas":"0xfde8","chain_id":"0x45"}`                                                                                                                                                                    //nolint:lll
+		signedERC20TransferTx           = `{"nonce":"0x43","gasPrice":"0x12a05f200","gas":"0xfde8","to":"0x2d7882bedcbfddce29ba99965dd3cdf7fcb10a1e","value":"0x0","input":"0xa9059cbb000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7000000000000000000000000000000000000000000000000000000000134653c","v":"0xad","r":"0x4c920b7e6480d06e4c89da9dbefa97ba1a2ff342c8843a0dc5c0ff15bab3f20b","s":"0x241aa86941f6adea2f048e0741fba77bda880772e95555347dbabaeca8450767","hash":"0x4fa571a8450dae225492ea11dffc5c89ca328f751cedac0e43e4e0919aaf8297"}` //nolint:lll
+		unsignedOPTransferTxInvalidFrom = `{"from":"invalid_from","to":"0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x45"}`                                                                                                                                                                                                                                                                                                                                    //nolint:lll
+		unsignedOPTransferTxInvalidTo   = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"invalid_to","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x45"}`                                                                                                                                                                                                                                                                                                                                      //nolint:lll
 	)
 
 	tests := map[string]struct {
@@ -568,7 +568,7 @@ func TestParse(t *testing.T) {
 			},
 			expectedResponse: &types.ConstructionParseResponse{
 				Operations: templateOperations(transferValue, &types.Currency{
-					Symbol:   "ERC20",
+					Symbol:   "OP",
 					Decimals: 18,
 					Metadata: map[string]interface{}{
 						"token_address": tokenContractAddress,
@@ -591,7 +591,7 @@ func TestParse(t *testing.T) {
 			},
 			expectedResponse: &types.ConstructionParseResponse{
 				Operations: templateOperations(transferValue, &types.Currency{
-					Symbol:   "ERC20",
+					Symbol:   "OP",
 					Decimals: 18,
 					Metadata: map[string]interface{}{
 						"token_address": tokenContractAddress,
