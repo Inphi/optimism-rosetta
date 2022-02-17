@@ -36,7 +36,10 @@ import (
 )
 
 var (
-	fromAddress          = "0x966fbC4E1F3a938Cf7798695C3244d9C7C190015"
+	chainID    = uint64(69)
+	chainIDHex = hexutil.EncodeUint64(chainID)
+
+	fromAddress          = "0x14791697260E4c9A71f18484C9f997B308e59325"
 	toAddress            = "0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7"
 	tokenContractAddress = "0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e"
 
@@ -502,9 +505,163 @@ func TestMetadata(t *testing.T) {
 			}
 		})
 	}
-
 }
 
+func TestParse(t *testing.T) {
+	var (
+		unsignedOPTransferTx            = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x45"}`                                                                                                                                                                                                                                                                                                      //nolint:lll
+		signedOPTransferTx              = `{"nonce":"0x43","gasPrice":"0x12a05f200","gas":"0x5208","to":"0xefd3dc58d60af3295b92ecd484caeb3a2f30b3e7","value":"0x134653c","input":"0x","v":"0xad","r":"0xb01f5371d2d9bf33e17b910ea262cce459e2503bf6355b0fc45b6ef1582facb6","s":"0x37c813abca8ba5962dc7808ba9305544980c19208bf6fcde2fe8a66f2bab4ebc","hash":"0x3ace0a1d293b99f2ad4083a17b19f3b204858b051dc235802346bf0b73d34b09"}`                                                                                                                                   //nolint:lll
+		unsignedERC20TransferTx         = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e","value":"0x0","data":"0xa9059cbb000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7000000000000000000000000000000000000000000000000000000000134653c","nonce":"0x43","gas_price":"0x12a05f200","gas":"0xfde8","chain_id":"0x45"}`                                                                                                                                                                    //nolint:lll
+		signedERC20TransferTx           = `{"nonce":"0x43","gasPrice":"0x12a05f200","gas":"0xfde8","to":"0x2d7882bedcbfddce29ba99965dd3cdf7fcb10a1e","value":"0x0","input":"0xa9059cbb000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7000000000000000000000000000000000000000000000000000000000134653c","v":"0xad","r":"0x4c920b7e6480d06e4c89da9dbefa97ba1a2ff342c8843a0dc5c0ff15bab3f20b","s":"0x241aa86941f6adea2f048e0741fba77bda880772e95555347dbabaeca8450767","hash":"0x4fa571a8450dae225492ea11dffc5c89ca328f751cedac0e43e4e0919aaf8297"}` //nolint:lll
+		unsignedOPTransferTxInvalidFrom = `{"from":"invalid_from","to":"0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x45"}`                                                                                                                                                                                                                                                                                                                                    //nolint:lll
+		unsignedOPTransferTxInvalidTo   = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"invalid_to","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x45"}`                                                                                                                                                                                                                                                                                                                                      //nolint:lll
+	)
+
+	tests := map[string]struct {
+		request          *types.ConstructionParseRequest
+		expectedResponse *types.ConstructionParseResponse
+		expectedError    *types.Error
+	}{
+		"happy path: unsigned OP transfer tx": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            false,
+				Transaction:       unsignedOPTransferTx,
+			},
+			expectedResponse: &types.ConstructionParseResponse{
+				Operations:               templateOperations(transferValue, optimism.Currency),
+				AccountIdentifierSigners: []*types.AccountIdentifier{},
+				Metadata: map[string]interface{}{
+					"nonce":     transferNonceHex,
+					"gas_price": transferGasPriceHex,
+					"gas_limit": transferGasLimitHex,
+					"chain_id":  chainIDHex,
+				},
+			},
+		},
+		"happy path: signed OP transfer tx": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            true,
+				Transaction:       signedOPTransferTx,
+			},
+			expectedResponse: &types.ConstructionParseResponse{
+				Operations: templateOperations(transferValue, optimism.Currency),
+				AccountIdentifierSigners: []*types.AccountIdentifier{
+					{
+						Address: fromAddress,
+					},
+				},
+				Metadata: map[string]interface{}{
+					"nonce":     transferNonceHex,
+					"gas_price": transferGasPriceHex,
+					"gas_limit": transferGasLimitHex,
+					"chain_id":  chainIDHex,
+				},
+			},
+		},
+		"happy path: unsigned ERC20 transfer tx": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            false,
+				Transaction:       unsignedERC20TransferTx,
+			},
+			expectedResponse: &types.ConstructionParseResponse{
+				Operations: templateOperations(transferValue, &types.Currency{
+					Symbol:   "OP",
+					Decimals: 18,
+					Metadata: map[string]interface{}{
+						"token_address": tokenContractAddress,
+					},
+				}),
+				AccountIdentifierSigners: []*types.AccountIdentifier{},
+				Metadata: map[string]interface{}{
+					"nonce":     transferNonceHex,
+					"gas_price": transferGasPriceHex,
+					"gas_limit": transferGasLimitERC20Hex,
+					"chain_id":  chainIDHex,
+				},
+			},
+		},
+		"happy path: signed ERC20 transfer tx": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            true,
+				Transaction:       signedERC20TransferTx,
+			},
+			expectedResponse: &types.ConstructionParseResponse{
+				Operations: templateOperations(transferValue, &types.Currency{
+					Symbol:   "OP",
+					Decimals: 18,
+					Metadata: map[string]interface{}{
+						"token_address": tokenContractAddress,
+					},
+				}),
+				AccountIdentifierSigners: []*types.AccountIdentifier{
+					{
+						Address: fromAddress,
+					},
+				},
+				Metadata: map[string]interface{}{
+					"nonce":     transferNonceHex,
+					"gas_price": transferGasPriceHex,
+					"gas_limit": transferGasLimitERC20Hex,
+					"chain_id":  chainIDHex,
+				},
+			},
+		},
+		"error: empty transaction": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            false,
+				Transaction:       "",
+			},
+			expectedError: templateError(
+				ErrUnableToParseIntermediateResult, "unexpected end of JSON input"),
+		},
+		// TODO: Add logic for generic call
+		// "error: unable to parse transaction": {
+		// 	request: &types.ConstructionParseRequest{
+		// 		NetworkIdentifier: networkIdentifier,
+		// 		Signed:            false,
+		// 		Transaction:       unsignedERC20TransferTxInvalidData,
+		// 	},
+		// 	expectedError: templateError(
+		// 		svcError.ErrUnableToParseTransaction, "invalid method id"),
+		// },
+		"error: invalid from address": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            false,
+				Transaction:       unsignedOPTransferTxInvalidFrom,
+			},
+			expectedError: templateError(
+				ErrInvalidAddress, "invalid_from is not a valid address"),
+		},
+		"error: invalid to address": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            false,
+				Transaction:       unsignedOPTransferTxInvalidTo,
+			},
+			expectedError: templateError(
+				ErrInvalidAddress, "invalid_to is not a valid address"),
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			service := &ConstructionAPIService{}
+			resp, err := service.ConstructionParse(context.Background(), test.request)
+
+			if err != nil {
+				assert.Equal(t, test.expectedError, err)
+			} else {
+				assert.Equal(t, test.expectedResponse, resp)
+			}
+		})
+	}
+}
 func templateError(error *types.Error, context string) *types.Error {
 	return &types.Error{
 		Code:      error.Code,
@@ -514,4 +671,13 @@ func templateError(error *types.Error, context string) *types.Error {
 			"context": context,
 		},
 	}
+}
+
+func templateOperations(amount uint64, currency *types.Currency) []*types.Operation {
+	return rosettaOperations(
+		fromAddress,
+		toAddress,
+		big.NewInt(int64(amount)),
+		currency,
+	)
 }
