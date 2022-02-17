@@ -12,12 +12,12 @@
   "compression_disabled":true,
   "memory_limit_disabled":true,
   "construction": {
-    "stale_depth": 3,
+    "stale_depth": 5,
     "broadcast_limit": 5,
-    "constructor_dsl_file": "optimism.ros",
+    "constructor_dsl_file": "optimism_erc20.ros",
     "end_conditions": {
       "create_account": 10,
-      "transfer": 20
+      "simple_transfer_erc20": 10
     }
   },
   "data": {
