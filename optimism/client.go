@@ -480,7 +480,7 @@ func (ec *Client) erc20TokenOps(
 			continue
 		}
 		// TODO(inphi): For now, we're hardcoding the supported OP token contracts on kovan. Need to put this in a config for later
-		if contractAddress != "0x9A4240883d1b4b82f8E9F21bEdD1b95Fb5176e4d" {
+		if contractAddress != "0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A" {
 			continue
 		}
 
