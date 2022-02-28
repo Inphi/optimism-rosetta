@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	mocks "github.com/coinbase/rosetta-ethereum/mocks/optimism"
+	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
@@ -353,6 +354,34 @@ func TestBalance(t *testing.T) {
 		},
 	).Once()
 
+	callData, err := artifacts.ERC20ABI.Pack("balanceOf", common.HexToAddress(account))
+	assert.NoError(t, err)
+	mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		"eth_call",
+		map[string]string{
+			"data": fmt.Sprintf("0x%s", common.Bytes2Hex(callData)),
+			"to":   opTokenContractAddress.String(),
+		},
+		blockNum,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*string)
+			var expected map[string]interface{}
+			file, err := ioutil.ReadFile("testdata/call_balance_token_10992.json")
+			assert.NoError(t, err)
+
+			err = json.Unmarshal(file, &expected)
+			assert.NoError(t, err)
+
+			*r = expected["data"].(string)
+		},
+	).Once()
+
 	resp, err := c.Balance(
 		ctx,
 		&RosettaTypes.AccountIdentifier{
@@ -370,6 +399,10 @@ func TestBalance(t *testing.T) {
 			{
 				Value:    "10372550232136640000000",
 				Currency: Currency,
+			},
+			{
+				Value:    "1000000000000000000000",
+				Currency: OPTokenCurrency,
 			},
 		},
 		Metadata: map[string]interface{}{
@@ -445,6 +478,34 @@ func TestBalance_Historical_Hash(t *testing.T) {
 		},
 	).Once()
 
+	callData, err := artifacts.ERC20ABI.Pack("balanceOf", common.HexToAddress(account))
+	assert.NoError(t, err)
+	mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		"eth_call",
+		map[string]string{
+			"data": fmt.Sprintf("0x%s", common.Bytes2Hex(callData)),
+			"to":   opTokenContractAddress.String(),
+		},
+		blockNum,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*string)
+			var expected map[string]interface{}
+			file, err := ioutil.ReadFile("testdata/call_balance_token_10992.json")
+			assert.NoError(t, err)
+
+			err = json.Unmarshal(file, &expected)
+			assert.NoError(t, err)
+
+			*r = expected["data"].(string)
+		},
+	).Once()
+
 	resp, err := c.Balance(
 		ctx,
 		&RosettaTypes.AccountIdentifier{
@@ -467,6 +528,10 @@ func TestBalance_Historical_Hash(t *testing.T) {
 			{
 				Value:    "10372550232136640000000",
 				Currency: Currency,
+			},
+			{
+				Value:    "1000000000000000000000",
+				Currency: OPTokenCurrency,
 			},
 		},
 		Metadata: map[string]interface{}{
@@ -540,6 +605,34 @@ func TestBalance_Historical_Index(t *testing.T) {
 		},
 	).Once()
 
+	callData, err := artifacts.ERC20ABI.Pack("balanceOf", common.HexToAddress(account))
+	assert.NoError(t, err)
+	mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		"eth_call",
+		map[string]string{
+			"data": fmt.Sprintf("0x%s", common.Bytes2Hex(callData)),
+			"to":   opTokenContractAddress.String(),
+		},
+		blockNum,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*string)
+			var expected map[string]interface{}
+			file, err := ioutil.ReadFile("testdata/call_balance_token_10992.json")
+			assert.NoError(t, err)
+
+			err = json.Unmarshal(file, &expected)
+			assert.NoError(t, err)
+
+			*r = expected["data"].(string)
+		},
+	).Once()
+
 	resp, err := c.Balance(
 		ctx,
 		&RosettaTypes.AccountIdentifier{
@@ -559,6 +652,10 @@ func TestBalance_Historical_Index(t *testing.T) {
 			{
 				Value:    "10372550232136640000000",
 				Currency: Currency,
+			},
+			{
+				Value:    "1000000000000000000000",
+				Currency: OPTokenCurrency,
 			},
 		},
 		Metadata: map[string]interface{}{

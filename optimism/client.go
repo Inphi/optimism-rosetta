@@ -83,6 +83,9 @@ var (
 		"0x8fb9a287ccbe52b9ad39b47c95837ef257c3b684028e3ce2185bdf41d18646fa": "0x2f0664e5df8938", // 1244152
 		"0x2c987042c2af3e009ef8d2cebcdf659faaa694089e0f9231202f3efdcb6562b8": "0x3f69ca816a72d6", // 1272994
 	}
+
+	// TODO(inphi): For now, we're hardcoding the supported OP token contracts on kovan. Need to put this in a config for later
+	opTokenContractAddress = common.HexToAddress("0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A")
 )
 
 // Client allows for querying a set of specific Ethereum endpoints in an
@@ -479,8 +482,7 @@ func (ec *Client) erc20TokenOps(
 		if contractAddress == ovmEthAddr.String() {
 			continue
 		}
-		// TODO(inphi): For now, we're hardcoding the supported OP token contracts on kovan. Need to put this in a config for later
-		if contractAddress != "0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A" {
+		if contractAddress != opTokenContractAddress.String() {
 			continue
 		}
 
@@ -1348,6 +1350,7 @@ func decodeHexData(data string) (*big.Int, error) {
 
 // Balance returns the balance of a *RosettaTypes.AccountIdentifier
 // at a *RosettaTypes.PartialBlockIdentifier.
+// The OP Token and ETH balances will be returned if currencies is unspecified
 func (ec *Client) Balance(
 	ctx context.Context,
 	account *RosettaTypes.AccountIdentifier,
@@ -1412,12 +1415,6 @@ func (ec *Client) Balance(
 		Currency: Currency,
 	}
 
-	erc20Data, err := artifacts.ERC20ABI.Pack("balanceOf", common.HexToAddress(account.Address))
-	if err != nil {
-		return nil, err
-	}
-	encodedERC20Data := hexutil.Encode(erc20Data)
-
 	var balances []*RosettaTypes.Amount
 	for _, curr := range currencies {
 		if reflect.DeepEqual(curr, Currency) {
@@ -1431,27 +1428,25 @@ func (ec *Client) Balance(
 			return nil, fmt.Errorf("invalid contract address %s", contractAddress)
 		}
 
-		callParams := map[string]string{
-			"to":   contractAddress,
-			"data": encodedERC20Data,
-		}
-		var resp string
-		if err := ec.c.CallContext(ctx, &resp, "eth_call", callParams, blockNum); err != nil {
-			return nil, err
-		}
-		balance, err := decodeHexData(resp)
+		balance, err := ec.getBalance(ctx, account.Address, blockNum, contractAddress)
 		if err != nil {
 			return nil, fmt.Errorf("err encountered for currency %s, token address %s; %v", curr.Symbol, contractAddress, err)
 		}
-
 		balances = append(balances, &RosettaTypes.Amount{
-			Value:    balance.String(),
+			Value:    balance,
 			Currency: curr,
 		})
 	}
 
 	if len(currencies) == 0 {
-		balances = append(balances, nativeBalance)
+		opTokenBalance, err := ec.getBalance(ctx, account.Address, blockNum, opTokenContractAddress.String())
+		if err != nil {
+			return nil, fmt.Errorf("err getting OP token balance; %v", err)
+		}
+		balances = append(balances, nativeBalance, &RosettaTypes.Amount{
+			Value:    opTokenBalance,
+			Currency: OPTokenCurrency,
+		})
 	}
 
 	return &RosettaTypes.AccountBalanceResponse{
@@ -1465,6 +1460,29 @@ func (ec *Client) Balance(
 			"code":  code,
 		},
 	}, nil
+}
+
+func (ec *Client) getBalance(ctx context.Context, accountAddress string, blockNum string, contractAddress string) (string, error) {
+	erc20Data, err := artifacts.ERC20ABI.Pack("balanceOf", common.HexToAddress(accountAddress))
+	if err != nil {
+		return "", err
+	}
+	encodedERC20Data := hexutil.Encode(erc20Data)
+
+	callParams := map[string]string{
+		"to":   contractAddress,
+		"data": encodedERC20Data,
+	}
+	var resp string
+	if err := ec.c.CallContext(ctx, &resp, "eth_call", callParams, blockNum); err != nil {
+		return "", err
+	}
+	balance, err := decodeHexData(resp)
+	if err != nil {
+		return "", err
+	}
+
+	return balance.String(), nil
 }
 
 // GetBlockByNumberInput is the input to the call

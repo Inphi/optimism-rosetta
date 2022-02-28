@@ -159,6 +159,11 @@ var (
 		Decimals: Decimals,
 	}
 
+    OPTokenCurrency = &types.Currency{
+        Symbol: TokenSymbol,
+        Decimals: TokenDecimals,
+    }
+
 	// OperationTypes are all suppoorted operation types.
 	OperationTypes = []string{
 		MinerRewardOpType,
