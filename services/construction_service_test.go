@@ -437,6 +437,49 @@ func TestMetadata(t *testing.T) {
 				},
 			},
 		},
+		"happy path: Generic contract call with value": {
+			options: map[string]interface{}{
+				"from":             metadataFrom,
+				"to":               metadataTo,
+				"value":            "0x5f5e100",
+				"nonce":            transferNonceHex2,
+				"contract_address": tokenContractAddress,
+				"data":             metadataGenericData,
+				"method_signature": "approve(address,uint256)",
+				"method_args":      []string{"0xD10a72Cf054650931365Cc44D912a4FD75257058", "1000"},
+			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				to := common.HexToAddress(tokenContractAddress)
+				dataBytes, _ := hexutil.Decode(metadataGenericData)
+				client.On("EstimateGas", ctx, ethereum.CallMsg{
+					From:  common.HexToAddress(metadataFrom),
+					To:    &to,
+					Data:  dataBytes,
+					Value: big.NewInt(100000000),
+				}).Return(transferGasLimitERC20, nil)
+
+				client.On("SuggestGasPrice", ctx).
+					Return(big.NewInt(int64(transferGasPrice)), nil)
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":               tokenContractAddress,
+					"value":            "0x5f5e100",
+					"nonce":            transferNonceHex2,
+					"gas_price":        transferGasPriceHex,
+					"gas_limit":        transferGasLimitERC20Hex,
+					"data":             metadataGenericData,
+					"method_signature": "approve(address,uint256)",
+					"method_args":      []interface{}{"0xD10a72Cf054650931365Cc44D912a4FD75257058", "1000"},
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", transferGasPrice*transferGasLimitERC20),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+		},
 		"error: missing source address": {
 			options: map[string]interface{}{
 				"to":    metadataTo,
