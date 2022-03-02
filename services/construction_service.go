@@ -490,6 +490,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 	}
 
 	currency := optimism.Currency
+	var erc20Transfer bool
 
 	//TODO: add logic for contract call parsing ERC20 currency
 	if hasData(tx.Data) && hasTransferData(tx.Data) {
@@ -509,6 +510,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 		// Update destination address to be the actual recipient
 		tx.To = toAdd
 		tx.Value = amount
+		erc20Transfer = true
 	}
 
 	// Ensure valid from address
@@ -523,7 +525,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", tx.To))
 	}
 
-	ops := rosettaOperations(checkFrom, checkTo, tx.Value, currency)
+	ops := rosettaOperations(checkFrom, checkTo, tx.Value, currency, erc20Transfer)
 
 	metadata := &parseMetadata{
 		Nonce:    tx.Nonce,
@@ -922,10 +924,10 @@ func rosettaOperations(
 	toAddress string,
 	amount *big.Int,
 	currency *types.Currency,
+	erc20Transfer bool,
 ) []*types.Operation {
 	opType := optimism.CallOpType
-	// Then assume it's an ERC20 transfer
-	if !isNativeCurrency(currency) {
+	if erc20Transfer {
 		opType = optimism.PaymentOpType
 	}
 

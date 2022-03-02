@@ -572,7 +572,7 @@ func TestParse(t *testing.T) {
 				Transaction:       unsignedOPTransferTx,
 			},
 			expectedResponse: &types.ConstructionParseResponse{
-				Operations:               templateOperations(transferValue, optimism.Currency),
+				Operations:               templateOperations(transferValue, optimism.Currency, false),
 				AccountIdentifierSigners: []*types.AccountIdentifier{},
 				Metadata: map[string]interface{}{
 					"nonce":     transferNonceHex,
@@ -589,7 +589,7 @@ func TestParse(t *testing.T) {
 				Transaction:       signedOPTransferTx,
 			},
 			expectedResponse: &types.ConstructionParseResponse{
-				Operations: templateOperations(transferValue, optimism.Currency),
+				Operations: templateOperations(transferValue, optimism.Currency, false),
 				AccountIdentifierSigners: []*types.AccountIdentifier{
 					{
 						Address: fromAddress,
@@ -616,7 +616,7 @@ func TestParse(t *testing.T) {
 					Metadata: map[string]interface{}{
 						"token_address": tokenContractAddress,
 					},
-				}),
+				}, true),
 				AccountIdentifierSigners: []*types.AccountIdentifier{},
 				Metadata: map[string]interface{}{
 					"nonce":     transferNonceHex,
@@ -639,7 +639,7 @@ func TestParse(t *testing.T) {
 					Metadata: map[string]interface{}{
 						"token_address": tokenContractAddress,
 					},
-				}),
+				}, true),
 				AccountIdentifierSigners: []*types.AccountIdentifier{
 					{
 						Address: fromAddress,
@@ -752,11 +752,12 @@ func templateError(error *types.Error, context string) *types.Error {
 	}
 }
 
-func templateOperations(amount uint64, currency *types.Currency) []*types.Operation {
+func templateOperations(amount uint64, currency *types.Currency, erco20Transfer bool) []*types.Operation {
 	return rosettaOperations(
 		fromAddress,
 		toAddress,
 		big.NewInt(int64(amount)),
 		currency,
+		erco20Transfer,
 	)
 }
