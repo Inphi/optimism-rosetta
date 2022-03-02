@@ -86,12 +86,7 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 	ctx context.Context,
 	request *types.ConstructionPreprocessRequest,
 ) (*types.ConstructionPreprocessResponse, *types.Error) {
-	isContractCall := false
-	if _, ok := request.Metadata["method_signature"]; ok {
-		isContractCall = true
-	}
-
-	fromOp, toOp, err := matchTransferOperations(request.Operations, isContractCall)
+	fromOp, toOp, err := matchTransferOperations(request.Operations)
 	if err != nil {
 		return nil, wrapErr(ErrUnclearIntent, err)
 	}
@@ -330,12 +325,8 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	if err := unmarshalJSONMap(request.Metadata, &metadata); err != nil {
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
-	isContractCall := false
-	if hasData(metadata.Data) && !hasTransferData(metadata.Data) {
-		isContractCall = true
-	}
 
-	fromOp, toOp, err := matchTransferOperations(request.Operations, isContractCall)
+	fromOp, toOp, err := matchTransferOperations(request.Operations)
 	if err != nil {
 		return nil, wrapErr(ErrUnclearIntent, err)
 	}
@@ -643,93 +634,19 @@ func (a *ConstructionAPIService) calculateNonce(
 
 // matchTransferOperations attempts to match a slice of operations with a `transfer`
 // intent. This will match both ETH and ERC20 tokens
-func matchTransferOperations(operations []*types.Operation, isContractCall bool) (
+func matchTransferOperations(operations []*types.Operation) (
 	*types.Operation,
 	*types.Operation,
 	error,
 ) {
-	valueOne, err := strconv.ParseInt(operations[0].Amount.Value, 10, 64)
+	operationDescriptions, err := matchTransferOperationDescriptions(operations)
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, err
 	}
-	valueTwo, err := strconv.ParseInt(operations[1].Amount.Value, 10, 64)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if isContractCall && valueOne == 0 {
-		if valueOne != valueTwo {
-			return nil, nil, errors.New("for generic call both values should be zero")
-		}
-		descriptions := &parser.Descriptions{
-			OperationDescriptions: []*parser.OperationDescription{
-				{
-					Type: optimism.CallOpType,
-					Account: &parser.AccountDescription{
-						Exists: true,
-					},
-					Amount: &parser.AmountDescription{
-						Exists: true,
-						Sign:   parser.AnyAmountSign,
-					},
-				},
-				{
-					Type: optimism.CallOpType,
-					Account: &parser.AccountDescription{
-						Exists: true,
-					},
-					Amount: &parser.AmountDescription{
-						Exists: true,
-						Sign:   parser.AnyAmountSign,
-					},
-				},
-			},
-			ErrUnmatched: true,
-		}
 
-		matches, err := parser.MatchOperations(descriptions, operations)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		fromOp, _ := matches[0].First()
-		toOp, _ := matches[1].First()
-
-		// Manually validate currencies since we cannot rely on parser
-		if fromOp.Amount.Currency == nil || toOp.Amount.Currency == nil {
-			return nil, nil, errors.New("missing currency")
-		}
-
-		if !reflect.DeepEqual(fromOp.Amount.Currency, toOp.Amount.Currency) {
-			return nil, nil, errors.New("from and to currencies are not equal")
-		}
-
-		return fromOp, toOp, nil
-
-	}
 	descriptions := &parser.Descriptions{
-		OperationDescriptions: []*parser.OperationDescription{
-			{
-				Type: optimism.CallOpType,
-				Account: &parser.AccountDescription{
-					Exists: true,
-				},
-				Amount: &parser.AmountDescription{
-					Exists: true,
-					Sign:   parser.NegativeAmountSign,
-				},
-			},
-			{
-				Type: optimism.CallOpType,
-				Account: &parser.AccountDescription{
-					Exists: true,
-				},
-				Amount: &parser.AmountDescription{
-					Exists: true,
-					Sign:   parser.PositiveAmountSign,
-				},
-			},
-		},
-		ErrUnmatched: true,
+		OperationDescriptions: operationDescriptions,
+		ErrUnmatched:          true,
 	}
 
 	matches, err := parser.MatchOperations(descriptions, operations)
@@ -739,17 +656,57 @@ func matchTransferOperations(operations []*types.Operation, isContractCall bool)
 
 	fromOp, _ := matches[0].First()
 	toOp, _ := matches[1].First()
-
-	// Manually validate currencies since we cannot rely on parser
-	if fromOp.Amount.Currency == nil || toOp.Amount.Currency == nil {
-		return nil, nil, errors.New("missing currency")
-	}
-
-	if !reflect.DeepEqual(fromOp.Amount.Currency, toOp.Amount.Currency) {
-		return nil, nil, errors.New("from and to currencies are not equal")
-	}
-
 	return fromOp, toOp, nil
+}
+
+func matchTransferOperationDescriptions(operations []*types.Operation) ([]*parser.OperationDescription, error) {
+	if len(operations) != 2 {
+		return nil, fmt.Errorf("invalid number of operations")
+	}
+
+	firstCurrency := operations[0].Amount.Currency
+	secondCurrency := operations[1].Amount.Currency
+	if firstCurrency == nil || secondCurrency == nil {
+		return nil, fmt.Errorf("invalid currency on operation")
+	}
+	if !reflect.DeepEqual(firstCurrency, secondCurrency) {
+		return nil, fmt.Errorf("from and to currencies are not equal")
+	}
+
+	opType := optimism.CallOpType
+	if !isNativeCurrency(firstCurrency) {
+		_, firstOk := firstCurrency.Metadata[TokenContractAddressKey].(string)
+		_, secondOk := secondCurrency.Metadata[TokenContractAddressKey].(string)
+		if !firstOk || !secondOk {
+			return nil, fmt.Errorf("non-native currency must have token_address in metadata")
+		}
+		opType = optimism.PaymentOpType
+	}
+
+	return []*parser.OperationDescription{
+		{
+			Type: opType,
+			Account: &parser.AccountDescription{
+				Exists: true,
+			},
+			Amount: &parser.AmountDescription{
+				Exists:   true,
+				Sign:     parser.NegativeAmountSign,
+				Currency: firstCurrency,
+			},
+		},
+		{
+			Type: opType,
+			Account: &parser.AccountDescription{
+				Exists: true,
+			},
+			Amount: &parser.AmountDescription{
+				Exists:   true,
+				Sign:     parser.PositiveAmountSign,
+				Currency: firstCurrency,
+			},
+		},
+	}, nil
 }
 
 // isNativeCurrency checks if the currency is the native currency
@@ -957,10 +914,7 @@ func hasTransferData(data []byte) bool {
 	methodID := data[:4]
 	expectedMethodID := erc20TransferMethodID()
 	res := bytes.Compare(methodID, expectedMethodID)
-	if res != 0 {
-		return false
-	}
-	return true
+	return res == 0
 }
 
 func rosettaOperations(
@@ -969,12 +923,18 @@ func rosettaOperations(
 	amount *big.Int,
 	currency *types.Currency,
 ) []*types.Operation {
+	opType := optimism.CallOpType
+	// Then assume it's an ERC20 transfer
+	if !isNativeCurrency(currency) {
+		opType = optimism.PaymentOpType
+	}
+
 	return []*types.Operation{
 		{
 			OperationIdentifier: &types.OperationIdentifier{
 				Index: 0,
 			},
-			Type: optimism.CallOpType,
+			Type: opType,
 			Account: &types.AccountIdentifier{
 				Address: fromAddress,
 			},
@@ -992,7 +952,7 @@ func rosettaOperations(
 					Index: 0,
 				},
 			},
-			Type: optimism.CallOpType,
+			Type: opType,
 			Account: &types.AccountIdentifier{
 				Address: toAddress,
 			},

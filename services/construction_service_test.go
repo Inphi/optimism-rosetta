@@ -124,10 +124,10 @@ func TestConstructionService(t *testing.T) {
 	)
 	assert.Nil(t, err)
 	optionsRaw := `{"from":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309", "to":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d", "value": "0x9864aac3510d02"}`
-	var options options
-	assert.NoError(t, json.Unmarshal([]byte(optionsRaw), &options))
+	var opts options
+	assert.NoError(t, json.Unmarshal([]byte(optionsRaw), &opts))
 	assert.Equal(t, &types.ConstructionPreprocessResponse{
-		Options: forceMarshalMap(t, &options),
+		Options: forceMarshalMap(t, &opts),
 	}, preprocessResponse)
 
 	// Test Metadata
@@ -156,7 +156,7 @@ func TestConstructionService(t *testing.T) {
 	).Once()
 	metadataResponse, err := servicer.ConstructionMetadata(ctx, &types.ConstructionMetadataRequest{
 		NetworkIdentifier: networkIdentifier,
-		Options:           forceMarshalMap(t, &options),
+		Options:           forceMarshalMap(t, &opts),
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, &types.ConstructionMetadataResponse{
@@ -705,6 +705,42 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+
+func TestPreprocessERC20(t *testing.T) {
+	networkIdentifier = &types.NetworkIdentifier{
+		Network:    optimism.TestnetNetwork,
+		Blockchain: optimism.Blockchain,
+	}
+
+	cfg := &configuration.Configuration{
+		Mode:    configuration.Online,
+		Network: networkIdentifier,
+		Params:  params.TestnetChainConfig,
+	}
+
+	mockClient := &mocks.Client{}
+	servicer := NewConstructionAPIService(cfg, mockClient)
+	ctx := context.Background()
+
+	intent := `[{"operation_identifier":{"index":0},"type":"PAYMENT","account":{"address":"0x9670d6977d0b10130E5d4916c9134363281B6B0e"},"amount":{"value":"-100000000000","currency":{"symbol":"OP","decimals":18,"metadata":{"token_address":"0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A"}}}},{"operation_identifier":{"index":1},"type":"PAYMENT","account":{"address":"0x705f9aE78b11a3ED5080c053Fa4Fa0c52359c674"},"amount":{"value":"100000000000","currency":{"symbol":"OP","decimals":18,"metadata":{"token_address":"0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A"}}}}]` // nolint
+	var ops []*types.Operation
+	assert.NoError(t, json.Unmarshal([]byte(intent), &ops))
+	preprocessResponse, err := servicer.ConstructionPreprocess(
+		ctx,
+		&types.ConstructionPreprocessRequest{
+			NetworkIdentifier: networkIdentifier,
+			Operations:        ops,
+		},
+	)
+	assert.Nil(t, err)
+	optionsRaw := `{"from":"0x9670d6977d0b10130E5d4916c9134363281B6B0e", "to":"0x705f9aE78b11a3ED5080c053Fa4Fa0c52359c674", "data":"0xa9059cbb000000000000000000000000705f9ae78b11a3ed5080c053fa4fa0c52359c674000000000000000000000000000000000000000000000000000000174876e800", "token_address":"0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A", "value": "0x0"}`
+	var options options
+	assert.NoError(t, json.Unmarshal([]byte(optionsRaw), &options))
+	assert.Equal(t, &types.ConstructionPreprocessResponse{
+		Options: forceMarshalMap(t, &options),
+	}, preprocessResponse)
+}
+
 func templateError(error *types.Error, context string) *types.Error {
 	return &types.Error{
 		Code:      error.Code,
