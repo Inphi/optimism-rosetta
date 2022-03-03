@@ -15,8 +15,8 @@ type CurrencyFetcher struct {
 	mock.Mock
 }
 
-// fetchCurrency provides a mock function with given fields: ctx, blockNum, contractAddress
-func (_m *CurrencyFetcher) fetchCurrency(ctx context.Context, blockNum uint64, contractAddress string) (*types.Currency, error) {
+// FetchCurrency provides a mock function with given fields: ctx, blockNum, contractAddress
+func (_m *CurrencyFetcher) FetchCurrency(ctx context.Context, blockNum uint64, contractAddress string) (*types.Currency, error) {
 	ret := _m.Called(ctx, blockNum, contractAddress)
 
 	var r0 *types.Currency

@@ -51,6 +51,7 @@ const (
 	fnSelectorLen = 10
 
 	sequencerFeeVaultAddr = "0x4200000000000000000000000000000000000011"
+	zeroAddr              = "0x0000000000000000000000000000000000000000"
 
 	erc20TransferEventLogTopics = "Transfer(address,address,uint256)"
 
@@ -498,7 +499,7 @@ func (ec *Client) erc20TokenOps(
 			return nil, fmt.Errorf("%s is not a valid address", toAddress)
 		}
 
-		currency, err := ec.currencyFetcher.fetchCurrency(ctx, block.NumberU64(), contractAddress)
+		currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.NumberU64(), contractAddress)
 		// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 		if err != nil {
 			log.Print(fmt.Sprintf("error while fetching currency details for currency: %s", contractAddress), err)
@@ -509,6 +510,44 @@ func (ec *Client) erc20TokenOps(
 					ContractAddressKey: contractAddress,
 				},
 			}
+		}
+
+		if fromAddress == zeroAddr {
+			mintOp := &RosettaTypes.Operation{
+				OperationIdentifier: &RosettaTypes.OperationIdentifier{
+					Index: int64(len(ops) + startIndex),
+				},
+				Type:   ERC20MintOpType,
+				Status: RosettaTypes.String(status),
+				Account: &RosettaTypes.AccountIdentifier{
+					Address: toAddress,
+				},
+				Amount: &RosettaTypes.Amount{
+					Value:    value.String(),
+					Currency: currency,
+				},
+			}
+			ops = append(ops, mintOp)
+			continue
+		}
+
+		if toAddress == zeroAddr {
+			burnOp := &RosettaTypes.Operation{
+				OperationIdentifier: &RosettaTypes.OperationIdentifier{
+					Index: int64(len(ops) + startIndex),
+				},
+				Type:   ERC20BurnOpType,
+				Status: RosettaTypes.String(status),
+				Account: &RosettaTypes.AccountIdentifier{
+					Address: fromAddress,
+				},
+				Amount: &RosettaTypes.Amount{
+					Value:    new(big.Int).Neg(value).String(),
+					Currency: currency,
+				},
+			}
+			ops = append(ops, burnOp)
+			continue
 		}
 
 		fromOp := &RosettaTypes.Operation{
@@ -1209,7 +1248,7 @@ func (ec *Client) populateTransactions(
 			from, to := tx.From.Hex(), tx.Transaction.To().Hex()
 
 			// These are tx across L1 and L2. These cost zero gas as they're manufactured by the sequencer
-			if from == "0x0000000000000000000000000000000000000000" {
+			if from == zeroAddr {
 				tx.FeeAmount.SetUint64(0)
 			} else if (to == gasPriceOracleAddr.Hex()) && (from == gasPriceOracleOwnerMainnet.Hex() || from == gasPriceOracleOwnerKovan.Hex() || from == gasPriceOracleOwnerGoerli.Hex()) {
 				// The sequencer doesn't charge the owner of the gpo.

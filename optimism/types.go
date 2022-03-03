@@ -64,6 +64,12 @@ const (
 	// PaymentOpType is used to represent token transfer operations
 	PaymentOpType = "PAYMENT"
 
+	// ERC20MintOpType is used to represent token mint operations
+	ERC20MintOpType = "ERC20_MINT"
+
+	// ERC20MintOpType is used to represent token burn operations
+	ERC20BurnOpType = "ERC20_BURN"
+
 	// CallOpType is used to represent CALL trace operations.
 	CallOpType = "CALL"
 
@@ -159,16 +165,18 @@ var (
 		Decimals: Decimals,
 	}
 
-    OPTokenCurrency = &types.Currency{
-        Symbol: TokenSymbol,
-        Decimals: TokenDecimals,
-    }
+	OPTokenCurrency = &types.Currency{
+		Symbol:   TokenSymbol,
+		Decimals: TokenDecimals,
+	}
 
 	// OperationTypes are all suppoorted operation types.
 	OperationTypes = []string{
 		MinerRewardOpType,
 		FeeOpType,
 		PaymentOpType,
+		ERC20MintOpType,
+		ERC20BurnOpType,
 		CallOpType,
 		CreateOpType,
 		Create2OpType,

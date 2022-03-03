@@ -182,7 +182,7 @@ func TestFetchCurrency(t *testing.T) {
 			var blockNum uint64 = 1
 			test.mockFn(mockJSONRPC, test.contractAddress, blockNum)
 
-			fetchedCurrency, err := cf.fetchCurrency(ctx, blockNum, test.contractAddress)
+			fetchedCurrency, err := cf.FetchCurrency(ctx, blockNum, test.contractAddress)
 			assert.Equal(t, test.expectedCurrency, fetchedCurrency)
 			assert.Equal(t, test.error, err)
 
@@ -191,7 +191,7 @@ func TestFetchCurrency(t *testing.T) {
 			// Currencies for which we were able to successfully fetch details should be cached,
 			// such that subsequent queries are not needed (hence we don't need to re-mock)
 			if test.error == nil {
-				fetchedCurrency, err = cf.fetchCurrency(ctx, blockNum, test.contractAddress)
+				fetchedCurrency, err = cf.FetchCurrency(ctx, blockNum, test.contractAddress)
 				assert.Equal(t, test.expectedCurrency, fetchedCurrency)
 				assert.NoError(t, err)
 

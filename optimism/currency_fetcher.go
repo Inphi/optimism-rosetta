@@ -39,7 +39,7 @@ const (
 // CurrencyFetcher interface describes a struct that can fetch the details of
 // an Ethereum-based token given its contract address.
 type CurrencyFetcher interface {
-	fetchCurrency(ctx context.Context, blockNum uint64, contractAddress string) (*RosettaTypes.Currency, error)
+	FetchCurrency(ctx context.Context, blockNum uint64, contractAddress string) (*RosettaTypes.Currency, error)
 }
 
 // ERC20CurrencyFetcher type has a global currencyCache (lru) to cache results of fetching currency details,
@@ -72,7 +72,7 @@ func parseIntReturn(parsedABI abi.ABI, methodName string, data []byte) (*big.Int
 	return out0, nil
 }
 
-// fetchCurrency is a helper function that takes in a contract address (ERC20) and returns a Currency object
+// FetchCurrency is a helper function that takes in a contract address (ERC20) and returns a Currency object
 // with details such as the symbol and # of decimal places. This method uses RPC calls to fetch such data.
 // Because the contractAddress param is checksummed prior to invocation, we assume it is valid.
 // We make use of an LRU cache to prevent repeatedly fetching currency details.
@@ -83,7 +83,7 @@ func parseIntReturn(parsedABI abi.ABI, methodName string, data []byte) (*big.Int
 //
 // Note: any returned data payload with the prefix `0x4e487b71` are the first four bytes of keccak256(Panic(uint256))
 // If we encounter a failure while fetching currency details, we return a default value.
-func (ecf ERC20CurrencyFetcher) fetchCurrency(
+func (ecf ERC20CurrencyFetcher) FetchCurrency(
 	ctx context.Context,
 	blockNum uint64,
 	contractAddress string,
