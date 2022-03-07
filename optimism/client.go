@@ -1009,7 +1009,7 @@ func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
 					Index: 0,
 				},
 			},
-			Type:   MinerRewardOpType,
+			Type:   FeeOpType,
 			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
 				Address: MustChecksum(tx.Miner),

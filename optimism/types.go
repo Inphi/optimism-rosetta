@@ -54,10 +54,6 @@ const (
 
 	TokenDecimals = 18
 
-	// MinerRewardOpType is used to describe
-	// a miner block reward.
-	MinerRewardOpType = "MINER_REWARD"
-
 	// FeeOpType is used to represent fee operations.
 	FeeOpType = "FEE"
 
@@ -172,7 +168,6 @@ var (
 
 	// OperationTypes are all suppoorted operation types.
 	OperationTypes = []string{
-		MinerRewardOpType,
 		FeeOpType,
 		PaymentOpType,
 		ERC20MintOpType,

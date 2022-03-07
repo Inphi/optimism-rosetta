@@ -19,7 +19,7 @@
                         "operation_identifier": {
                             "index": 0
                         },
-                        "type": "MINER_REWARD",
+                        "type": "FEE",
                         "status": "SUCCESS",
                         "account": {
                             "address": "0x334391Aa808257952A462d1475562Ee2106a6C90"

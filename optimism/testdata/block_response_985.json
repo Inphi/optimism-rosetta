@@ -41,7 +41,7 @@
                                 "index": 0
                             }
                         ],
-                        "type": "MINER_REWARD",
+                        "type": "FEE",
                         "status": "SUCCESS",
                         "account": {
                             "address": "0x4200000000000000000000000000000000000011"
