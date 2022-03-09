@@ -934,7 +934,11 @@ func decodeAddressUint256(hex string) (common.Address, *big.Int, error) {
 	addrB := hex[:64]
 	addr := common.HexToAddress(addrB)
 
-	bigHex := fmt.Sprintf("0x%s", strings.TrimLeft(hex[64:], "0"))
+	uint256Str := strings.TrimLeft(hex[64:], "0")
+	if uint256Str == "" {
+		uint256Str = "0"
+	}
+	bigHex := fmt.Sprintf("0x%s", uint256Str)
 	uint256, err := hexutil.DecodeBig(bigHex)
 	if err != nil {
 		return common.Address{}, nil, err
