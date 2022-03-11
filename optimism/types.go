@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 )
 
@@ -136,21 +135,21 @@ var (
 	// MainnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the mainnet genesis block.
 	MainnetGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  params.MainnetGenesisHash.Hex(),
+		Hash:  "0x7ca38a1916c42007829c55e69d3e9a73265554b586a499015373241b8a3fa48b",
 		Index: GenesisBlockIndex,
 	}
 
 	// TestnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the testnet genesis block.
 	TestnetGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  params.TestnetGenesisHash.Hex(),
+		Hash:  "0x02adc9b449ff5f2467b8c674ece7ff9b21319d76c4ad62a67a70d552655927e5",
 		Index: GenesisBlockIndex,
 	}
 
 	// GoerliGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the Goerli genesis block.
 	GoerliGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  params.GoerliGenesisHash.Hex(),
+		Hash:  "0xb643d8aa991fb19f47b9178818886afb4eb54589eb500967beb444ea64f9761b",
 		Index: GenesisBlockIndex,
 	}
 
