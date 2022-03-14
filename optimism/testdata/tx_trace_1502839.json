@@ -1,0 +1,19 @@
+{
+  "type": "CALL",
+  "from": "0x3d080421c9dd5fb387d6e3124f7e1c241ade9568",
+  "to": "0x40c539bbe076b91fdf681e6b4b84bd1fe1f148d9",
+  "value": "0x0",
+  "gas": "0x1e5a",
+  "gasUsed": "0x1e5a",
+  "input": "0xcbf0b0c00000000000000000000000003d080421c9dd5fb387d6e3124f7e1c241ade9568",
+  "output": "0x",
+  "time": "1.356438ms",
+  "calls": [
+    {
+      "type": "SELFDESTRUCT",
+      "from": "0x40c539bbe076b91fdf681e6b4b84bd1fe1f148d9",
+      "to": "0x3d080421c9dd5fb387d6e3124f7e1c241ade9568",
+      "value": "0x5af3107a4000"
+    }
+  ]
+}

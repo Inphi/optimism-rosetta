@@ -87,6 +87,11 @@ var (
 
 	// TODO(inphi): For now, we're hardcoding the supported OP token contracts on kovan. Need to put this in a config for later
 	opTokenContractAddress = common.HexToAddress("0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A")
+
+	// This contract accidentally triggered an Optimism bug on mainnet whereby its self destruction failed to relinquish its ETH
+	// See https://www.saurik.com/optimism.html for the details
+	opBugAccidentalTriggerContract = common.HexToAddress("0x40C539BBe076b91FdF681E6B4B84bd1Fe1F148d9")
+	opBugAccidentalTriggerTx       = "0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc"
 )
 
 // Client allows for querying a set of specific Ethereum endpoints in an
@@ -711,7 +716,7 @@ func containsTopic(log *types.Log, topic string) bool {
 
 // traceOps returns all *RosettaTypes.Operation for a given
 // array of flattened traces.
-func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // nolint: gocognit
+func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // nolint: gocognit
 	var ops []*RosettaTypes.Operation
 	if len(calls) == 0 {
 		return ops
@@ -771,6 +776,15 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 		to := MustChecksum(trace.To.String())
 
 		if shouldAdd {
+			value := new(big.Int).Neg(trace.Value).String()
+			// The OP bug here means that the ETH balance of the self-destructed contract remains unchanged
+			if block.Transactions()[0].Hash().String() == opBugAccidentalTriggerTx &&
+				opStatus == SuccessStatus &&
+				trace.Type == SelfDestructOpType &&
+				from == opBugAccidentalTriggerContract.String() {
+				value = new(big.Int).String()
+			}
+
 			fromOp := &RosettaTypes.Operation{
 				OperationIdentifier: &RosettaTypes.OperationIdentifier{
 					Index: int64(len(ops) + startIndex),
@@ -781,7 +795,7 @@ func traceOps(calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // 
 					Address: from,
 				},
 				Amount: &RosettaTypes.Amount{
-					Value:    new(big.Int).Neg(trace.Value).String(),
+					Value:    value,
 					Currency: Currency,
 				},
 				Metadata: metadata,
@@ -1291,7 +1305,7 @@ func (ec *Client) populateTransaction(
 
 	traces := flattenTraces(tx.Trace, []*flatCall{})
 
-	traceOps := traceOps(traces, len(ops))
+	traceOps := traceOps(block, traces, len(ops))
 	ops = append(ops, traceOps...)
 
 	// Marshal receipt and trace data

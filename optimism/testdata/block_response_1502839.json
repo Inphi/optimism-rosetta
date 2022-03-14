@@ -1,0 +1,123 @@
+{
+  "block": {
+    "block_identifier": {
+      "index": 1502839,
+      "hash": "0x079123776bf0143620ed14b344961867cdcacba2d11f1f70ad258dc44e4ac2f7"
+    },
+    "parent_block_identifier": {
+      "index": 1502838,
+      "hash": "0x721b370c6050093d77588571ba604c94b9d405b4dca069ea2d665f6629a83c73"
+    },
+    "timestamp": 1640327369000,
+    "transactions": [
+      {
+        "transaction_identifier": {
+          "hash": "0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc"
+        },
+        "operations": [
+          {
+            "operation_identifier": {
+              "index": 0
+            },
+            "type": "FEE",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x3d080421c9DD5fB387d6e3124f7E1C241ADE9568"
+            },
+            "amount": {
+              "value": "-388614917961411",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 1
+            },
+            "related_operations": [
+              {
+                "index": 0
+              }
+            ],
+            "type": "FEE",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x4200000000000000000000000000000000000011"
+            },
+            "amount": {
+              "value": "388614917961411",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 2
+            },
+            "type": "SELFDESTRUCT",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x40C539BBe076b91FdF681E6B4B84bd1Fe1F148d9"
+            },
+            "amount": {
+              "value": "0",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            },
+            "metadata": {}
+          },
+          {
+            "operation_identifier": {
+              "index": 3
+            },
+            "related_operations": [
+              {
+                "index": 2
+              }
+            ],
+            "type": "SELFDESTRUCT",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x3d080421c9DD5fB387d6e3124f7E1C241ADE9568"
+            },
+            "amount": {
+              "value": "100000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            },
+            "metadata": {}
+          }
+        ],
+        "metadata": {
+          "gas_limit": "0x7212",
+          "gas_price": "0xf4240",
+          "receipt": {
+            "blockHash": "0x079123776bf0143620ed14b344961867cdcacba2d11f1f70ad258dc44e4ac2f7",
+            "blockNumber": "0x16ee77",
+            "contractAddress": "0x0000000000000000000000000000000000000000",
+            "cumulativeGasUsed": "0x3909",
+            "gasUsed": "0x3909",
+            "l1Fee": "0x1616e0fda2283",
+            "l1FeeScalar": "1.5",
+            "l1GasPrice": "0xc9256b71f",
+            "l1GasUsed": "0x12be",
+            "logs": [],
+            "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "root": "0x",
+            "status": "0x1",
+            "transactionHash": "0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc",
+            "transactionIndex": "0x0"
+          }
+        }
+      }
+    ]
+  }
+}

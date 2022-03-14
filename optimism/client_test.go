@@ -2189,3 +2189,117 @@ func TestBlock_ERC20Mint(t *testing.T) {
 	mockJSONRPC.AssertExpectations(t)
 	mockGraphQL.AssertExpectations(t)
 }
+
+func TestBlock_1502839_OPCriticalBug(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
+
+	tc, err := testTraceConfig()
+	assert.NoError(t, err)
+	c := &Client{
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		tc:              tc,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
+	}
+
+	ctx := context.Background()
+	mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		"eth_getBlockByNumber",
+		"latest",
+		true,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+
+			file, err := ioutil.ReadFile("testdata/block_1502839.json")
+			assert.NoError(t, err)
+
+			*r = json.RawMessage(file)
+		},
+	).Once()
+	mockJSONRPC.On(
+		"BatchCallContext",
+		ctx,
+		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
+			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
+		}),
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).([]rpc.BatchElem)
+
+			assert.Len(t, r, 1)
+			assert.Len(t, r[0].Args, 2)
+			assert.Equal(
+				t,
+				common.HexToHash("0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc").Hex(),
+				r[0].Args[0],
+			)
+			assert.Equal(t, tc, r[0].Args[1])
+
+			file, err := ioutil.ReadFile(
+				"testdata/tx_trace_1502839.json",
+			)
+			assert.NoError(t, err)
+
+			call := new(Call)
+			assert.NoError(t, call.UnmarshalJSON(file))
+			*(r[0].Result.(**Call)) = call
+		},
+	).Once()
+	mockJSONRPC.On(
+		"BatchCallContext",
+		ctx,
+		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
+			return len(rpcs) == 1 && rpcs[0].Method == "eth_getTransactionReceipt"
+		}),
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).([]rpc.BatchElem)
+
+			assert.Len(t, r, 1)
+			assert.Equal(
+				t,
+				"0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc",
+				r[0].Args[0],
+			)
+
+			file, err := ioutil.ReadFile(
+				"testdata/tx_receipt_0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc.json",
+			)
+			assert.NoError(t, err)
+
+			receipt := new(types.Receipt)
+			assert.NoError(t, receipt.UnmarshalJSON(file))
+			*(r[0].Result.(**types.Receipt)) = receipt
+		},
+	).Once()
+
+	correctRaw, err := ioutil.ReadFile("testdata/block_response_1502839.json")
+	assert.NoError(t, err)
+	var correct *RosettaTypes.BlockResponse
+	assert.NoError(t, json.Unmarshal(correctRaw, &correct))
+
+	resp, err := c.Block(
+		ctx,
+		nil,
+	)
+	assert.Equal(t, correct.Block, resp)
+	assert.NoError(t, err)
+
+	mockJSONRPC.AssertExpectations(t)
+	mockGraphQL.AssertExpectations(t)
+}
