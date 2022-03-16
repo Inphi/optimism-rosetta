@@ -43,7 +43,7 @@ import (
 const (
 	gethHTTPTimeout = 120 * time.Second
 
-	maxTraceConcurrency  = int64(2) // nolint:gomnd
+	maxTraceConcurrency  = int64(1) // nolint:gomnd
 	semaphoreTraceWeight = int64(1) // nolint:gomnd
 
 	burnSelector  = "0x9dc29fac" // keccak(burn(address,uint256))
