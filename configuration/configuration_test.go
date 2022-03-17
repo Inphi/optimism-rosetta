@@ -18,6 +18,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/coinbase/rosetta-ethereum/optimism"
 
@@ -28,11 +29,12 @@ import (
 
 func TestLoadConfiguration(t *testing.T) {
 	tests := map[string]struct {
-		Mode          string
-		Network       string
-		Port          string
-		Geth          string
-		SkipGethAdmin string
+		Mode              string
+		Network           string
+		Port              string
+		Geth              string
+		SkipGethAdmin     string
+		L2GethHTTPTimeout string
 
 		cfg *Configuration
 		err error
@@ -50,10 +52,11 @@ func TestLoadConfiguration(t *testing.T) {
 			err:     errors.New("PORT must be populated"),
 		},
 		"all set (mainnet)": {
-			Mode:          string(Online),
-			Network:       Mainnet,
-			Port:          "1000",
-			SkipGethAdmin: "FALSE",
+			Mode:              string(Online),
+			Network:           Mainnet,
+			Port:              "1000",
+			SkipGethAdmin:     "FALSE",
+			L2GethHTTPTimeout: "100",
 			cfg: &Configuration{
 				Mode: Online,
 				Network: &types.NetworkIdentifier{
@@ -66,14 +69,16 @@ func TestLoadConfiguration(t *testing.T) {
 				GethURL:                DefaultGethURL,
 				GethArguments:          optimism.MainnetGethArguments,
 				SkipGethAdmin:          false,
+				L2GethHTTPTimeout:      time.Second * 100,
 			},
 		},
 		"all set (mainnet) + geth": {
-			Mode:          string(Online),
-			Network:       Mainnet,
-			Port:          "1000",
-			Geth:          "http://blah",
-			SkipGethAdmin: "TRUE",
+			Mode:              string(Online),
+			Network:           Mainnet,
+			Port:              "1000",
+			Geth:              "http://blah",
+			SkipGethAdmin:     "TRUE",
+			L2GethHTTPTimeout: "100",
 			cfg: &Configuration{
 				Mode: Online,
 				Network: &types.NetworkIdentifier{
@@ -87,6 +92,7 @@ func TestLoadConfiguration(t *testing.T) {
 				RemoteGeth:             true,
 				GethArguments:          optimism.MainnetGethArguments,
 				SkipGethAdmin:          true,
+				L2GethHTTPTimeout:      time.Second * 100,
 			},
 		},
 		"all set (goerli)": {
@@ -143,6 +149,12 @@ func TestLoadConfiguration(t *testing.T) {
 			Port:    "bad port",
 			err:     errors.New("unable to parse port bad port"),
 		},
+		"invalid l2geth http timeout": {
+			Mode:              string(Offline),
+			Network:           Goerli,
+			L2GethHTTPTimeout: "bad val",
+			err:               errors.New("unable to parse L2_GETH_HTTP_TIMEOUT"),
+		},
 	}
 
 	for name, test := range tests {
@@ -152,6 +164,7 @@ func TestLoadConfiguration(t *testing.T) {
 			os.Setenv(PortEnv, test.Port)
 			os.Setenv(GethEnv, test.Geth)
 			os.Setenv(SkipGethAdminEnv, test.SkipGethAdmin)
+			os.Setenv(L2GethHTTPTimeoutEnv, test.L2GethHTTPTimeout)
 
 			cfg, err := LoadConfiguration()
 			if test.err != nil {

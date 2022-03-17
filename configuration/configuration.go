@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/coinbase/rosetta-ethereum/optimism"
 
@@ -81,6 +82,9 @@ const (
 	// by hosted node services. When not set, defaults to false.
 	SkipGethAdminEnv = "SKIP_GETH_ADMIN"
 
+	// Tiemout of L2 Geth HTTP Client in seconds
+	L2GethHTTPTimeoutEnv = "L2_GETH_HTTP_TIMEOUT"
+
 	// MiddlewareVersion is the version of rosetta-ethereum.
 	MiddlewareVersion = "0.0.4"
 )
@@ -95,6 +99,7 @@ type Configuration struct {
 	Port                   int
 	GethArguments          string
 	SkipGethAdmin          bool
+	L2GethHTTPTimeout      time.Duration
 
 	// Block Reward Data
 	Params *params.ChainConfig
@@ -166,6 +171,15 @@ func LoadConfiguration() (*Configuration, error) {
 			return nil, fmt.Errorf("%w: unable to parse SKIP_GETH_ADMIN %s", err, envSkipGethAdmin)
 		}
 		config.SkipGethAdmin = val
+	}
+
+	envL2GethHTTPTimeout := os.Getenv(L2GethHTTPTimeoutEnv)
+	if len(envL2GethHTTPTimeout) > 0 {
+		val, err := strconv.Atoi(envL2GethHTTPTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse L2_GETH_HTTP_TIMEOUT %s", err, envL2GethHTTPTimeout)
+		}
+		config.L2GethHTTPTimeout = time.Second * time.Duration(val)
 	}
 
 	portValue := os.Getenv(PortEnv)

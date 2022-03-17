@@ -41,7 +41,7 @@ import (
 )
 
 const (
-	gethHTTPTimeout = 120 * time.Second
+	defaultHTTPTimeout = 240 * time.Second
 
 	maxTraceConcurrency  = int64(1) // nolint:gomnd
 	semaphoreTraceWeight = int64(1) // nolint:gomnd
@@ -114,9 +114,12 @@ type Client struct {
 }
 
 // NewClient creates a Client that from the provided url and params.
-func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool) (*Client, error) {
+func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, httpTimeout time.Duration) (*Client, error) {
+	if httpTimeout == 0 {
+		httpTimeout = defaultHTTPTimeout
+	}
 	c, err := rpc.DialHTTPWithClient(url, &http.Client{
-		Timeout: gethHTTPTimeout,
+		Timeout: httpTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to dial node", err)
