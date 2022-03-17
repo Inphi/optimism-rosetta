@@ -125,12 +125,12 @@ func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, http
 		return nil, fmt.Errorf("%w: unable to dial node", err)
 	}
 
-	tc, err := loadTraceConfig()
+	tc, err := loadTraceConfig(httpTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to load trace config", err)
 	}
 
-	g, err := newGraphQLClient(url)
+	g, err := newGraphQLClient(url, httpTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to create GraphQL client", err)
 	}

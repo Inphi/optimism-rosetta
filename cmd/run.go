@@ -38,11 +38,6 @@ const (
 	// request, including the body.
 	readTimeout = 5 * time.Second
 
-	// writeTimeout is the maximum duration before timing out
-	// writes of the response. It is reset whenever a new
-	// request's header is read.
-	writeTimeout = 120 * time.Second
-
 	// idleTimeout is the maximum amount of time to wait for the
 	// next request when keep-alives are enabled.
 	idleTimeout = 30 * time.Second
@@ -107,7 +102,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 		Addr:         fmt.Sprintf(":%d", cfg.Port),
 		Handler:      corsRouter,
 		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
+		WriteTimeout: cfg.L2GethHTTPTimeout,
 		IdleTimeout:  idleTimeout,
 	}
 

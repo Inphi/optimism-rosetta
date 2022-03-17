@@ -28,7 +28,6 @@ import (
 const (
 	graphQLIdleConnectionTimeout = 30 * time.Second
 	graphQLMaxIdle               = 100
-	graphQLHTTPTimeout           = 15 * time.Second
 	graphQLPath                  = "graphql"
 )
 
@@ -74,7 +73,7 @@ func (g *GraphQLClient) Query(ctx context.Context, input string) (string, error)
 	return string(data), nil
 }
 
-func newGraphQLClient(baseURL string) (*GraphQLClient, error) {
+func newGraphQLClient(baseURL string, timeout time.Duration) (*GraphQLClient, error) {
 	// Compute GraphQL Endpoint
 	u, err := url.Parse(baseURL)
 	if err != nil {
@@ -84,7 +83,7 @@ func newGraphQLClient(baseURL string) (*GraphQLClient, error) {
 
 	// Setup HTTP Client
 	client := &http.Client{
-		Timeout: graphQLHTTPTimeout,
+		Timeout: timeout,
 	}
 	// Override transport idle connection settings
 	//

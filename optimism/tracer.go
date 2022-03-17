@@ -17,6 +17,7 @@ package optimism
 import (
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	"github.com/ethereum/go-ethereum/eth/tracers"
 )
@@ -27,15 +28,13 @@ const (
 	tracerPath = "optimism/call_tracer.js"
 )
 
-var (
-	tracerTimeout = "120s"
-)
-
-func loadTraceConfig() (*tracers.TraceConfig, error) {
+func loadTraceConfig(timeout time.Duration) (*tracers.TraceConfig, error) {
 	loadedFile, err := ioutil.ReadFile(tracerPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w: could not load tracer file", err)
 	}
+
+	tracerTimeout := fmt.Sprintf("%ds", int(timeout.Seconds()))
 
 	loadedTracer := string(loadedFile)
 	return &tracers.TraceConfig{

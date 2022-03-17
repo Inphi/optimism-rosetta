@@ -1209,6 +1209,7 @@ func testTraceConfig() (*tracers.TraceConfig, error) {
 	}
 
 	loadedTracer := string(loadedFile)
+	tracerTimeout := "120s"
 	return &tracers.TraceConfig{
 		Timeout: &tracerTimeout,
 		Tracer:  &loadedTracer,
