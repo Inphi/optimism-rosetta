@@ -85,6 +85,11 @@ const (
 	// Tiemout of L2 Geth HTTP Client in seconds
 	L2GethHTTPTimeoutEnv = "L2_GETH_HTTP_TIMEOUT"
 
+	// Maximum number of concurrent debug_trace RPCs issued to nodes
+	// debug tracing is an expensive operation that can DoS a node
+	// if one is not careful
+	MaxConcurrentTracesEnv = "MAX_CONCURRENT_TRACES"
+
 	// MiddlewareVersion is the version of rosetta-ethereum.
 	MiddlewareVersion = "0.0.4"
 )
@@ -100,6 +105,7 @@ type Configuration struct {
 	GethArguments          string
 	SkipGethAdmin          bool
 	L2GethHTTPTimeout      time.Duration
+	MaxConcurrentTraces    int64
 
 	// Block Reward Data
 	Params *params.ChainConfig
@@ -180,6 +186,15 @@ func LoadConfiguration() (*Configuration, error) {
 			return nil, fmt.Errorf("%w: unable to parse L2_GETH_HTTP_TIMEOUT %s", err, envL2GethHTTPTimeout)
 		}
 		config.L2GethHTTPTimeout = time.Second * time.Duration(val)
+	}
+
+	envMaxConcurrentTraces := os.Getenv(MaxConcurrentTracesEnv)
+	if len(envMaxConcurrentTraces) > 0 {
+		val, err := strconv.Atoi(envMaxConcurrentTraces)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse %s envar %s", err, MaxConcurrentTracesEnv, envMaxConcurrentTraces)
+		}
+		config.MaxConcurrentTraces = int64(val)
 	}
 
 	portValue := os.Getenv(PortEnv)

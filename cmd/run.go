@@ -87,7 +87,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 		}
 
 		var err error
-		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, cfg.SkipGethAdmin, cfg.L2GethHTTPTimeout)
+		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, cfg.SkipGethAdmin, cfg.L2GethHTTPTimeout, cfg.MaxConcurrentTraces)
 		if err != nil {
 			return fmt.Errorf("%w: cannot initialize ethereum client", err)
 		}

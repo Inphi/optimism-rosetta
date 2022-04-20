@@ -43,8 +43,8 @@ import (
 const (
 	defaultHTTPTimeout = 240 * time.Second
 
-	maxTraceConcurrency  = int64(1) // nolint:gomnd
-	semaphoreTraceWeight = int64(1) // nolint:gomnd
+	defaultMaxTraceConcurrency = int64(1) // nolint:gomnd
+	semaphoreTraceWeight       = int64(1) // nolint:gomnd
 
 	burnSelector  = "0x9dc29fac" // keccak(burn(address,uint256))
 	mintSelector  = "0x40c10f19" // keccak(mint(address,uint256))
@@ -114,7 +114,7 @@ type Client struct {
 }
 
 // NewClient creates a Client that from the provided url and params.
-func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, httpTimeout time.Duration) (*Client, error) {
+func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, httpTimeout time.Duration, maxTraceConcurrency int64) (*Client, error) {
 	if httpTimeout == 0 {
 		httpTimeout = defaultHTTPTimeout
 	}
@@ -138,6 +138,10 @@ func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, http
 	currencyFetcher, err := newERC20CurrencyFetcher(c)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to create CurrencyFetcher", err)
+	}
+
+	if maxTraceConcurrency == 0 {
+		maxTraceConcurrency = defaultMaxTraceConcurrency
 	}
 
 	return &Client{
