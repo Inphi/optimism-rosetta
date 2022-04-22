@@ -143,6 +143,7 @@ func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, http
 	if maxTraceConcurrency == 0 {
 		maxTraceConcurrency = defaultMaxTraceConcurrency
 	}
+	log.Printf("max trace concurrency is %d", maxTraceConcurrency)
 
 	return &Client{
 		p:               params,
