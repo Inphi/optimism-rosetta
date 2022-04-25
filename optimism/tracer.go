@@ -15,20 +15,24 @@
 package optimism
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
+	"sync"
 	"time"
 
+	"github.com/ethereum-optimism/optimism/l2geth/common"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 // convert raw eth data from client to rosetta
 
 const (
-	tracerPath = "optimism/call_tracer.js"
+	defaultTracerPath = "optimism/call_tracer.js"
 )
 
-func loadTraceConfig(timeout time.Duration) (*tracers.TraceConfig, error) {
+func loadTraceConfig(tracerPath string, timeout time.Duration) (*tracers.TraceConfig, error) {
 	loadedFile, err := ioutil.ReadFile(tracerPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w: could not load tracer file", err)
@@ -41,4 +45,73 @@ func loadTraceConfig(timeout time.Duration) (*tracers.TraceConfig, error) {
 		Timeout: &tracerTimeout,
 		Tracer:  &loadedTracer,
 	}, nil
+}
+
+type traceCacheEntry struct {
+	pending chan struct{}
+	result  *Call
+	err     error
+}
+
+type TraceCache interface {
+	FetchTransaction(ctx context.Context, txhash common.Hash) (*Call, error)
+}
+
+type traceCache struct {
+	client        JSONRPC
+	tc            *tracers.TraceConfig
+	tracerTimeout time.Duration
+	cache         *lru.Cache
+	m             sync.Mutex
+}
+
+func NewTraceCache(client JSONRPC, tracerPath string, tracerTimeout time.Duration, cacheSize int) (TraceCache, error) {
+	cache, _ := lru.New(cacheSize)
+	tc, err := loadTraceConfig(tracerPath, tracerTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	return &traceCache{
+		client:        client,
+		tc:            tc,
+		tracerTimeout: tracerTimeout,
+		cache:         cache,
+	}, nil
+}
+
+func (t *traceCache) FetchTransaction(ctx context.Context, txhash common.Hash) (*Call, error) {
+	t.m.Lock()
+
+	var entry *traceCacheEntry
+	if lruEntry, ok := t.cache.Get(txhash.Hex()); ok {
+		entry = lruEntry.(*traceCacheEntry)
+	}
+
+	if entry == nil {
+		entry = &traceCacheEntry{make(chan struct{}), new(Call), nil}
+		t.cache.Add(txhash.Hex(), entry)
+
+		go t.requestTrace(txhash, entry)
+	}
+
+	t.m.Unlock()
+
+	select {
+	case <-entry.pending:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	return entry.result, entry.err
+}
+
+func (t *traceCache) requestTrace(txhash common.Hash, entry *traceCacheEntry) {
+	// tracer evm execution timeout + some additional time for I/O
+	tracerTimeout := t.tracerTimeout + time.Second
+	callCtx, cancel := context.WithTimeout(context.Background(), tracerTimeout)
+	defer cancel()
+	entry.err = t.client.CallContext(callCtx, entry.result, "debug_traceTransaction", []interface{}{txhash.Hex(), t.tc})
+
+	close(entry.pending)
 }

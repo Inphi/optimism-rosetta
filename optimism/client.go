@@ -41,7 +41,8 @@ import (
 )
 
 const (
-	defaultHTTPTimeout = 240 * time.Second
+	defaultHTTPTimeout    = 240 * time.Second
+	defaultTraceCacheSize = 20
 
 	defaultMaxTraceConcurrency = int64(1) // nolint:gomnd
 	semaphoreTraceWeight       = int64(1) // nolint:gomnd
@@ -100,8 +101,9 @@ var (
 //
 // Client borrows HEAVILY from https://github.com/ethereum/go-ethereum/tree/master/ethclient.
 type Client struct {
-	p  *params.ChainConfig
-	tc *tracers.TraceConfig
+	p          *params.ChainConfig
+	tc         *tracers.TraceConfig
+	traceCache TraceCache
 
 	c JSONRPC
 	g GraphQL
@@ -109,12 +111,10 @@ type Client struct {
 	currencyFetcher CurrencyFetcher
 
 	traceSemaphore *semaphore.Weighted
-
-	skipAdminCalls bool
 }
 
 // NewClient creates a Client that from the provided url and params.
-func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, httpTimeout time.Duration, maxTraceConcurrency int64) (*Client, error) {
+func NewClient(url string, params *params.ChainConfig, httpTimeout time.Duration, maxTraceConcurrency int64, enableTraceCache bool) (*Client, error) {
 	if httpTimeout == 0 {
 		httpTimeout = defaultHTTPTimeout
 	}
@@ -125,7 +125,7 @@ func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, http
 		return nil, fmt.Errorf("%w: unable to dial node", err)
 	}
 
-	tc, err := loadTraceConfig(httpTimeout)
+	tc, err := loadTraceConfig(defaultTracerPath, httpTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to load trace config", err)
 	}
@@ -145,6 +145,14 @@ func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, http
 	}
 	log.Printf("max trace concurrency is %d", maxTraceConcurrency)
 
+	var traceCache TraceCache
+	if enableTraceCache {
+		log.Println("using trace cache")
+		if traceCache, err = NewTraceCache(c, defaultTracerPath, httpTimeout, defaultTraceCacheSize); err != nil {
+			return nil, fmt.Errorf("%w: unable to create trace cache", err)
+		}
+	}
+
 	return &Client{
 		p:               params,
 		tc:              tc,
@@ -152,7 +160,7 @@ func NewClient(url string, params *params.ChainConfig, skipAdminCalls bool, http
 		g:               g,
 		currencyFetcher: currencyFetcher,
 		traceSemaphore:  semaphore.NewWeighted(maxTraceConcurrency),
-		skipAdminCalls:  skipAdminCalls,
+		traceCache:      traceCache,
 	}, nil
 }
 
@@ -390,6 +398,18 @@ func (ec *Client) getTransactionTraces(
 	if len(txs) == 0 {
 		return traces, nil
 	}
+
+	if ec.traceCache != nil {
+		for i := range txs {
+			result, err := ec.traceCache.FetchTransaction(ctx, txs[i].tx.Hash())
+			if err != nil {
+				return nil, err
+			}
+			traces[i] = result
+		}
+		return traces, nil
+	}
+
 	reqs := make([]rpc.BatchElem, len(txs))
 	// TODO(inphi): Run this sequentially to avoid DoS'ing l2geth
 	for i := range reqs {

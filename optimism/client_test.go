@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"strconv"
 	"testing"
+	"time"
 
 	mocks "github.com/coinbase/rosetta-ethereum/mocks/optimism"
 	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
@@ -126,63 +127,6 @@ func TestStatus_NotSyncing(t *testing.T) {
 	mockGraphQL.AssertExpectations(t)
 }
 
-func TestStatus_NotSyncing_SkipAdminCalls(t *testing.T) {
-	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
-	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
-	assert.NoError(t, err)
-
-	c := &Client{
-		c:               mockJSONRPC,
-		g:               mockGraphQL,
-		currencyFetcher: cf,
-		traceSemaphore:  semaphore.NewWeighted(100),
-		skipAdminCalls:  true,
-	}
-
-	ctx := context.Background()
-	mockJSONRPC.On(
-		"CallContext",
-		ctx,
-		mock.Anything,
-		"eth_getBlockByNumber",
-		"latest",
-		false,
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			header := args.Get(1).(**types.Header)
-			file, err := ioutil.ReadFile("testdata/basic_header.json")
-			assert.NoError(t, err)
-
-			*header = new(types.Header)
-
-			assert.NoError(t, (*header).UnmarshalJSON(file))
-		},
-	).Once()
-
-	adminPeersSkipped := true
-
-	block, timestamp, syncStatus, peers, err := c.Status(ctx)
-	assert.True(t, adminPeersSkipped)
-	assert.Equal(t, &RosettaTypes.BlockIdentifier{
-		Hash:  "0x48269a339ce1489cff6bab70eff432289c4f490b81dbd00ff1f81c68de06b842",
-		Index: 8916656,
-	}, block)
-	assert.Equal(t, int64(1603225195000), timestamp)
-	assert.Equal(t, &RosettaTypes.SyncStatus{
-		CurrentIndex: RosettaTypes.Int64(8916656),
-		TargetIndex:  RosettaTypes.Int64(8916656),
-	}, syncStatus)
-	assert.Nil(t, peers)
-	assert.NoError(t, err)
-
-	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
-}
-
 func TestStatus_Syncing(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
@@ -219,62 +163,6 @@ func TestStatus_Syncing(t *testing.T) {
 	).Once()
 
 	block, timestamp, syncStatus, peers, err := c.Status(ctx)
-	assert.Equal(t, &RosettaTypes.BlockIdentifier{
-		Hash:  "0x48269a339ce1489cff6bab70eff432289c4f490b81dbd00ff1f81c68de06b842",
-		Index: 8916656,
-	}, block)
-	assert.Equal(t, int64(1603225195000), timestamp)
-	assert.Equal(t, &RosettaTypes.SyncStatus{
-		CurrentIndex: RosettaTypes.Int64(8916656),
-		TargetIndex:  RosettaTypes.Int64(8916656),
-	}, syncStatus)
-	assert.Nil(t, peers)
-	assert.NoError(t, err)
-
-	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
-}
-
-func TestStatus_Syncing_SkipAdminCalls(t *testing.T) {
-	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
-	assert.NoError(t, err)
-
-	c := &Client{
-		c:               mockJSONRPC,
-		g:               mockGraphQL,
-		currencyFetcher: cf,
-		traceSemaphore:  semaphore.NewWeighted(100),
-		skipAdminCalls:  true,
-	}
-
-	ctx := context.Background()
-	mockJSONRPC.On(
-		"CallContext",
-		ctx,
-		mock.Anything,
-		"eth_getBlockByNumber",
-		"latest",
-		false,
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			header := args.Get(1).(**types.Header)
-			file, err := ioutil.ReadFile("testdata/basic_header.json")
-			assert.NoError(t, err)
-
-			*header = new(types.Header)
-
-			assert.NoError(t, (*header).UnmarshalJSON(file))
-		},
-	).Once()
-
-	adminPeersSkipped := true
-
-	block, timestamp, syncStatus, peers, err := c.Status(ctx)
-	assert.True(t, adminPeersSkipped)
 	assert.Equal(t, &RosettaTypes.BlockIdentifier{
 		Hash:  "0x48269a339ce1489cff6bab70eff432289c4f490b81dbd00ff1f81c68de06b842",
 		Index: 8916656,
@@ -2290,6 +2178,124 @@ func TestBlock_1502839_OPCriticalBug(t *testing.T) {
 	).Once()
 
 	correctRaw, err := ioutil.ReadFile("testdata/block_response_1502839.json")
+	assert.NoError(t, err)
+	var correct *RosettaTypes.BlockResponse
+	assert.NoError(t, json.Unmarshal(correctRaw, &correct))
+
+	resp, err := c.Block(
+		ctx,
+		nil,
+	)
+	assert.Equal(t, correct.Block, resp)
+	assert.NoError(t, err)
+
+	mockJSONRPC.AssertExpectations(t)
+	mockGraphQL.AssertExpectations(t)
+}
+
+func TestBlockCurrent_TraceCache(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	mockGraphQL := &mocks.GraphQL{}
+	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
+	assert.NoError(t, err)
+
+	tc, err := testTraceConfig()
+	assert.NoError(t, err)
+
+	traceCache, err := NewTraceCache(mockJSONRPC, "call_tracer.js", time.Second*120, 10)
+	assert.NoError(t, err)
+
+	c := &Client{
+		c:               mockJSONRPC,
+		g:               mockGraphQL,
+		currencyFetcher: cf,
+		tc:              tc,
+		traceCache:      traceCache,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
+	}
+
+	ctx := context.Background()
+	mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		"eth_getBlockByNumber",
+		"latest",
+		true,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+
+			file, err := ioutil.ReadFile("testdata/block_1.json")
+			assert.NoError(t, err)
+
+			*r = json.RawMessage(file)
+		},
+	).Once()
+	mockJSONRPC.On(
+		"CallContext",
+		mock.Anything,
+		mock.Anything,
+		"debug_traceTransaction",
+		mock.Anything,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*Call)
+			arg := args.Get(3).([]interface{})
+
+			assert.Equal(
+				t,
+				common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(),
+				arg[0],
+			)
+			assert.Equal(t, tc, arg[1])
+
+			file, err := ioutil.ReadFile(
+				"testdata/tx_trace_1.json",
+			)
+			assert.NoError(t, err)
+
+			call := new(Call)
+			assert.NoError(t, call.UnmarshalJSON(file))
+			*r = *call
+		},
+	).Once()
+	mockJSONRPC.On(
+		"BatchCallContext",
+		ctx,
+		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
+			return len(rpcs) == 1 && rpcs[0].Method == "eth_getTransactionReceipt"
+		}),
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).([]rpc.BatchElem)
+
+			assert.Len(t, r, 1)
+			assert.Equal(
+				t,
+				"0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a",
+				r[0].Args[0],
+			)
+
+			file, err := ioutil.ReadFile(
+				"testdata/tx_receipt_1.json",
+			)
+			assert.NoError(t, err)
+
+			receipt := new(types.Receipt)
+			assert.NoError(t, receipt.UnmarshalJSON(file))
+			*(r[0].Result.(**types.Receipt)) = receipt
+		},
+	).Once()
+
+	correctRaw, err := ioutil.ReadFile("testdata/block_response_1.json")
 	assert.NoError(t, err)
 	var correct *RosettaTypes.BlockResponse
 	assert.NoError(t, json.Unmarshal(correctRaw, &correct))

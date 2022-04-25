@@ -77,11 +77,6 @@ const (
 	// when GethEnv is not populated.
 	DefaultGethURL = "http://localhost:8545"
 
-	// SkipGethAdminEnv is an optional environment variable
-	// to skip geth `admin` calls which are typically not supported
-	// by hosted node services. When not set, defaults to false.
-	SkipGethAdminEnv = "SKIP_GETH_ADMIN"
-
 	// Tiemout of L2 Geth HTTP Client in seconds
 	L2GethHTTPTimeoutEnv = "L2_GETH_HTTP_TIMEOUT"
 
@@ -92,6 +87,9 @@ const (
 
 	// MiddlewareVersion is the version of rosetta-ethereum.
 	MiddlewareVersion = "0.0.4"
+
+	// Experimental: Maintain a cache of debug traces
+	EnableTraceCacheEnv = "ENABLE_TRACE_CACHE"
 )
 
 // Configuration determines how
@@ -103,9 +101,9 @@ type Configuration struct {
 	RemoteGeth             bool
 	Port                   int
 	GethArguments          string
-	SkipGethAdmin          bool
 	L2GethHTTPTimeout      time.Duration
 	MaxConcurrentTraces    int64
+	EnableTraceCache       bool
 
 	// Block Reward Data
 	Params *params.ChainConfig
@@ -169,16 +167,6 @@ func LoadConfiguration() (*Configuration, error) {
 		config.GethURL = envGethURL
 	}
 
-	config.SkipGethAdmin = false
-	envSkipGethAdmin := os.Getenv(SkipGethAdminEnv)
-	if len(envSkipGethAdmin) > 0 {
-		val, err := strconv.ParseBool(envSkipGethAdmin)
-		if err != nil {
-			return nil, fmt.Errorf("%w: unable to parse SKIP_GETH_ADMIN %s", err, envSkipGethAdmin)
-		}
-		config.SkipGethAdmin = val
-	}
-
 	envL2GethHTTPTimeout := os.Getenv(L2GethHTTPTimeoutEnv)
 	if len(envL2GethHTTPTimeout) > 0 {
 		val, err := strconv.Atoi(envL2GethHTTPTimeout)
@@ -207,6 +195,15 @@ func LoadConfiguration() (*Configuration, error) {
 		return nil, fmt.Errorf("%w: unable to parse port %s", err, portValue)
 	}
 	config.Port = port
+
+	envEnableTraceCache := os.Getenv(EnableTraceCacheEnv)
+	if len(envEnableTraceCache) > 0 {
+		val, err := strconv.ParseBool(envEnableTraceCache)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse %s %s", err, EnableTraceCacheEnv, envEnableTraceCache)
+		}
+		config.EnableTraceCache = val
+	}
 
 	return config, nil
 }

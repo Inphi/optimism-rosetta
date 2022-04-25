@@ -33,7 +33,6 @@ func TestLoadConfiguration(t *testing.T) {
 		Network           string
 		Port              string
 		Geth              string
-		SkipGethAdmin     string
 		L2GethHTTPTimeout string
 
 		cfg *Configuration
@@ -55,7 +54,6 @@ func TestLoadConfiguration(t *testing.T) {
 			Mode:              string(Online),
 			Network:           Mainnet,
 			Port:              "1000",
-			SkipGethAdmin:     "FALSE",
 			L2GethHTTPTimeout: "100",
 			cfg: &Configuration{
 				Mode: Online,
@@ -68,7 +66,6 @@ func TestLoadConfiguration(t *testing.T) {
 				Port:                   1000,
 				GethURL:                DefaultGethURL,
 				GethArguments:          optimism.MainnetGethArguments,
-				SkipGethAdmin:          false,
 				L2GethHTTPTimeout:      time.Second * 100,
 			},
 		},
@@ -77,7 +74,6 @@ func TestLoadConfiguration(t *testing.T) {
 			Network:           Mainnet,
 			Port:              "1000",
 			Geth:              "http://blah",
-			SkipGethAdmin:     "TRUE",
 			L2GethHTTPTimeout: "100",
 			cfg: &Configuration{
 				Mode: Online,
@@ -91,7 +87,6 @@ func TestLoadConfiguration(t *testing.T) {
 				GethURL:                "http://blah",
 				RemoteGeth:             true,
 				GethArguments:          optimism.MainnetGethArguments,
-				SkipGethAdmin:          true,
 				L2GethHTTPTimeout:      time.Second * 100,
 			},
 		},
@@ -113,10 +108,9 @@ func TestLoadConfiguration(t *testing.T) {
 			},
 		},
 		"all set (testnet)": {
-			Mode:          string(Online),
-			Network:       Testnet,
-			Port:          "1000",
-			SkipGethAdmin: "TRUE",
+			Mode:    string(Online),
+			Network: Testnet,
+			Port:    "1000",
 			cfg: &Configuration{
 				Mode: Online,
 				Network: &types.NetworkIdentifier{
@@ -128,7 +122,6 @@ func TestLoadConfiguration(t *testing.T) {
 				Port:                   1000,
 				GethURL:                DefaultGethURL,
 				GethArguments:          optimism.TestnetGethArguments,
-				SkipGethAdmin:          true,
 			},
 		},
 		"invalid mode": {
@@ -163,7 +156,6 @@ func TestLoadConfiguration(t *testing.T) {
 			os.Setenv(NetworkEnv, test.Network)
 			os.Setenv(PortEnv, test.Port)
 			os.Setenv(GethEnv, test.Geth)
-			os.Setenv(SkipGethAdminEnv, test.SkipGethAdmin)
 			os.Setenv(L2GethHTTPTimeoutEnv, test.L2GethHTTPTimeout)
 
 			cfg, err := LoadConfiguration()
