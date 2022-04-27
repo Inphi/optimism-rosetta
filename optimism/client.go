@@ -86,8 +86,7 @@ var (
 		"0x2c987042c2af3e009ef8d2cebcdf659faaa694089e0f9231202f3efdcb6562b8": "0x3f69ca816a72d6", // 1272994
 	}
 
-	// TODO(inphi): For now, we're hardcoding the supported OP token contracts on kovan. Need to put this in a config for later
-	opTokenContractAddress = common.HexToAddress("0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A")
+	opTokenContractAddress = common.HexToAddress("0x4200000000000000000000000000000000000042")
 
 	// This contract accidentally triggered an Optimism bug on mainnet whereby its self destruction failed to relinquish its ETH
 	// See https://www.saurik.com/optimism.html for the details

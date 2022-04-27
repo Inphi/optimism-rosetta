@@ -1949,6 +1949,11 @@ func TestSendTransaction(t *testing.T) {
 }
 
 func TestBlock_ERC20Mint(t *testing.T) {
+	// HACK: block JSON-RPC testdata used in this test were gleaned from a non-predeploy OP token contract on Kovan.
+	// The actual OP token predeploy contract (0x42..42) hasn't minted new tokens. So for now we override the contract
+	// address so we can test this functionality
+	opTokenContractAddress = common.HexToAddress("0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A")
+
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
 	mockCurrencyFetcher := &mocks.CurrencyFetcher{}
