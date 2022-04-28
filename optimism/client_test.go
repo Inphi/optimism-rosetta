@@ -2245,21 +2245,12 @@ func TestBlockCurrent_TraceCache(t *testing.T) {
 		mock.Anything,
 		mock.Anything,
 		"debug_traceTransaction",
-		mock.Anything,
+		common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(),
+		tc,
 	).Return(
 		nil,
 	).Run(
 		func(args mock.Arguments) {
-			r := args.Get(1).(*Call)
-			arg := args.Get(3).([]interface{})
-
-			assert.Equal(
-				t,
-				common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(),
-				arg[0],
-			)
-			assert.Equal(t, tc, arg[1])
-
 			file, err := ioutil.ReadFile(
 				"testdata/tx_trace_1.json",
 			)
@@ -2267,6 +2258,7 @@ func TestBlockCurrent_TraceCache(t *testing.T) {
 
 			call := new(Call)
 			assert.NoError(t, call.UnmarshalJSON(file))
+			r := args.Get(1).(*Call)
 			*r = *call
 		},
 	).Once()

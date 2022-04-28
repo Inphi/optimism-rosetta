@@ -111,7 +111,7 @@ func (t *traceCache) requestTrace(txhash common.Hash, entry *traceCacheEntry) {
 	tracerTimeout := t.tracerTimeout + time.Second
 	callCtx, cancel := context.WithTimeout(context.Background(), tracerTimeout)
 	defer cancel()
-	entry.err = t.client.CallContext(callCtx, entry.result, "debug_traceTransaction", []interface{}{txhash.Hex(), t.tc})
+	entry.err = t.client.CallContext(callCtx, entry.result, "debug_traceTransaction", txhash.Hex(), t.tc)
 
 	close(entry.pending)
 }
