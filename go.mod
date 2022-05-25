@@ -8,7 +8,7 @@ require (
 	github.com/coinbase/rosetta-sdk-go v0.7.2
 	github.com/elastic/gosigar v0.14.2 // indirect
 	github.com/ethereum-optimism/optimism/l2geth v0.0.0-20220120004223-a8763df79616
-	github.com/ethereum/go-ethereum v1.10.15
+	github.com/ethereum/go-ethereum v1.10.18
 	github.com/fatih/color v1.13.0
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
