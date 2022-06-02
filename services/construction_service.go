@@ -45,6 +45,11 @@ const (
 	TokenContractAddressKey = "token_address"
 )
 
+var (
+	erc20TransferMethodID = crypto.Keccak256([]byte("transfer(address,uint256)"))[:4]
+	delegateVotesMethodID = crypto.Keccak256([]byte("delegate(address)"))[:4]
+)
+
 // ConstructionAPIService implements the server.ConstructionAPIServicer interface.
 type ConstructionAPIService struct {
 	config *configuration.Configuration
@@ -86,7 +91,7 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 	ctx context.Context,
 	request *types.ConstructionPreprocessRequest,
 ) (*types.ConstructionPreprocessResponse, *types.Error) {
-	fromOp, toOp, err := matchTransferOperations(request.Operations)
+	fromOp, toOp, err := matchOperations(request.Operations)
 	if err != nil {
 		return nil, wrapErr(ErrUnclearIntent, err)
 	}
@@ -152,6 +157,7 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 	}
 
 	currency := fromOp.Amount.Currency
+	opType := fromOp.Type
 	if _, ok := request.Metadata["method_signature"]; !ok && !isNativeCurrency(currency) {
 		tokenContractAddress, err := getTokenContractAddress(currency)
 		if err != nil {
@@ -159,8 +165,14 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 		}
 
 		preprocessOutputOptions.TokenAddress = tokenContractAddress
-		preprocessOutputOptions.Data = constructERC20TransferData(checkTo, value)
-		preprocessOutputOptions.Value = big.NewInt(0) // value is 0 when sending ERC20
+		switch opType {
+		case optimism.DelegateVotesOpType:
+			preprocessOutputOptions.Data = constructERC20VotesDelegateData(checkTo)
+			preprocessOutputOptions.Value = big.NewInt(0)
+		default:
+			preprocessOutputOptions.Data = constructERC20TransferData(checkTo, value)
+			preprocessOutputOptions.Value = big.NewInt(0) // value is 0 when sending ERC20
+		}
 	}
 
 	if v, ok := request.Metadata["method_signature"]; ok {
@@ -239,7 +251,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	gasLimit := optimism.TransferGasLimit
 	to := checkTo
 
-	// Only work for ERC20 transfer
+	// For tokens only
 	if len(input.TokenAddress) > 0 {
 		checkTokenContractAddress, ok := optimism.ChecksumAddress(input.TokenAddress)
 		if !ok {
@@ -248,8 +260,6 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 				fmt.Errorf("%s is not a valid address", input.TokenAddress),
 			)
 		}
-		// TODO(inphi): Whitelist ERC20 contracts for token transfers here
-
 		// Override the destination address to be the contract address
 		to = checkTokenContractAddress
 
@@ -326,7 +336,7 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
 
-	fromOp, toOp, err := matchTransferOperations(request.Operations)
+	fromOp, toOp, err := matchOperations(request.Operations)
 	if err != nil {
 		return nil, wrapErr(ErrUnclearIntent, err)
 	}
@@ -490,10 +500,10 @@ func (s *ConstructionAPIService) ConstructionParse(
 	}
 
 	currency := optimism.Currency
-	var erc20Transfer bool
+	opType := optimism.CallOpType
 
 	//TODO: add logic for contract call parsing ERC20 currency
-	if hasData(tx.Data) && hasTransferData(tx.Data) {
+	if hasData(tx.Data) && dataHasFunc(tx.Data, erc20TransferMethodID) {
 		toAdd, amount, err := erc20TransferArgs(tx.Data)
 		if err != nil {
 			return nil, wrapErr(ErrUnableToParseTransaction, err)
@@ -510,7 +520,24 @@ func (s *ConstructionAPIService) ConstructionParse(
 		// Update destination address to be the actual recipient
 		tx.To = toAdd.String()
 		tx.Value = amount
-		erc20Transfer = true
+		opType = optimism.PaymentOpType
+	} else if hasData(tx.Data) && dataHasFunc(tx.Data, delegateVotesMethodID) {
+		delegatee, err := erc20VotesDelegateArgs(tx.Data)
+		if err != nil {
+			return nil, wrapErr(ErrUnableToParseTransaction, err)
+		}
+
+		// TODO(inphi): We assume that the token here is the OP token since that's the only supported one. But we should autodetect the appropriate token here
+		currency = &types.Currency{
+			Symbol:   "OP",
+			Decimals: 18, //nolint
+			Metadata: map[string]interface{}{
+				TokenContractAddressKey: tx.To,
+			},
+		}
+		// Update destination address to be the actual recipient
+		tx.To = delegatee.String()
+		opType = optimism.DelegateVotesOpType
 	}
 
 	// Ensure valid from address
@@ -525,7 +552,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", tx.To))
 	}
 
-	ops := rosettaOperations(checkFrom, checkTo, tx.Value, currency, erc20Transfer)
+	ops := rosettaOperations(checkFrom, checkTo, tx.Value, currency, opType)
 
 	metadata := &parseMetadata{
 		Nonce:    tx.Nonce,
@@ -634,14 +661,14 @@ func (a *ConstructionAPIService) calculateNonce(
 	return nonceInput.Uint64(), nil
 }
 
-// matchTransferOperations attempts to match a slice of operations with a `transfer`
-// intent. This will match both ETH and ERC20 tokens
-func matchTransferOperations(operations []*types.Operation) (
+// matchOperations attempts to match a slice of operations with both `transfer`
+// and `delegate` intents. This will match ETH, ERC20 and OZ ERC20Votes tokens
+func matchOperations(operations []*types.Operation) (
 	*types.Operation,
 	*types.Operation,
 	error,
 ) {
-	operationDescriptions, err := matchTransferOperationDescriptions(operations)
+	operationDescriptions, err := matchOperationDescriptions(operations)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -661,7 +688,7 @@ func matchTransferOperations(operations []*types.Operation) (
 	return fromOp, toOp, nil
 }
 
-func matchTransferOperationDescriptions(operations []*types.Operation) ([]*parser.OperationDescription, error) {
+func matchOperationDescriptions(operations []*types.Operation) ([]*parser.OperationDescription, error) {
 	if len(operations) != 2 {
 		return nil, fmt.Errorf("invalid number of operations")
 	}
@@ -682,7 +709,10 @@ func matchTransferOperationDescriptions(operations []*types.Operation) ([]*parse
 		if !firstOk || !secondOk {
 			return nil, fmt.Errorf("non-native currency must have token_address in metadata")
 		}
-		opType = optimism.PaymentOpType
+		opType = operations[0].Type
+		if opType == "" { // default to PaymentOpType for backwards compatibility
+			opType = optimism.PaymentOpType
+		}
 	}
 
 	return []*parser.OperationDescription{
@@ -693,7 +723,7 @@ func matchTransferOperationDescriptions(operations []*types.Operation) ([]*parse
 			},
 			Amount: &parser.AmountDescription{
 				Exists:   true,
-				Sign:     parser.NegativeAmountSign,
+				Sign:     parser.NegativeOrZeroAmountSign,
 				Currency: firstCurrency,
 			},
 		},
@@ -704,7 +734,7 @@ func matchTransferOperationDescriptions(operations []*types.Operation) ([]*parse
 			},
 			Amount: &parser.AmountDescription{
 				Exists:   true,
-				Sign:     parser.PositiveAmountSign,
+				Sign:     parser.PositiveOrZeroAmountSign,
 				Currency: firstCurrency,
 			},
 		},
@@ -743,7 +773,7 @@ func getTokenContractAddress(currency *types.Currency) (string, error) {
 // constructERC20TransferData constructs the data field of an Optimism
 // transaction, including the recipient address and the amount
 func constructERC20TransferData(to string, value *big.Int) []byte {
-	methodID := erc20TransferMethodID()
+	methodID := erc20TransferMethodID
 
 	var data []byte
 	data = append(data, methodID...)
@@ -758,12 +788,19 @@ func constructERC20TransferData(to string, value *big.Int) []byte {
 	return data
 }
 
-// erc20TransferMethodID calculates the first 4 bytes of the method
-// signature for transfer on an ERC20 contract
-func erc20TransferMethodID() []byte {
-	transferFnSignature := []byte("transfer(address,uint256)")
-	hash := crypto.Keccak256(transferFnSignature)
-	return hash[:4]
+// constructERC20VotesDelegateData constructs thee data field of a
+// ERC20Votes delegate call
+func constructERC20VotesDelegateData(to string) []byte {
+	var data []byte
+
+	methodID := crypto.Keccak256([]byte("delegate(address)"))[:4]
+	data = append(data, methodID...)
+
+	toAddress := common.HexToAddress(to)
+	paddedToAddress := common.LeftPadBytes(toAddress.Bytes(), 32)
+	data = append(data, paddedToAddress...)
+
+	return data
 }
 
 // constructContractCallData constructs the data field of an Optimism transaction
@@ -854,7 +891,7 @@ func validateRequest(
 		if metadata.Value.String() != toOp.Amount.Value {
 			return errors.New("mismatch transfer value")
 		}
-	} else if hasTransferData(metadata.Data) {
+	} else if dataHasFunc(metadata.Data, erc20TransferMethodID) {
 		// ERC20
 		toAdd, amount, err := erc20TransferArgs(metadata.Data)
 		if err != nil {
@@ -872,9 +909,23 @@ func validateRequest(
 		if metadata.Value.String() != "0" {
 			return errors.New("invalid metadata value")
 		}
-	} else if hasData(metadata.Data) && !hasTransferData(metadata.Data) {
-
-		//contract call
+	} else if dataHasFunc(metadata.Data, delegateVotesMethodID) {
+		// OZ ERC20Votes delegate call
+		delegatee, err := erc20VotesDelegateArgs(metadata.Data)
+		if err != nil {
+			return err
+		}
+		if delegatee != common.HexToAddress(toOp.Account.Address) {
+			return errors.New("mismatch delegatee destination address")
+		}
+		if toOp.Amount.Value != "0" {
+			return errors.New("invalid delegatee transfer value")
+		}
+		if metadata.Value.String() != "0" {
+			return errors.New("invalid metadata value for delegation")
+		}
+	} else {
+		// other contract calls
 		data, err := constructContractCallData(metadata.MethodSignature, metadata.MethodArgs)
 		if err != nil {
 			return err
@@ -898,25 +949,34 @@ func hasData(data []byte) bool {
 // including destination address and value
 func erc20TransferArgs(data []byte) (common.Address, *big.Int, error) {
 	if data == nil || len(data) != 4+32+32 {
-		return common.Address{}, nil, errors.New("invalid data")
+		return common.Address{}, nil, errors.New("invalid transfer data")
 	}
 	methodID := data[:4]
 	toAdd := common.BytesToAddress(data[4:36])
 	amount := big.NewInt(0).SetBytes(data[36:])
 
-	expectedMethodID := erc20TransferMethodID()
+	expectedMethodID := erc20TransferMethodID
 	if res := bytes.Compare(methodID, expectedMethodID); res != 0 {
-		return common.Address{}, nil, errors.New("invalid method id")
+		return common.Address{}, nil, errors.New("invalid transfer method id")
 	}
 
 	return toAdd, amount, nil
 }
 
-func hasTransferData(data []byte) bool {
+func erc20VotesDelegateArgs(data []byte) (common.Address, error) {
+	if data == nil || len(data) != 4+32 {
+		return common.Address{}, errors.New("invalid delegate data")
+	}
+	if !dataHasFunc(data, delegateVotesMethodID) {
+		return common.Address{}, errors.New("invalid delegate method id")
+	}
+	delegatee := common.BytesToAddress(data[4:36])
+	return delegatee, nil
+}
+
+func dataHasFunc(data []byte, expectedMethodID []byte) bool {
 	methodID := data[:4]
-	expectedMethodID := erc20TransferMethodID()
-	res := bytes.Compare(methodID, expectedMethodID)
-	return res == 0
+	return bytes.Compare(methodID, expectedMethodID) == 0
 }
 
 func rosettaOperations(
@@ -924,13 +984,8 @@ func rosettaOperations(
 	toAddress string,
 	amount *big.Int,
 	currency *types.Currency,
-	erc20Transfer bool,
+	opType string,
 ) []*types.Operation {
-	opType := optimism.CallOpType
-	if erc20Transfer {
-		opType = optimism.PaymentOpType
-	}
-
 	return []*types.Operation{
 		{
 			OperationIdentifier: &types.OperationIdentifier{

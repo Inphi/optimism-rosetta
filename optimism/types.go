@@ -62,7 +62,7 @@ const (
 	// ERC20MintOpType is used to represent token mint operations
 	ERC20MintOpType = "ERC20_MINT"
 
-	// ERC20MintOpType is used to represent token burn operations
+	// ERC20BurnOpType is used to represent token burn operations
 	ERC20BurnOpType = "ERC20_BURN"
 
 	// CallOpType is used to represent CALL trace operations.
@@ -90,6 +90,9 @@ const (
 	// deletion of suicided accounts that still have funds at the end
 	// of a transaction.
 	DestructOpType = "DESTRUCT"
+
+	// DelegateVotesOpType is used to represent OZ ERC20Votes votes delegation
+	DelegateVotesOpType = "DELEGATE_VOTES"
 
 	// SuccessStatus is the status of any
 	// Ethereum operation considered successful.
@@ -179,6 +182,7 @@ var (
 		DelegateCallOpType,
 		StaticCallOpType,
 		DestructOpType,
+		DelegateVotesOpType,
 	}
 
 	// OperationStatuses are all supported operation statuses.

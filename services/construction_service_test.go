@@ -57,6 +57,16 @@ var (
 	transferGasLimitERC20Hex = hexutil.EncodeUint64(transferGasLimitERC20)
 	transferNonceHex         = hexutil.EncodeUint64(transferNonce)
 	transferNonceHex2        = "0x22"
+
+	delegateData     = "0x5c19a95c000000000000000000000000705f9ae78b11a3ed5080c053fa4fa0c52359c674"
+	delegatee        = "0x705f9ae78b11a3ed5080c053fa4fa0c52359c674"
+	delegateGasPrice = transferGasPrice
+	delegateGasLimit = transferGasLimitERC20
+	delegateNonce    = transferNonce
+
+	delegateNonceHex    = hexutil.EncodeUint64(delegateNonce)
+	delegateGasPriceHex = hexutil.EncodeUint64(delegateGasPrice)
+	delegateGasLimitHex = hexutil.EncodeUint64(delegateGasLimit)
 )
 
 func forceHexDecode(t *testing.T, s string) []byte {
@@ -414,6 +424,45 @@ func TestMetadata(t *testing.T) {
 				},
 			},
 		},
+		"happy path: ERC20Votes delegation without nonce": {
+			options: map[string]interface{}{
+				"from":          metadataFrom,
+				"to":            delegatee,
+				"value":         "0x0",
+				"token_address": tokenContractAddress,
+				"data":          delegateData,
+			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				client.On("PendingNonceAt", ctx, common.HexToAddress(metadataFrom)).
+					Return(delegateNonce, nil)
+
+				client.On("SuggestGasPrice", ctx).
+					Return(big.NewInt(int64(delegateGasPrice)), nil)
+
+				to := common.HexToAddress(tokenContractAddress)
+				client.On("EstimateGas", ctx, ethereum.CallMsg{
+					From: common.HexToAddress(metadataFrom),
+					To:   &to,
+					Data: hexutil.MustDecode(delegateData),
+				}).Return(delegateGasLimit, nil)
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":        tokenContractAddress,
+					"value":     "0x0",
+					"nonce":     delegateNonceHex,
+					"gas_price": delegateGasPriceHex,
+					"gas_limit": delegateGasLimitHex,
+					"data":      delegateData,
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", delegateGasPrice*delegateGasLimit),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+		},
 		"happy path: Generic contract call metadata": {
 			options: map[string]interface{}{
 				"from":             metadataFrom,
@@ -577,6 +626,9 @@ func TestParse(t *testing.T) {
 		signedERC20TransferTx           = `{"nonce":"0x43","gasPrice":"0x12a05f200","gas":"0xfde8","to":"0x2d7882bedcbfddce29ba99965dd3cdf7fcb10a1e","value":"0x0","input":"0xa9059cbb000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7000000000000000000000000000000000000000000000000000000000134653c","v":"0xad","r":"0x4c920b7e6480d06e4c89da9dbefa97ba1a2ff342c8843a0dc5c0ff15bab3f20b","s":"0x241aa86941f6adea2f048e0741fba77bda880772e95555347dbabaeca8450767","hash":"0x4fa571a8450dae225492ea11dffc5c89ca328f751cedac0e43e4e0919aaf8297"}` //nolint:lll
 		unsignedOPTransferTxInvalidFrom = `{"from":"invalid_from","to":"0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x45"}`                                                                                                                                                                                                                                                                                                                                    //nolint:lll
 		unsignedOPTransferTxInvalidTo   = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"invalid_to","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas":"0x5208","chain_id":"0x45"}`                                                                                                                                                                                                                                                                                                                                      //nolint:lll
+		unsignedERC20VotesDelegateTx    = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e","value":"0x0","data":"0x5c19a95c000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7","nonce":"0x43","gas_price":"0x12a05f200","gas":"0xfde8","chain_id":"0x45"}`                                                                                                                                                                                                                                    //nolint:lll
+		delegateSignerAddress           = "0xc5e5C23544113877F7fF09B4Fe9B8CcE41ea3C49"
+		signedERC20VotesDelegateTx      = `{"from":"0xc5e5C23544113877F7fF09B4Fe9B8CcE41ea3C49","to":"0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e","value":"0x0","input":"0x5c19a95c000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7","nonce":"0x43","gasPrice":"0x12a05f200","gas":"0xfde8","chain_id":"0x45","v":"0xad","r":"0x3e86670c25c42e1735b770a0cbea2276ce1771bff7401f3e7087f6296f187d2a","s":"0x52e9934a1efddf5f55073eb6aa4638a131ca2c2e482bce2ab9a0b13ff45547f8","hash":"0x4fa571a8450dae225492ea11dffc5c89ca328f751cedac0e43e4e0919aaf8297"}` //nolint:lll
 	)
 
 	tests := map[string]struct {
@@ -672,6 +724,52 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		"happy path: unsigned ERC20Votes delegate tx": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            false,
+				Transaction:       unsignedERC20VotesDelegateTx,
+			},
+			expectedResponse: &types.ConstructionParseResponse{
+				Operations: templateDelegateOperations(fromAddress, &types.Currency{
+					Symbol:   "OP",
+					Decimals: 18,
+					Metadata: map[string]interface{}{
+						"token_address": tokenContractAddress,
+					},
+				}),
+				AccountIdentifierSigners: []*types.AccountIdentifier{},
+				Metadata: map[string]interface{}{
+					"nonce":     delegateNonceHex,
+					"gas_price": delegateGasPriceHex,
+					"gas_limit": delegateGasLimitHex,
+					"chain_id":  chainIDHex,
+				},
+			},
+		},
+		"happy path: signed ERC20Votes delegate tx": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            true,
+				Transaction:       signedERC20VotesDelegateTx,
+			},
+			expectedResponse: &types.ConstructionParseResponse{
+				Operations: templateDelegateOperations(delegateSignerAddress, &types.Currency{
+					Symbol:   "OP",
+					Decimals: 18,
+					Metadata: map[string]interface{}{
+						"token_address": tokenContractAddress,
+					},
+				}),
+				AccountIdentifierSigners: []*types.AccountIdentifier{{Address: delegateSignerAddress}},
+				Metadata: map[string]interface{}{
+					"nonce":     delegateNonceHex,
+					"gas_price": delegateGasPriceHex,
+					"gas_limit": delegateGasLimitHex,
+					"chain_id":  chainIDHex,
+				},
+			},
+		},
 		"error: empty transaction": {
 			request: &types.ConstructionParseRequest{
 				NetworkIdentifier: networkIdentifier,
@@ -760,6 +858,81 @@ func TestPreprocessERC20(t *testing.T) {
 	}, preprocessResponse)
 }
 
+func TestPreprocessGovernanceDelegate(t *testing.T) {
+	networkIdentifier = &types.NetworkIdentifier{
+		Network:    optimism.TestnetNetwork,
+		Blockchain: optimism.Blockchain,
+	}
+	cfg := &configuration.Configuration{
+		Mode:    configuration.Online,
+		Network: networkIdentifier,
+		Params:  params.TestnetChainConfig,
+	}
+
+	mockClient := &mocks.Client{}
+	servicer := NewConstructionAPIService(cfg, mockClient)
+	ctx := context.Background()
+
+	intent := `
+[
+  {
+    "operation_identifier": {
+      "index": 0
+    },
+    "type": "DELEGATE_VOTES",
+    "account": {
+      "address": "0x9670d6977d0b10130E5d4916c9134363281B6B0e"
+    },
+    "amount": {
+      "value": "0",
+      "currency": {
+        "symbol": "OP",
+        "decimals": 18,
+        "metadata": {
+          "token_address": "0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A"
+        }
+      }
+    }
+  },
+  {
+    "operation_identifier": {
+      "index": 1
+    },
+    "type": "DELEGATE_VOTES",
+    "account": {
+      "address": "0x705f9aE78b11a3ED5080c053Fa4Fa0c52359c674"
+    },
+    "amount": {
+      "value": "0",
+      "currency": {
+        "symbol": "OP",
+        "decimals": 18,
+        "metadata": {
+          "token_address": "0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A"
+        }
+      }
+    }
+  }
+]` // nolint
+	var ops []*types.Operation
+	assert.NoError(t, json.Unmarshal([]byte(intent), &ops))
+	preprocessResponse, err := servicer.ConstructionPreprocess(
+		ctx,
+		&types.ConstructionPreprocessRequest{
+			NetworkIdentifier: networkIdentifier,
+			Operations:        ops,
+		},
+	)
+	assert.Nil(t, err)
+	optionsRaw := `{"from":"0x9670d6977d0b10130E5d4916c9134363281B6B0e", "to":"0x705f9aE78b11a3ED5080c053Fa4Fa0c52359c674", "data":"0x5c19a95c000000000000000000000000705f9aE78b11a3ED5080c053Fa4Fa0c52359c674", "token_address":"0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A", "value": "0x0"}`
+	var options options
+	assert.NoError(t, json.Unmarshal([]byte(optionsRaw), &options))
+	assert.Equal(t, &types.ConstructionPreprocessResponse{
+		Options: forceMarshalMap(t, &options),
+	}, preprocessResponse)
+
+}
+
 func templateError(error *types.Error, context string) *types.Error {
 	return &types.Error{
 		Code:      error.Code,
@@ -771,12 +944,26 @@ func templateError(error *types.Error, context string) *types.Error {
 	}
 }
 
-func templateOperations(amount uint64, currency *types.Currency, erco20Transfer bool) []*types.Operation {
+func templateOperations(amount uint64, currency *types.Currency, erc20Transfer bool) []*types.Operation {
+	typ := optimism.CallOpType
+	if erc20Transfer {
+		typ = optimism.PaymentOpType
+	}
 	return rosettaOperations(
 		fromAddress,
 		toAddress,
 		big.NewInt(int64(amount)),
 		currency,
-		erco20Transfer,
+		typ,
+	)
+}
+
+func templateDelegateOperations(from string, currency *types.Currency) []*types.Operation {
+	return rosettaOperations(
+		from,
+		toAddress, // use the default
+		big.NewInt(0),
+		currency,
+		optimism.DelegateVotesOpType,
 	)
 }
