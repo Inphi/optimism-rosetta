@@ -2,6 +2,7 @@ package optimism
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -80,4 +81,32 @@ func TestTracerFetch_ExpiredContext(t *testing.T) {
 	call, err := cache.FetchTransaction(context.Background(), common.Hash{})
 	assert.NoError(t, err)
 	assert.Equal(t, expect, *call)
+}
+
+func TestTracerFetchErroneousCacheEntry(t *testing.T) {
+	// Assert that errors are not cached
+	ctx := context.Background()
+
+	mockClient := &mocks.JSONRPC{}
+	tspec := tracerSpec{TracerPath: "call_tracer.js"}
+	cache, err := NewTraceCache(mockClient, tspec, time.Second*1, 10)
+	assert.NoError(t, err)
+
+	expectedError := errors.New("error")
+	mockClient.On(
+		"CallContext",
+		mock.Anything,
+		mock.Anything,
+		"debug_traceTransaction",
+		mock.Anything,
+		mock.Anything,
+	).Return(
+		expectedError,
+	).Twice()
+
+	_, err = cache.FetchTransaction(ctx, common.Hash{})
+	assert.Error(t, expectedError, err)
+
+	_, ok := cache.(*traceCache).cache.Peek(common.Hash{}.String())
+	assert.False(t, ok)
 }

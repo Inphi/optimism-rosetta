@@ -111,7 +111,6 @@ func (t *traceCache) FetchTransaction(ctx context.Context, txhash common.Hash) (
 		return nil, ctx.Err()
 	}
 
-	// TODO(inphi): if the error is recoverable, (timeouts, networking error, etc, then we should bust the cache entry shortly afterwards)
 	return entry.result, entry.err
 }
 
@@ -123,4 +122,11 @@ func (t *traceCache) requestTrace(txhash common.Hash, entry *traceCacheEntry) {
 	entry.err = t.client.CallContext(callCtx, entry.result, "debug_traceTransaction", txhash.Hex(), t.tc)
 
 	close(entry.pending)
+
+	if entry.err != nil {
+		// It's fine if FetchTransaction calls read the old errant cache entry before it's removed
+		t.m.Lock()
+		t.cache.Remove(txhash.String())
+		t.m.Unlock()
+	}
 }
