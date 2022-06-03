@@ -2207,7 +2207,8 @@ func TestBlockCurrent_TraceCache(t *testing.T) {
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 
-	traceCache, err := NewTraceCache(mockJSONRPC, "call_tracer.js", time.Second*120, 10)
+	tspec := tracerSpec{TracerPath: "call_tracer.js"}
+	traceCache, err := NewTraceCache(mockJSONRPC, tspec, time.Second*120, 10)
 	assert.NoError(t, err)
 
 	c := &Client{
