@@ -113,7 +113,7 @@ type Client struct {
 }
 
 // NewClient creates a Client that from the provided url and params.
-func NewClient(url string, params *params.ChainConfig, httpTimeout time.Duration, maxTraceConcurrency int64, enableTraceCache bool) (*Client, error) {
+func NewClient(url string, params *params.ChainConfig, httpTimeout time.Duration, maxTraceConcurrency int64, enableTraceCache bool, enableGethTracer bool) (*Client, error) {
 	if httpTimeout == 0 {
 		httpTimeout = defaultHTTPTimeout
 	}
@@ -124,7 +124,12 @@ func NewClient(url string, params *params.ChainConfig, httpTimeout time.Duration
 		return nil, fmt.Errorf("%w: unable to dial node", err)
 	}
 
-	tc, err := loadTraceConfig(defaultTracerPath, httpTimeout)
+	tspec := tracerSpec{
+		TracerPath:    defaultTracerPath,
+		UseGethTracer: enableGethTracer,
+	}
+	log.Printf("tracer spec: %#v", tspec)
+	tc, err := loadTraceConfig(tspec, httpTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to load trace config", err)
 	}
@@ -147,7 +152,7 @@ func NewClient(url string, params *params.ChainConfig, httpTimeout time.Duration
 	var traceCache TraceCache
 	if enableTraceCache {
 		log.Println("using trace cache")
-		if traceCache, err = NewTraceCache(c, defaultTracerPath, httpTimeout, defaultTraceCacheSize); err != nil {
+		if traceCache, err = NewTraceCache(c, tspec, httpTimeout, defaultTraceCacheSize); err != nil {
 			return nil, fmt.Errorf("%w: unable to create trace cache", err)
 		}
 	}
