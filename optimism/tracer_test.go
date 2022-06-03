@@ -15,10 +15,11 @@ func TestTracerFetch_HappyPath(t *testing.T) {
 	ctx := context.Background()
 
 	mockClient := &mocks.JSONRPC{}
-	cache, err := NewTraceCache(mockClient, "call_tracer.js", time.Second*1, 10)
+	tspec := tracerSpec{TracerPath: "call_tracer.js"}
+	cache, err := NewTraceCache(mockClient, tspec, time.Second*1, 10)
 	assert.NoError(t, err)
 
-	tc, err := loadTraceConfig("call_tracer.js", time.Second*1)
+	tc, err := loadTraceConfig(tspec, time.Second*1)
 	assert.NoError(t, err)
 	hash := common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a")
 
@@ -48,7 +49,8 @@ func TestTracerFetch_ExpiredContext(t *testing.T) {
 	ctx := context.Background()
 
 	mockClient := &mocks.JSONRPC{}
-	cache, err := NewTraceCache(mockClient, "call_tracer.js", time.Second*1, 10)
+	tspec := tracerSpec{TracerPath: "call_tracer.js"}
+	cache, err := NewTraceCache(mockClient, tspec, time.Second*1, 10)
 	assert.NoError(t, err)
 
 	expect := Call{Type: "ekans"}

@@ -90,6 +90,9 @@ const (
 
 	// Experimental: Maintain a cache of debug traces
 	EnableTraceCacheEnv = "ENABLE_TRACE_CACHE"
+
+	// Experimental: Use newly added built-in geth tracer
+	EnableGethTracer = "ENABLE_GETH_TRACER"
 )
 
 // Configuration determines how
@@ -104,6 +107,7 @@ type Configuration struct {
 	L2GethHTTPTimeout      time.Duration
 	MaxConcurrentTraces    int64
 	EnableTraceCache       bool
+	EnableGethTracer       bool
 
 	// Block Reward Data
 	Params *params.ChainConfig
@@ -203,6 +207,15 @@ func LoadConfiguration() (*Configuration, error) {
 			return nil, fmt.Errorf("%w: unable to parse %s %s", err, EnableTraceCacheEnv, envEnableTraceCache)
 		}
 		config.EnableTraceCache = val
+	}
+
+	envEnableGethTracer := os.Getenv(EnableGethTracer)
+	if len(envEnableGethTracer) > 0 {
+		val, err := strconv.ParseBool(envEnableGethTracer)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse %s %s", err, EnableGethTracer, envEnableGethTracer)
+		}
+		config.EnableGethTracer = val
 	}
 
 	return config, nil
