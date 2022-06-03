@@ -111,6 +111,7 @@ func (t *traceCache) FetchTransaction(ctx context.Context, txhash common.Hash) (
 		return nil, ctx.Err()
 	}
 
+	// TODO(inphi): if the error is recoverable, (timeouts, networking error, etc, then we should bust the cache entry shortly afterwards)
 	return entry.result, entry.err
 }
 
