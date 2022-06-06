@@ -508,7 +508,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 			},
 		}
 		// Update destination address to be the actual recipient
-		tx.To = toAdd
+		tx.To = toAdd.String()
 		tx.Value = amount
 		erc20Transfer = true
 	}
@@ -847,7 +847,7 @@ func validateRequest(
 	if !hasData(metadata.Data) {
 		// Native currency
 		// Validate destination address
-		if metadata.To != toOp.Account.Address {
+		if !strings.EqualFold(metadata.To, toOp.Account.Address) {
 			return errors.New("mismatch destination address")
 		}
 		// Validate transfer value
@@ -861,7 +861,7 @@ func validateRequest(
 			return err
 		}
 		// Validate destination address
-		if toAdd != toOp.Account.Address {
+		if toAdd != common.HexToAddress(toOp.Account.Address) {
 			return errors.New("mismatch destination address")
 		}
 		// Validate transfer value
@@ -896,17 +896,17 @@ func hasData(data []byte) bool {
 
 // erc20TransferArgs returns the arguments for an ERC20 transfer,
 // including destination address and value
-func erc20TransferArgs(data []byte) (string, *big.Int, error) {
+func erc20TransferArgs(data []byte) (common.Address, *big.Int, error) {
 	if data == nil || len(data) != 4+32+32 {
-		return "", nil, errors.New("invalid data")
+		return common.Address{}, nil, errors.New("invalid data")
 	}
 	methodID := data[:4]
-	toAdd := common.BytesToAddress(data[4:36]).String()
+	toAdd := common.BytesToAddress(data[4:36])
 	amount := big.NewInt(0).SetBytes(data[36:])
 
 	expectedMethodID := erc20TransferMethodID()
 	if res := bytes.Compare(methodID, expectedMethodID); res != 0 {
-		return "", nil, errors.New("invalid method id")
+		return common.Address{}, nil, errors.New("invalid method id")
 	}
 
 	return toAdd, amount, nil
