@@ -47,10 +47,11 @@ const (
 	defaultMaxTraceConcurrency = int64(1) // nolint:gomnd
 	semaphoreTraceWeight       = int64(1) // nolint:gomnd
 
-	burnSelector  = "0x9dc29fac" // keccak(burn(address,uint256))
-	mintSelector  = "0x40c10f19" // keccak(mint(address,uint256))
-	fnSelectorLen = 10
-
+	burnSelector          = "0x9dc29fac" // keccak(burn(address,uint256))
+	mintSelector          = "0x40c10f19" // keccak(mint(address,uint256))
+	erc20TransferSelector = "0xa9059cbb" // keccak(transfer(address,uint256))
+	fnSelectorLen         = 10
+	j
 	sequencerFeeVaultAddr = "0x4200000000000000000000000000000000000011"
 	zeroAddr              = "0x0000000000000000000000000000000000000000"
 
@@ -369,6 +370,7 @@ func (ec *Client) getBlock(
 		// It would be nice for l2geth to populate the appropriate coinbase so we're robust against changes to the vault addresss.
 		loadedTxs[i].Miner = sequencerFeeVaultAddr
 		loadedTxs[i].Receipt = receipt
+		loadedTxs[i].Status = receipt.Status == 1
 
 		// Continue if calls does not exist (occurs at genesis)
 		if !addTraces {
@@ -477,9 +479,11 @@ func (ec *Client) getBlockReceipts(
 func (ec *Client) erc20TokenOps(
 	ctx context.Context,
 	block *types.Block,
-	receipt *types.Receipt,
+	tx *loadedTransaction,
 	startIndex int,
 ) ([]*RosettaTypes.Operation, error) {
+	receipt := tx.Receipt
+
 	ops := []*RosettaTypes.Operation{}
 	var status string
 	if receipt.Status == 1 {
@@ -490,6 +494,32 @@ func (ec *Client) erc20TokenOps(
 
 	keccak := crypto.Keccak256([]byte(erc20TransferEventLogTopics))
 	encodedTransferMethod := hexutil.Encode(keccak)
+
+	// To handle cases such as out-of-gas errors, where no logs are emitted
+	if status == FailureStatus && len(receipt.Logs) == 0 {
+		input := strings.ToLower(tx.Trace.Input)
+
+		// special case for failed ERC20 token transfers
+		if strings.HasPrefix(input, erc20TransferSelector) {
+			if toAddress, amount, err := decodeAddressUint256(input[fnSelectorLen:]); err == nil {
+				contractAddress := tx.Trace.To.String()
+				fromAddress := tx.Trace.From.String()
+				currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.NumberU64(), contractAddress)
+				// If an error is encountered while fetching currency details, return a default value and let the client handle it.
+				if err != nil {
+					log.Printf("error while fetching currency details for currency: %s: %v", contractAddress, err)
+					currency = &RosettaTypes.Currency{
+						Symbol:   defaultERC20Symbol,
+						Decimals: defaultERC20Decimals,
+						Metadata: map[string]interface{}{
+							ContractAddressKey: contractAddress,
+						},
+					}
+				}
+				ops = appendERC20Operations(ops, fromAddress, toAddress.String(), amount, currency, startIndex, status)
+			}
+		}
+	}
 
 	for _, receiptLog := range receipt.Logs {
 		// If this isn't an ERC20 transfer, skip
@@ -534,7 +564,7 @@ func (ec *Client) erc20TokenOps(
 		currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.NumberU64(), contractAddress)
 		// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 		if err != nil {
-			log.Print(fmt.Sprintf("error while fetching currency details for currency: %s", contractAddress), err)
+			log.Printf("error while fetching currency details for currency: %s: %v", contractAddress, err)
 			currency = &RosettaTypes.Currency{
 				Symbol:   defaultERC20Symbol,
 				Decimals: defaultERC20Decimals,
@@ -544,72 +574,25 @@ func (ec *Client) erc20TokenOps(
 			}
 		}
 
-		if fromAddress == zeroAddr {
-			mintOp := &RosettaTypes.Operation{
-				OperationIdentifier: &RosettaTypes.OperationIdentifier{
-					Index: int64(len(ops) + startIndex),
-				},
-				Type:   ERC20MintOpType,
-				Status: RosettaTypes.String(status),
-				Account: &RosettaTypes.AccountIdentifier{
-					Address: toAddress,
-				},
-				Amount: &RosettaTypes.Amount{
-					Value:    value.String(),
-					Currency: currency,
-				},
-			}
-			ops = append(ops, mintOp)
-			continue
-		}
+		ops = appendERC20Operations(ops, fromAddress, toAddress, value, currency, startIndex, status)
+	}
 
-		if toAddress == zeroAddr {
-			burnOp := &RosettaTypes.Operation{
-				OperationIdentifier: &RosettaTypes.OperationIdentifier{
-					Index: int64(len(ops) + startIndex),
-				},
-				Type:   ERC20BurnOpType,
-				Status: RosettaTypes.String(status),
-				Account: &RosettaTypes.AccountIdentifier{
-					Address: fromAddress,
-				},
-				Amount: &RosettaTypes.Amount{
-					Value:    new(big.Int).Neg(value).String(),
-					Currency: currency,
-				},
-			}
-			ops = append(ops, burnOp)
-			continue
-		}
+	return ops, nil
+}
 
-		fromOp := &RosettaTypes.Operation{
+func appendERC20Operations(ops []*RosettaTypes.Operation,
+	fromAddress string,
+	toAddress string,
+	value *big.Int,
+	currency *RosettaTypes.Currency,
+	startIndex int,
+	status string) []*RosettaTypes.Operation {
+	if fromAddress == zeroAddr {
+		mintOp := &RosettaTypes.Operation{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
 				Index: int64(len(ops) + startIndex),
 			},
-			Type:   PaymentOpType,
-			Status: RosettaTypes.String(status),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: fromAddress,
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    new(big.Int).Neg(value).String(),
-				Currency: currency,
-			},
-		}
-
-		ops = append(ops, fromOp)
-
-		lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
-		toOp := &RosettaTypes.Operation{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: lastOpIndex + 1,
-			},
-			RelatedOperations: []*RosettaTypes.OperationIdentifier{
-				{
-					Index: lastOpIndex,
-				},
-			},
-			Type:   PaymentOpType,
+			Type:   ERC20MintOpType,
 			Status: RosettaTypes.String(status),
 			Account: &RosettaTypes.AccountIdentifier{
 				Address: toAddress,
@@ -619,11 +602,69 @@ func (ec *Client) erc20TokenOps(
 				Currency: currency,
 			},
 		}
-
-		ops = append(ops, toOp)
+		ops = append(ops, mintOp)
+		return ops
 	}
 
-	return ops, nil
+	if toAddress == zeroAddr {
+		burnOp := &RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: int64(len(ops) + startIndex),
+			},
+			Type:   ERC20BurnOpType,
+			Status: RosettaTypes.String(status),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: fromAddress,
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    new(big.Int).Neg(value).String(),
+				Currency: currency,
+			},
+		}
+		ops = append(ops, burnOp)
+		return ops
+	}
+
+	fromOp := &RosettaTypes.Operation{
+		OperationIdentifier: &RosettaTypes.OperationIdentifier{
+			Index: int64(len(ops) + startIndex),
+		},
+		Type:   PaymentOpType,
+		Status: RosettaTypes.String(status),
+		Account: &RosettaTypes.AccountIdentifier{
+			Address: fromAddress,
+		},
+		Amount: &RosettaTypes.Amount{
+			Value:    new(big.Int).Neg(value).String(),
+			Currency: currency,
+		},
+	}
+
+	ops = append(ops, fromOp)
+
+	lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
+	toOp := &RosettaTypes.Operation{
+		OperationIdentifier: &RosettaTypes.OperationIdentifier{
+			Index: lastOpIndex + 1,
+		},
+		RelatedOperations: []*RosettaTypes.OperationIdentifier{
+			{
+				Index: lastOpIndex,
+			},
+		},
+		Type:   PaymentOpType,
+		Status: RosettaTypes.String(status),
+		Account: &RosettaTypes.AccountIdentifier{
+			Address: toAddress,
+		},
+		Amount: &RosettaTypes.Amount{
+			Value:    value.String(),
+			Currency: currency,
+		},
+	}
+
+	ops = append(ops, toOp)
+	return ops
 }
 
 func blockContainsDuplicateTransaction(blockHash common.Hash) bool {
@@ -1324,7 +1365,7 @@ func (ec *Client) populateTransaction(
 	feeOps := feeOps(tx)
 	ops = append(ops, feeOps...)
 
-	erc20TokenOps, err := ec.erc20TokenOps(ctx, block, tx.Receipt, len(ops))
+	erc20TokenOps, err := ec.erc20TokenOps(ctx, block, tx, len(ops))
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,127 @@
+{
+  "block": {
+    "block_identifier": {
+      "index": 14930491,
+      "hash": "0x91aeed618627779022204a2b12ce98129105ee8bf68b9898cefa99e16905f3c5"
+    },
+    "parent_block_identifier": {
+      "index": 14930490,
+      "hash": "0xa27c7d9adf5b0d2ac76780302da298dc02f4a9e18051900095da9a32f13d0c32"
+    },
+    "timestamp": 1658190003000,
+    "transactions": [
+      {
+        "transaction_identifier": {
+          "hash": "0x5a1ec671315432cf8b6a67d95b857109fcafae277ae2c673db40b44ca8dd5c1b"
+        },
+        "operations": [
+          {
+            "operation_identifier": {
+              "index": 0
+            },
+            "type": "FEE",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xD839C179a4606F46abD7A757f7Bb77D7593aE249"
+            },
+            "amount": {
+              "value": "-259398177752616",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 1
+            },
+            "related_operations": [
+              {
+                "index": 0
+              }
+            ],
+            "type": "FEE",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x4200000000000000000000000000000000000011"
+            },
+            "amount": {
+              "value": "259398177752616",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 2
+            },
+            "type": "PAYMENT",
+            "status": "FAILURE",
+            "account": {
+              "address": "0xD839C179a4606F46abD7A757f7Bb77D7593aE249"
+            },
+            "amount": {
+              "value": "-48837491329350000000000",
+              "currency": {
+                "symbol": "OP",
+                "decimals": 18,
+                "metadata": {
+                  "token_address": "0x4200000000000000000000000000000000000042"
+                }
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 3
+            },
+            "related_operations": [
+              {
+                "index": 2
+              }
+            ],
+            "type": "PAYMENT",
+            "status": "FAILURE",
+            "account": {
+              "address": "0x5c4C6c6d0358BAF2adE28FfB1723e70139cd534d"
+            },
+            "amount": {
+              "value": "48837491329350000000000",
+              "currency": {
+                "symbol": "OP",
+                "decimals": 18,
+                "metadata": {
+                  "token_address": "0x4200000000000000000000000000000000000042"
+                }
+              }
+            }
+          }
+        ],
+        "metadata": {
+          "gas_limit": "0x9c58",
+          "gas_price": "0xf4240",
+          "receipt": {
+            "blockHash": "0x91aeed618627779022204a2b12ce98129105ee8bf68b9898cefa99e16905f3c5",
+            "blockNumber": "0xe3d23b",
+            "contractAddress": "0x0000000000000000000000000000000000000000",
+            "cumulativeGasUsed": "0x9c58",
+            "gasUsed": "0x9c58",
+            "l1Fee": "0xebe2869fc028",
+            "l1FeeScalar": "1",
+            "l1GasPrice": "0xe52bbe8ab",
+            "l1GasUsed": "0x1078",
+            "logs": [],
+            "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "root": "0x",
+            "status": "0x0",
+            "transactionHash": "0x5a1ec671315432cf8b6a67d95b857109fcafae277ae2c673db40b44ca8dd5c1b",
+            "transactionIndex": "0x0"
+          }
+        }
+      }
+    ]
+  }
+}
