@@ -86,8 +86,14 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 			})
 		}
 
+		opts := optimism.ClientOptions{
+			HTTPTimeout:         cfg.L2GethHTTPTimeout,
+			MaxTraceConcurrency: cfg.MaxConcurrentTraces,
+			EnableTraceCache:    cfg.EnableTraceCache,
+			SupportedTokens:     getSupportedTokens(cfg.Network.Network),
+		}
 		var err error
-		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, cfg.L2GethHTTPTimeout, cfg.MaxConcurrentTraces, cfg.EnableTraceCache)
+		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, opts)
 		if err != nil {
 			return fmt.Errorf("%w: cannot initialize ethereum client", err)
 		}
@@ -126,4 +132,30 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	return err
+}
+
+func getSupportedTokens(network string) map[string]bool {
+	switch network {
+	case optimism.MainnetNetwork:
+		return map[string]bool{
+			"0x4200000000000000000000000000000000000042": true, // OP
+			"0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": true, // DAI
+			"0x8700daec35af8ff88c16bdf0418774cb3d7599b4": true, // SNX
+			"0x94b008aa00579c1307b0ef2c499ad98a8ce58e58": true, // USDT
+			"0x68f180fcce6836688e9084f035309e29bf0a2095": true, // WBTC
+			//"0x7F5c764cBc14f9669B88837ca1490cCa17c31607": true, // USDC
+		}
+	case optimism.TestnetNetwork:
+		return map[string]bool{
+			"0x4200000000000000000000000000000000000042": true, // OP
+			"0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": true, // DAI
+			"0x0064a673267696049938aa47595dd0b3c2e705a1": true, // SNX
+			"0x7f5c764cbc14f9669b88837ca1490cca17c31607": true, // USDT
+			"0x2382a8f65b9120e554d1836a504808ac864e169d": true, // WBTC
+		}
+	default:
+		return map[string]bool{
+			"0x4200000000000000000000000000000000000042": true, // OP
+		}
+	}
 }

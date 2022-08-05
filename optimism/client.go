@@ -109,28 +109,35 @@ type Client struct {
 	g GraphQL
 
 	currencyFetcher CurrencyFetcher
+	traceSemaphore  *semaphore.Weighted
+	supportedTokens map[string]bool
+}
 
-	traceSemaphore *semaphore.Weighted
+type ClientOptions struct {
+	HTTPTimeout         time.Duration
+	MaxTraceConcurrency int64
+	EnableTraceCache    bool
+	SupportedTokens     map[string]bool
 }
 
 // NewClient creates a Client that from the provided url and params.
-func NewClient(url string, params *params.ChainConfig, httpTimeout time.Duration, maxTraceConcurrency int64, enableTraceCache bool) (*Client, error) {
-	if httpTimeout == 0 {
-		httpTimeout = defaultHTTPTimeout
+func NewClient(url string, params *params.ChainConfig, opts ClientOptions) (*Client, error) {
+	if opts.HTTPTimeout == 0 {
+		opts.HTTPTimeout = defaultHTTPTimeout
 	}
 	c, err := rpc.DialHTTPWithClient(url, &http.Client{
-		Timeout: httpTimeout,
+		Timeout: opts.HTTPTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to dial node", err)
 	}
 
-	tc, err := loadTraceConfig(defaultTracerPath, httpTimeout)
+	tc, err := loadTraceConfig(defaultTracerPath, opts.HTTPTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to load trace config", err)
 	}
 
-	g, err := newGraphQLClient(url, httpTimeout)
+	g, err := newGraphQLClient(url, opts.HTTPTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to create GraphQL client", err)
 	}
@@ -140,15 +147,15 @@ func NewClient(url string, params *params.ChainConfig, httpTimeout time.Duration
 		return nil, fmt.Errorf("%w: unable to create CurrencyFetcher", err)
 	}
 
-	if maxTraceConcurrency == 0 {
-		maxTraceConcurrency = defaultMaxTraceConcurrency
+	if opts.MaxTraceConcurrency == 0 {
+		opts.MaxTraceConcurrency = defaultMaxTraceConcurrency
 	}
-	log.Printf("max trace concurrency is %d", maxTraceConcurrency)
+	log.Printf("max trace concurrency is %d", opts.MaxTraceConcurrency)
 
 	var traceCache TraceCache
-	if enableTraceCache {
+	if opts.EnableTraceCache {
 		log.Println("using trace cache")
-		if traceCache, err = NewTraceCache(c, defaultTracerPath, httpTimeout, defaultTraceCacheSize); err != nil {
+		if traceCache, err = NewTraceCache(c, defaultTracerPath, opts.HTTPTimeout, defaultTraceCacheSize); err != nil {
 			return nil, fmt.Errorf("%w: unable to create trace cache", err)
 		}
 	}
@@ -159,8 +166,9 @@ func NewClient(url string, params *params.ChainConfig, httpTimeout time.Duration
 		c:               c,
 		g:               g,
 		currencyFetcher: currencyFetcher,
-		traceSemaphore:  semaphore.NewWeighted(maxTraceConcurrency),
+		traceSemaphore:  semaphore.NewWeighted(opts.MaxTraceConcurrency),
 		traceCache:      traceCache,
+		supportedTokens: opts.SupportedTokens,
 	}, nil
 }
 
@@ -545,7 +553,8 @@ func (ec *Client) erc20TokenOps(
 		if contractAddress == ovmEthAddr.String() {
 			continue
 		}
-		if contractAddress != opTokenContractAddress.String() {
+
+		if _, ok := ec.supportedTokens[strings.ToLower(contractAddress)]; !ok {
 			continue
 		}
 

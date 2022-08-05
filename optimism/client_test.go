@@ -1952,10 +1952,10 @@ func TestBlock_ERC20Mint(t *testing.T) {
 	// HACK: block JSON-RPC testdata used in this test were gleaned from a non-predeploy OP token contract on Kovan.
 	// The actual OP token predeploy contract (0x42..42) hasn't minted new tokens. So for now we override the contract
 	// address so we can test this functionality
-	tmp := opTokenContractAddress
-	opTokenContractAddress = common.HexToAddress("0xF8B089026CaD7DDD8CB8d79036A1ff1d4233d64A")
-	// reset once we're done so subsequent tests don't break
-	defer func() { opTokenContractAddress = tmp }()
+	token := "0xf8b089026cad7ddd8cb8d79036a1ff1d4233d64a"
+	supportedTokens := map[string]bool{
+		token: true,
+	}
 
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
@@ -1970,6 +1970,7 @@ func TestBlock_ERC20Mint(t *testing.T) {
 		tc:              tc,
 		p:               params.GoerliChainConfig,
 		traceSemaphore:  semaphore.NewWeighted(100),
+		supportedTokens: supportedTokens,
 	}
 
 	ctx := context.Background()
@@ -2061,7 +2062,7 @@ func TestBlock_ERC20Mint(t *testing.T) {
 		&RosettaTypes.Currency{
 			Symbol:   TokenSymbol,
 			Decimals: TokenDecimals,
-			Metadata: map[string]interface{}{"token_address": opTokenContractAddress.String()}},
+			Metadata: map[string]interface{}{"token_address": token}},
 		nil,
 	).Once()
 
