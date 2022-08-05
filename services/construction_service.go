@@ -324,7 +324,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	metadata := &metadata{
 		Nonce:           nonce,
 		GasPrice:        gasPrice,
-		GasLimit:        big.NewInt(int64(gasLimit)),
+		GasLimit:        gasLimit,
 		Data:            input.Data,
 		Value:           input.Value,
 		To:              to,
@@ -376,7 +376,7 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	nonce := metadata.Nonce
 	gasPrice := metadata.GasPrice
 	chainID := s.config.Params.ChainID
-	transferGasLimit := metadata.GasLimit.Uint64()
+	transferGasLimit := metadata.GasLimit
 	transferData := metadata.Data
 
 	// Ensure valid from address
@@ -643,6 +643,7 @@ func (s *ConstructionAPIService) ConstructionSubmit(
 }
 
 // calculatesGasLimit calculates the gasLimit for an ERC20 transfer
+// if gas limit is not provided
 func (s *ConstructionAPIService) calculateGasLimit(
 	ctx context.Context,
 	from string,
