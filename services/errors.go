@@ -211,7 +211,7 @@ var (
 	// is invalid.
 	ErrInvalidGasLimit = &types.Error{
 		Code:    22, //nolint
-		Message: "Gas limit invalid"
+		Message: "Gas limit invalid",
 	}
 )
 
