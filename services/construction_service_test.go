@@ -967,3 +967,38 @@ func templateDelegateOperations(from string, currency *types.Currency) []*types.
 		optimism.DelegateVotesOpType,
 	)
 }
+
+func TestConstructContractCallData(t *testing.T) {
+	tests := map[string]struct {
+		methodSig      string
+		methodArgs     []string
+		expectedResult string
+	}{
+		"transfer": {
+			methodSig: "transfer(address,uint256)",
+			methodArgs: []string{
+				"0xb0935a466e6Fa8FDa8143C7f4a8c149CA56D06FE",
+				"173263688900373774",
+			},
+			expectedResult: "a9059cbb000000000000000000000000b0935a466e6fa8fda8143c7f4a8c149ca56d06fe00000000000000000000000000000000000000000000000002678e6835616d0e",
+		},
+		"bridge withdraw": {
+			methodSig: "withdraw(address,uint256,uint32,bytes)",
+			methodArgs: []string{
+				"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000",
+				"23535",
+				"600000",
+				"",
+			},
+			expectedResult: "32b7006d000000000000000000000000deaddeaddeaddeaddeaddeaddeaddeaddead00000000000000000000000000000000000000000000000000000000000000005bef00000000000000000000000000000000000000000000000000000000000927c0000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			data, err := constructContractCallData(test.methodSig, test.methodArgs)
+			assert.Equal(t, test.expectedResult, hex.EncodeToString(data))
+			assert.NoError(t, err)
+		})
+	}
+}
