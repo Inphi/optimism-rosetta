@@ -857,7 +857,7 @@ func constructContractCallData(methodSig string, methodArgs []string) ([]byte, e
 			}
 		case strings.HasPrefix(v, "bytes"):
 			{
-				value := make([]byte, 32)
+				var value []byte
 				copy(value[:], []byte(methodArgs[i]))
 				argData = value
 			}
