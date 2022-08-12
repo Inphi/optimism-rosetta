@@ -29,18 +29,26 @@ import (
 // convert raw eth data from client to rosetta
 
 const (
-	defaultTracerPath = "optimism/call_tracer.js"
+	NATIVE_CALL_TRACER_INDICATOR = "callTracer"
+	//defaultTracerPath = "optimism/call_tracer.js"
+	defaultTracerPath = NATIVE_CALL_TRACER_INDICATOR
 )
 
 func loadTraceConfig(tracerPath string, timeout time.Duration) (*tracers.TraceConfig, error) {
-	loadedFile, err := ioutil.ReadFile(tracerPath)
-	if err != nil {
-		return nil, fmt.Errorf("%w: could not load tracer file", err)
+	var loadedTracer string
+	if tracerPath == NATIVE_CALL_TRACER_INDICATOR {
+		// this special value triggers use of the native geth call tracer, which doesn't require loading any Javascript
+		loadedTracer = NATIVE_CALL_TRACER_INDICATOR
+	} else {
+		loadedFile, err := ioutil.ReadFile(tracerPath)
+		if err != nil {
+			return nil, fmt.Errorf("%w: could not load tracer file", err)
+		}
+		loadedTracer = string(loadedFile)
 	}
 
 	tracerTimeout := fmt.Sprintf("%ds", int(timeout.Seconds()))
 
-	loadedTracer := string(loadedFile)
 	return &tracers.TraceConfig{
 		Timeout: &tracerTimeout,
 		Tracer:  &loadedTracer,
