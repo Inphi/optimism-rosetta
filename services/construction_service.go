@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -162,7 +163,7 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 		if !ok {
 			return nil, wrapErr(
 				ErrInvalidGasLimit,
-				fmt.Errorf("%s is not a valid gas_limit string", v),
+				fmt.Errorf("expected gas_limit value to be string, instead got: %T", v),
 			)
 		}
 		bigObj, ok := new(big.Int).SetString(stringObj, 10) //nolint:gomnd
@@ -272,7 +273,11 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		// by default, initialize gasLimit to the TransferGasLimit
 		gasLimit = optimism.TransferGasLimit
 	} else {
-		gasLimit = input.GasLimit.Uint64()
+		if !input.GasLimit.IsUint64() {
+			gasLimit = math.MaxUint64
+		} else {
+			gasLimit = input.GasLimit.Uint64()
+		}
 	}
 
 	to := checkTo
@@ -289,10 +294,12 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		// Override the destination address to be the contract address
 		to = checkTokenContractAddress
 
-		var err *types.Error
-		gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkTokenContractAddress, input.Data, nil, input.GasLimit)
-		if err != nil {
-			return nil, err
+		if input.GasLimit == nil {
+			var err *types.Error
+			gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkTokenContractAddress, input.Data, nil)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -308,10 +315,12 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		// Override the destination address to be the contract address
 		to = checkContractAddress
 
-		var err *types.Error
-		gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkContractAddress, input.Data, input.Value, input.GasLimit)
-		if err != nil {
-			return nil, err
+		if input.GasLimit == nil {
+			var err *types.Error
+			gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkContractAddress, input.Data, input.Value)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -650,12 +659,7 @@ func (s *ConstructionAPIService) calculateGasLimit(
 	to string,
 	data []byte,
 	value *big.Int,
-	gasLimitInput *big.Int,
 ) (uint64, *types.Error) {
-	if gasLimitInput != nil {
-		return gasLimitInput.Uint64(), nil
-	}
-
 	fromAddress := common.HexToAddress(from)
 	toAddress := common.HexToAddress(to)
 	var v *big.Int
