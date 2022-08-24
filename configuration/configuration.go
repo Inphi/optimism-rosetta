@@ -141,14 +141,14 @@ func LoadConfiguration() (*Configuration, error) {
 		config.Params = params.MainnetChainConfig
 		config.Params.ChainID = big.NewInt(10) // TODO: temporary fix without param update
 		config.GethArguments = optimism.MainnetGethArguments
-	case Testnet:
+	case Testnet: // goerli
 		config.Network = &types.NetworkIdentifier{
 			Blockchain: optimism.Blockchain,
 			Network:    optimism.TestnetNetwork,
 		}
 		config.GenesisBlockIdentifier = optimism.TestnetGenesisBlockIdentifier
 		config.Params = params.TestnetChainConfig
-		config.Params.ChainID = big.NewInt(69) // TODO: temporary fix without param update
+		config.Params.ChainID = big.NewInt(420) // TODO: temporary fix without param update
 		config.GethArguments = optimism.TestnetGethArguments
 	case Goerli:
 		config.Network = &types.NetworkIdentifier{
