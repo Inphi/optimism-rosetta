@@ -90,6 +90,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 			HTTPTimeout:         cfg.L2GethHTTPTimeout,
 			MaxTraceConcurrency: cfg.MaxConcurrentTraces,
 			EnableTraceCache:    cfg.EnableTraceCache,
+			EnableGethTracer:    cfg.EnableGethTracer,
 			SupportedTokens:     getSupportedTokens(cfg.Network.Network),
 		}
 		var err error

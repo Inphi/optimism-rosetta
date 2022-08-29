@@ -32,15 +32,23 @@ const (
 	defaultTracerPath = "optimism/call_tracer.js"
 )
 
-func loadTraceConfig(tracerPath string, timeout time.Duration) (*tracers.TraceConfig, error) {
-	loadedFile, err := ioutil.ReadFile(tracerPath)
-	if err != nil {
-		return nil, fmt.Errorf("%w: could not load tracer file", err)
+type tracerSpec struct {
+	TracerPath    string
+	UseGethTracer bool
+}
+
+func loadTraceConfig(opt tracerSpec, timeout time.Duration) (*tracers.TraceConfig, error) {
+	var loadedTracer string
+	if opt.UseGethTracer {
+		loadedTracer = "rosetta"
+	} else {
+		loadedFile, err := ioutil.ReadFile(opt.TracerPath)
+		if err != nil {
+			return nil, fmt.Errorf("%w: could not load tracer file", err)
+		}
+		loadedTracer = string(loadedFile)
 	}
-
 	tracerTimeout := fmt.Sprintf("%ds", int(timeout.Seconds()))
-
-	loadedTracer := string(loadedFile)
 	return &tracers.TraceConfig{
 		Timeout: &tracerTimeout,
 		Tracer:  &loadedTracer,
@@ -65,9 +73,9 @@ type traceCache struct {
 	m             sync.Mutex
 }
 
-func NewTraceCache(client JSONRPC, tracerPath string, tracerTimeout time.Duration, cacheSize int) (TraceCache, error) {
+func NewTraceCache(client JSONRPC, opt tracerSpec, tracerTimeout time.Duration, cacheSize int) (TraceCache, error) {
 	cache, _ := lru.New(cacheSize)
-	tc, err := loadTraceConfig(tracerPath, tracerTimeout)
+	tc, err := loadTraceConfig(opt, tracerTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -114,4 +122,11 @@ func (t *traceCache) requestTrace(txhash common.Hash, entry *traceCacheEntry) {
 	entry.err = t.client.CallContext(callCtx, entry.result, "debug_traceTransaction", txhash.Hex(), t.tc)
 
 	close(entry.pending)
+
+	if entry.err != nil {
+		// It's fine if FetchTransaction calls read the old errant cache entry before it's removed
+		t.m.Lock()
+		t.cache.Remove(txhash.String())
+		t.m.Unlock()
+	}
 }
