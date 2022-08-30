@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -156,6 +157,25 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 		preprocessOutputOptions.GasPrice = bigObj
 	}
 
+	// Override gas_limit
+	if v, ok := request.Metadata["gas_limit"]; ok {
+		stringObj, ok := v.(string)
+		if !ok {
+			return nil, wrapErr(
+				ErrInvalidGasLimit,
+				fmt.Errorf("expected gas_limit value to be string, instead got: %T", v),
+			)
+		}
+		bigObj, ok := new(big.Int).SetString(stringObj, 10) //nolint:gomnd
+		if !ok {
+			return nil, wrapErr(
+				ErrInvalidGasLimit,
+				fmt.Errorf("%s is not a valid gas_limit", v),
+			)
+		}
+		preprocessOutputOptions.GasLimit = bigObj
+	}
+
 	currency := fromOp.Amount.Currency
 	opType := fromOp.Type
 	if _, ok := request.Metadata["method_signature"]; !ok && !isNativeCurrency(currency) {
@@ -248,7 +268,18 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		return nil, wrapErr(ErrGeth, err)
 	}
 
-	gasLimit := optimism.TransferGasLimit
+	var gasLimit uint64
+	if input.GasLimit == nil {
+		// by default, initialize gasLimit to the TransferGasLimit
+		gasLimit = optimism.TransferGasLimit
+	} else {
+		if !input.GasLimit.IsUint64() {
+			gasLimit = math.MaxUint64
+		} else {
+			gasLimit = input.GasLimit.Uint64()
+		}
+	}
+
 	to := checkTo
 
 	// For tokens only
@@ -263,10 +294,12 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		// Override the destination address to be the contract address
 		to = checkTokenContractAddress
 
-		var err *types.Error
-		gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkTokenContractAddress, input.Data, nil)
-		if err != nil {
-			return nil, err
+		if input.GasLimit == nil {
+			var err *types.Error
+			gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkTokenContractAddress, input.Data, nil)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -282,10 +315,12 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		// Override the destination address to be the contract address
 		to = checkContractAddress
 
-		var err *types.Error
-		gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkContractAddress, input.Data, input.Value)
-		if err != nil {
-			return nil, err
+		if input.GasLimit == nil {
+			var err *types.Error
+			gasLimit, err = s.calculateGasLimit(ctx, checkFrom, checkContractAddress, input.Data, input.Value)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -298,7 +333,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	metadata := &metadata{
 		Nonce:           nonce,
 		GasPrice:        gasPrice,
-		GasLimit:        big.NewInt(int64(gasLimit)),
+		GasLimit:        gasLimit,
 		Data:            input.Data,
 		Value:           input.Value,
 		To:              to,
@@ -350,7 +385,7 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	nonce := metadata.Nonce
 	gasPrice := metadata.GasPrice
 	chainID := s.config.Params.ChainID
-	transferGasLimit := metadata.GasLimit.Uint64()
+	transferGasLimit := metadata.GasLimit
 	transferData := metadata.Data
 
 	// Ensure valid from address
@@ -617,6 +652,7 @@ func (s *ConstructionAPIService) ConstructionSubmit(
 }
 
 // calculatesGasLimit calculates the gasLimit for an ERC20 transfer
+// if gas limit is not provided
 func (s *ConstructionAPIService) calculateGasLimit(
 	ctx context.Context,
 	from string,
