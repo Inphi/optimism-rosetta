@@ -148,10 +148,10 @@ func getSupportedTokens(network string) map[string]bool {
 	case optimism.TestnetNetwork: // Goerli - 420
 		return map[string]bool{
 			"0x4200000000000000000000000000000000000042": true, // OP
-			"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1": true, // DAI
-			"0x2E5ED97596a8368EB9E44B1f3F25B2E813845303": true, // SNX
+			"0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": true, // DAI
+			"0x2e5ed97596a8368eb9e44b1f3f25b2e813845303": true, // SNX
 			"0x7f5c764cbc14f9669b88837ca1490cca17c31607": true, // USDT - obsolete
-			"0xe0a592353e81a94Db6E3226fD4A99F881751776a": true, // WBTC
+			"0xe0a592353e81a94db6e3226fd4a99f881751776a": true, // WBTC
 			// "": true, // USDC
 		}
 	default:
