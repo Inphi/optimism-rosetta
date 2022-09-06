@@ -68,7 +68,7 @@ var (
 	// TODO: load the gpo owner from a config
 	gasPriceOracleOwnerMainnet = common.HexToAddress("0x7107142636C85c549690b1Aca12Bdb8052d26Ae6")
 	gasPriceOracleOwnerKovan   = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
-	gasPriceOracleOwnerGoerli  = common.HexToAddress("0x84f70449f90300997840eCb0918873745Ede7aE6")
+	gasPriceOracleOwnerGoerli  = common.HexToAddress("0xa693B8f8207FF043F6bbC2E2120bbE4C2251Efe9")
 
 	// The following mainnet block hashes have transaction (hashes) that are also present in succeeding blocks.
 	// This occured due to a bug in contract whitelisting. Unfortunately eth_getTransactionByX now returns the succeeding block rather than the original.
