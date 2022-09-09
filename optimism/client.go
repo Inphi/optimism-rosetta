@@ -60,6 +60,9 @@ const (
 	// While parsing ERC20 ops, we will ignore any event logs that we think are an ERC20 tansfer
 	// that do not contain 3 topics and who's 'data' field is not a single 32 byte hex string representing the amount of the transfer
 	numTopicsERC20Transfer = 3
+
+	// Fees on L2 weren't enforced on Goerli prior to this block height. This meant that transactions with a zero gas price were accepted without paying any fees
+	goerliRollupFeeEnforcementBlockHeight = 962297
 )
 
 var (
@@ -93,6 +96,8 @@ var (
 	// See https://www.saurik.com/optimism.html for the details
 	opBugAccidentalTriggerContract = common.HexToAddress("0x40C539BBe076b91FdF681E6B4B84bd1Fe1F148d9")
 	opBugAccidentalTriggerTx       = "0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc"
+
+	goerliChainID = big.NewInt(420)
 )
 
 // Client allows for querying a set of specific Ethereum endpoints in an
@@ -1123,6 +1128,20 @@ func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
 	}
 }
 
+// Set the fees of applicable zero gas transactions to zero
+func patchFeeOps(chainID *big.Int, block *types.Block, tx *types.Transaction, ops []*RosettaTypes.Operation) {
+	if chainID.Cmp(goerliChainID) != 0 {
+		return
+	}
+	if tx.GasPrice().Uint64() == 0 && block.NumberU64() < goerliRollupFeeEnforcementBlockHeight {
+		for _, op := range ops {
+			if op.Type == FeeOpType {
+				op.Amount.Value = "0"
+			}
+		}
+	}
+}
+
 // transactionReceipt returns the receipt of a transaction by transaction hash.
 // Note that the receipt is not available for pending transactions.
 func (ec *Client) transactionReceipt(
@@ -1378,6 +1397,7 @@ func (ec *Client) populateTransaction(
 
 	// Compute fee operations
 	feeOps := feeOps(tx)
+	patchFeeOps(ec.p.ChainID, block, tx.Transaction, feeOps)
 	ops = append(ops, feeOps...)
 
 	erc20TokenOps, err := ec.erc20TokenOps(ctx, block, tx, len(ops))
