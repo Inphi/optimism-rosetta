@@ -1,0 +1,123 @@
+{
+  "block": {
+    "block_identifier": {
+      "index": 367675,
+      "hash": "0xf9c036c3ee79d13b5d59c4d1c167523b2cc71e40f1a95eabf0b1225771553c74"
+    },
+    "parent_block_identifier": {
+      "index": 367674,
+      "hash": "0x87f049020a3789a73ade3c43c6222468495adac48384c32ba71f8c844d4de3c7"
+    },
+    "timestamp": 1660314015000,
+    "transactions": [
+      {
+        "transaction_identifier": {
+          "hash": "0x2992c7d87b09484c5940f7d649bd9957c629a43ac477473b655dbb07d8c742a5"
+        },
+        "operations": [
+          {
+            "operation_identifier": {
+              "index": 0
+            },
+            "type": "FEE",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xABc4EF774F44bEB2Dc7Adc80F3c560AB51F08d4b"
+            },
+            "amount": {
+              "value": "0",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 1
+            },
+            "related_operations": [
+              {
+                "index": 0
+              }
+            ],
+            "type": "FEE",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x4200000000000000000000000000000000000011"
+            },
+            "amount": {
+              "value": "0",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 2
+            },
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xABc4EF774F44bEB2Dc7Adc80F3c560AB51F08d4b"
+            },
+            "amount": {
+              "value": "-100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            },
+            "metadata": {}
+          },
+          {
+            "operation_identifier": {
+              "index": 3
+            },
+            "related_operations": [
+              {
+                "index": 2
+              }
+            ],
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xB577c1d00CF6F7fb50B1587Db60219D50b50eA40"
+            },
+            "amount": {
+              "value": "100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            },
+            "metadata": {}
+          }
+        ],
+        "metadata": {
+          "gas_limit": "0x5208",
+          "gas_price": "0x0",
+          "receipt": {
+            "blockHash": "0xf9c036c3ee79d13b5d59c4d1c167523b2cc71e40f1a95eabf0b1225771553c74",
+            "blockNumber": "0x59c3b",
+            "contractAddress": "0x0000000000000000000000000000000000000000",
+            "cumulativeGasUsed": "0x5208",
+            "gasUsed": "0x5208",
+            "l1Fee": "0xe859",
+            "l1FeeScalar": "1.5",
+            "l1GasPrice": "0x9",
+            "l1GasUsed": "0x1136",
+            "logs": [],
+            "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "root": "0x",
+            "status": "0x1",
+            "transactionHash": "0x2992c7d87b09484c5940f7d649bd9957c629a43ac477473b655dbb07d8c742a5",
+            "transactionIndex": "0x0"
+          }
+        }
+      }
+    ]
+  }
+}
