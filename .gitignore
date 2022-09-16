@@ -2,3 +2,4 @@ rosetta-ethereum
 ethereum-data
 cli-data
 .env
+.idea/
