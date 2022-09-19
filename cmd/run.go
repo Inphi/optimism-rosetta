@@ -153,7 +153,7 @@ func getSupportedTokens(network string) map[string]bool {
 			"0x2e5ed97596a8368eb9e44b1f3f25b2e813845303": true, // SNX
 			"0x853eb4ba5d0ba2b77a0a5329fd2110d5ce149ece": true, // USDT
 			"0xe0a592353e81a94db6e3226fd4a99f881751776a": true, // WBTC
-			"0x07865c6E87B9F70255377e024ace6630C1Eaa37F": true, // USDC
+			"0x07865c6e87b9f70255377e024ace6630c1eaa37f": true, // USDC
 		}
 	default:
 		return map[string]bool{
