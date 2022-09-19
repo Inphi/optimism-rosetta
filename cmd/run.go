@@ -144,7 +144,7 @@ func getSupportedTokens(network string) map[string]bool {
 			"0x8700daec35af8ff88c16bdf0418774cb3d7599b4": true, // SNX
 			"0x94b008aa00579c1307b0ef2c499ad98a8ce58e58": true, // USDT
 			"0x68f180fcce6836688e9084f035309e29bf0a2095": true, // WBTC
-			//"0x7F5c764cBc14f9669B88837ca1490cCa17c31607": true, // USDC
+			"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": true, // USDC
 		}
 	case optimism.TestnetNetwork: // Goerli - 420
 		return map[string]bool{
@@ -153,7 +153,7 @@ func getSupportedTokens(network string) map[string]bool {
 			"0x2e5ed97596a8368eb9e44b1f3f25b2e813845303": true, // SNX
 			"0x853eb4ba5d0ba2b77a0a5329fd2110d5ce149ece": true, // USDT
 			"0xe0a592353e81a94db6e3226fd4a99f881751776a": true, // WBTC
-			// "": true, // USDC
+			"0x07865c6E87B9F70255377e024ace6630C1Eaa37F": true, // USDC
 		}
 	default:
 		return map[string]bool{
