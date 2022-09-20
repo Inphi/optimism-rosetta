@@ -917,9 +917,16 @@ func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaT
 				Metadata: metadata,
 			}
 			ops = append(ops, burnDebitOp)
+			
+			lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
 			burnCreditOp := &RosettaTypes.Operation{
 				OperationIdentifier: &RosettaTypes.OperationIdentifier{
 					Index: int64(len(ops) + startIndex),
+				},
+				RelatedOperations: []*RosettaTypes.OperationIdentifier{
+					{
+						Index: lastOpIndex,
+					},
 				},
 				Type:   trace.Type,
 				Status: RosettaTypes.String(opStatus),
