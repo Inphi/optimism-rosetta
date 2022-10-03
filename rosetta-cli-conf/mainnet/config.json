@@ -15,6 +15,7 @@
     "initial_balance_fetch_disabled":true,
     "active_reconciliation_concurrency": 32,
     "bootstrap_balances": "bootstrap_balances.json",
+    "exempt_accounts": "exempt_accounts.json",
     "end_conditions": {
       "reconciliation_coverage": {
         "coverage": 0.95,
