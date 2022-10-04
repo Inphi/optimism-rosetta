@@ -900,7 +900,8 @@ func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaT
 			ops = append(ops, fromOp)
 		}
 		if burnCall {
-			burnOp := &RosettaTypes.Operation{
+			// if we are handling a burn of ovmEth, `shouldAdd` is disabled for the entirety of the iteration for this trace call
+			burnDebitOp := &RosettaTypes.Operation{
 				OperationIdentifier: &RosettaTypes.OperationIdentifier{
 					Index: int64(len(ops) + startIndex),
 				},
@@ -915,7 +916,30 @@ func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaT
 				},
 				Metadata: metadata,
 			}
-			ops = append(ops, burnOp)
+			ops = append(ops, burnDebitOp)
+			
+			lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
+			burnCreditOp := &RosettaTypes.Operation{
+				OperationIdentifier: &RosettaTypes.OperationIdentifier{
+					Index: int64(len(ops) + startIndex),
+				},
+				RelatedOperations: []*RosettaTypes.OperationIdentifier{
+					{
+						Index: lastOpIndex,
+					},
+				},
+				Type:   trace.Type,
+				Status: RosettaTypes.String(opStatus),
+				Account: &RosettaTypes.AccountIdentifier{
+					Address: zeroAddr,
+				},
+				Amount: &RosettaTypes.Amount{
+					Value:    burnMintAmt.String(),
+					Currency: Currency,
+				},
+				Metadata: metadata,
+			}
+			ops = append(ops, burnCreditOp)
 		}
 		if mintCall {
 			mintOp := &RosettaTypes.Operation{
