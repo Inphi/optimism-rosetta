@@ -1,0 +1,369 @@
+{
+  "block": {
+    "block_identifier": {
+      "index": 1909952,
+      "hash": "0x41dd6bf354e9df7927eef0aae55729ba1c820d972c406a3a5270a745d67bbc1b"
+    },
+    "parent_block_identifier": {
+      "index": 1909951,
+      "hash": "0x2c92888c89920d6f22529a5ec4770210ffb7b6eee8880b5c836d98870d1b8cc9"
+    },
+    "timestamp": 1665567013000,
+    "transactions": [
+      {
+        "transaction_identifier": {
+          "hash": "0xfa6db346b928db4c98ebf72a14ac52d0c884e2cfa70cf40816542c9d7d1caf13"
+        },
+        "operations": [
+          {
+            "operation_identifier": {
+              "index": 0
+            },
+            "type": "FEE",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x000000000002e33d9a86567c6DFe6D92F6777d1E"
+            },
+            "amount": {
+              "value": "-4983002632485",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 1
+            },
+            "related_operations": [
+              {
+                "index": 0
+              }
+            ],
+            "type": "FEE",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x4200000000000000000000000000000000000011"
+            },
+            "amount": {
+              "value": "4983002632485",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 2
+            },
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x000000000002e33d9a86567c6DFe6D92F6777d1E"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "-100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 3
+            },
+            "related_operations": [
+              {
+                "index": 2
+              }
+            ],
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x000000000000Df8c944e775BDe7Af50300999283"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 4
+            },
+            "type": "CREATE2",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x000000000000Df8c944e775BDe7Af50300999283"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "-100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 5
+            },
+            "related_operations": [
+              {
+                "index": 4
+              }
+            ],
+            "type": "CREATE2",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xEC2A87E85251BA35AbDD3e4E5414BD00c2F3f99A"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 6
+            },
+            "type": "SELFDESTRUCT",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xEC2A87E85251BA35AbDD3e4E5414BD00c2F3f99A"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "-100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 7
+            },
+            "related_operations": [
+              {
+                "index": 6
+              }
+            ],
+            "type": "SELFDESTRUCT",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xEC2A87E85251BA35AbDD3e4E5414BD00c2F3f99A"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 8
+            },
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xEC2A87E85251BA35AbDD3e4E5414BD00c2F3f99A"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "-100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 9
+            },
+            "related_operations": [
+              {
+                "index": 8
+              }
+            ],
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x000000000000Df8c944e775BDe7Af50300999283"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 10
+            },
+            "type": "CREATE2",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x000000000000Df8c944e775BDe7Af50300999283"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "-100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 11
+            },
+            "related_operations": [
+              {
+                "index": 10
+              }
+            ],
+            "type": "CREATE2",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x802bB2e2EefDFA1b7d2a1e2042431624f764EaDC"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 12
+            },
+            "type": "SELFDESTRUCT",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x802bB2e2EefDFA1b7d2a1e2042431624f764EaDC"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "-100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 13
+            },
+            "related_operations": [
+              {
+                "index": 12
+              }
+            ],
+            "type": "SELFDESTRUCT",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x802bB2e2EefDFA1b7d2a1e2042431624f764EaDC"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 14
+            },
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x802bB2e2EefDFA1b7d2a1e2042431624f764EaDC"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "-100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 15
+            },
+            "related_operations": [
+              {
+                "index": 14
+              }
+            ],
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x000000000000Df8c944e775BDe7Af50300999283"
+            },
+            "metadata": {},
+            "amount": {
+              "value": "100000000000000000",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          }
+        ],
+        "metadata": {
+          "gas_limit": "0x62be4",
+          "gas_price": "0x1",
+          "receipt": {
+            "blockHash": "0x41dd6bf354e9df7927eef0aae55729ba1c820d972c406a3a5270a745d67bbc1b",
+            "blockNumber": "0x1d24c0",
+            "contractAddress": "0x0000000000000000000000000000000000000000",
+            "cumulativeGasUsed": "0x626a9",
+            "gasUsed": "0x626a9",
+            "l1Fee": "0x4883213ea7c",
+            "l1FeeScalar": "1.5",
+            "l1GasPrice": "0x5b99d24",
+            "l1GasUsed": "0x871a",
+            "logs": [],
+            "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "root": "0x",
+            "status": "0x1",
+            "transactionHash": "0xfa6db346b928db4c98ebf72a14ac52d0c884e2cfa70cf40816542c9d7d1caf13",
+            "transactionIndex": "0x0"
+          }
+        }
+      }
+    ]
+  }
+}
