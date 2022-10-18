@@ -866,6 +866,7 @@ func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaT
 		if shouldAdd {
 			value := new(big.Int).Neg(trace.Value).String()
 			// The OP bug here means that the ETH balance of the self-destructed contract remains unchanged
+			// TODO(inphi): Bedrock fixes this
 			if block.Transactions()[0].Hash().String() == opBugAccidentalTriggerTx &&
 				opStatus == SuccessStatus &&
 				trace.Type == SelfDestructOpType &&
@@ -917,7 +918,7 @@ func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaT
 				Metadata: metadata,
 			}
 			ops = append(ops, burnDebitOp)
-			
+
 			lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
 			burnCreditOp := &RosettaTypes.Operation{
 				OperationIdentifier: &RosettaTypes.OperationIdentifier{
@@ -962,17 +963,25 @@ func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaT
 
 		// Add to destroyed accounts if SELFDESTRUCT
 		// and overwrite existing balance.
-		if trace.Type == SelfDestructOpType {
-			destroyedAccounts[from] = new(big.Int)
 
-			// If destination of of SELFDESTRUCT is self,
-			// we should skip. In the EVM, the balance is reset
-			// after the balance is increased on the destination
-			// so this is a no-op.
-			if from == to {
-				continue
+		// OVM hack: The OVM models SELFDESTRUCT as a couple of Add and Sub balance operations. See https://github.com/ethereum-optimism/optimism/issues/2604
+		// for context.
+		// We do the same here by permitting the shouldAdd check work on both sides of the Value transfer. Otherwise, the destroyed account will seem to
+		// have a negative balance.
+		// TODO(inphi): Bedrock fixes this. Uncomment this once Bedrock is up
+		/*
+			if trace.Type == SelfDestructOpType {
+				destroyedAccounts[from] = new(big.Int)
+
+				// If destination of of SELFDESTRUCT is self,
+				// we should skip. In the EVM, the balance is reset
+				// after the balance is increased on the destination
+				// so this is a no-op.
+				if from == to {
+					continue
+				}
 			}
-		}
+		*/
 
 		// Skip empty to addresses (this may not
 		// actually occur but leaving it as a
