@@ -17,6 +17,7 @@ package services
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -203,22 +204,14 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 				fmt.Errorf("%s is not a valid signature string", v),
 			)
 		}
-		var methodArgs []string
-		if v, ok := request.Metadata["method_args"]; ok {
-			methodArgsBytes, _ := json.Marshal(v)
-			err := json.Unmarshal(methodArgsBytes, &methodArgs)
-			if err != nil {
-				fmt.Println("Error in unmarshal")
-			}
-		}
-		data, err := constructContractCallData(methodSigStringObj, methodArgs)
+		data, err := constructContractCallData(methodSigStringObj, request.Metadata["method_args"])
 		if err != nil {
 			return nil, wrapErr(ErrFetchFunctionSignatureMethodID, err)
 		}
 		preprocessOutputOptions.ContractAddress = checkTo
 		preprocessOutputOptions.Data = data
 		preprocessOutputOptions.MethodSignature = methodSigStringObj
-		preprocessOutputOptions.MethodArgs = methodArgs
+		preprocessOutputOptions.MethodArgs = request.Metadata["method_args"]
 	}
 
 	marshaled, err := marshalJSONMap(preprocessOutputOptions)
@@ -840,26 +833,68 @@ func constructERC20VotesDelegateData(to string) []byte {
 }
 
 // constructContractCallData constructs the data field of an Optimism transaction
-func constructContractCallData(methodSig string, methodArgs []string) ([]byte, error) {
-	arguments := abi.Arguments{}
-	argumentsData := []interface{}{}
+func constructContractCallData(methodSig string, methodArgsGeneric interface{}) ([]byte, error) {
+	data := contractCallMethodID(methodSig)
 
-	var data []byte
-	methodID := contractCallMethodID(methodSig)
-	data = append(data, methodID...)
+	// switch on the type of the method args. method args can come in from json as either a string or list of strings
+	switch methodArgs := methodArgsGeneric.(type) {
+
+	// case 0: no method arguments, return the selector
+	case nil:
+		return data, nil
+
+	// case 1: method args are pre-compiled ABI data. decode the hex and create the call data directly
+	case string:
+		methodArgs = strings.TrimPrefix(methodArgs, "0x")
+		b, decErr := hex.DecodeString(methodArgs)
+		if decErr != nil {
+			return nil, fmt.Errorf("error decoding method args hex data: %w", decErr)
+		}
+		return append(data, b...), nil
+
+	// case 2: method args are a list of interface{} which will be converted to string before encoding
+	case []interface{}:
+		var strList []string
+		for i, genericVal := range methodArgs {
+			strVal, isStrVal := genericVal.(string)
+			if !isStrVal {
+				return nil, fmt.Errorf("invalid method_args type at index %d: %T (must be a string)",
+					i, genericVal,
+				)
+			}
+			strList = append(strList, strVal)
+		}
+		return encodeMethodArgsStrings(data, methodSig, strList)
+
+	// case 3: method args are encoded as a list of strings, which will be decoded
+	case []string:
+		return encodeMethodArgsStrings(data, methodSig, methodArgs)
+
+	// case 4: there is no known way to decode the method args
+	default:
+		return nil, fmt.Errorf(
+			"invalid method_args type, accepted values are []string and hex-encoded string."+
+				" type received=%T value=%#v", methodArgsGeneric, methodArgsGeneric,
+		)
+	}
+}
+
+func encodeMethodArgsStrings(sigData []byte, methodSig string, methodArgs []string) ([]byte, error) {
+	var arguments abi.Arguments
+	var argumentsData []interface{}
 
 	splitSigByLeadingParenthesis := strings.Split(methodSig, "(")
 	if len(splitSigByLeadingParenthesis) < 2 {
-		return data, nil
+		return nil, nil
 	}
 	splitSigByTrailingParenthesis := strings.Split(splitSigByLeadingParenthesis[1], ")")
 	if len(splitSigByTrailingParenthesis) < 1 {
-		return data, nil
+		return nil, nil
 	}
 	splitSigByComma := strings.Split(splitSigByTrailingParenthesis[0], ",")
 
 	if len(splitSigByComma) != len(methodArgs) {
-		return nil, errors.New("Invalid method arguments")
+		return nil, errors.New("invalid method arguments")
 	}
 
 	for i, v := range splitSigByComma {
@@ -872,6 +907,7 @@ func constructContractCallData(methodSig string, methodArgs []string) ([]byte, e
 
 		arguments = append(arguments, argument...)
 		var argData interface{}
+
 		switch {
 		case v == "address":
 			{
@@ -894,7 +930,7 @@ func constructContractCallData(methodSig string, methodArgs []string) ([]byte, e
 		case strings.HasPrefix(v, "bytes"):
 			{
 				var value []byte
-				copy(value[:], []byte(methodArgs[i]))
+				copy(value[:], methodArgs[i])
 				argData = value
 			}
 		case strings.HasPrefix(v, "string"):
@@ -913,12 +949,8 @@ func constructContractCallData(methodSig string, methodArgs []string) ([]byte, e
 		}
 		argumentsData = append(argumentsData, argData)
 	}
-	abiEncodeData, err := arguments.PackValues(argumentsData)
-	if err != nil {
-		return nil, err
-	}
-	data = append(data, abiEncodeData...)
-	return data, nil
+	encData, packErr := arguments.PackValues(argumentsData)
+	return append(sigData, encData...), packErr
 }
 
 // validateRequest validates if the intent in operations matches
