@@ -16,8 +16,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -136,24 +138,20 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 }
 
 func getSupportedTokens(network string) map[string]bool {
-	switch network {
-	case optimism.MainnetNetwork:
-		return map[string]bool{
-			"0x4200000000000000000000000000000000000042": true, // OP
-			"0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": true, // DAI
-			"0x94b008aa00579c1307b0ef2c499ad98a8ce58e58": true, // USDT
-			"0x68f180fcce6836688e9084f035309e29bf0a2095": true, // WBTC
-			"0x7f5c764cbc14f9669b88837ca1490cca17c31607": true, // USDC
-		}
-	case optimism.TestnetNetwork: // Goerli - 420
-		return map[string]bool{
-			"0x4200000000000000000000000000000000000042": true, // OP
-			"0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": true, // DAI
-			"0x853eb4ba5d0ba2b77a0a5329fd2110d5ce149ece": true, // USDT
-			"0xe0a592353e81a94db6e3226fd4a99f881751776a": true, // WBTC
-			"0x7e07e15d2a87a24492740d16f5bdf58c16db0c4e": true, // USDC
-		}
-	default:
+	content, err := ioutil.ReadFile("tokenList.json")
+	if err != nil {
+		log.Fatal("Error when opening file: ", err)
+	}
+
+	var payload map[string]map[string]bool
+	err = json.Unmarshal(content, &payload)
+	if err != nil {
+		log.Fatal("Error during Unmarshal(): ", err)
+	}
+
+	if val, ok := payload[network]; ok {
+		return val
+	} else {
 		return map[string]bool{
 			"0x4200000000000000000000000000000000000042": true, // OP
 		}
