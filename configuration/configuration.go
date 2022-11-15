@@ -93,6 +93,11 @@ const (
 
 	// Experimental: Use newly added built-in geth tracer
 	EnableGethTracer = "ENABLE_GETH_TRACER"
+
+	// TokenFilterEnv is the environment variable
+	// read to determine if we will filter tokens
+	// using our token white list
+	TokenFilterEnv = "FILTER_TOKEN"
 )
 
 // Configuration determines how
@@ -108,6 +113,7 @@ type Configuration struct {
 	MaxConcurrentTraces    int64
 	EnableTraceCache       bool
 	EnableGethTracer       bool
+	TokenFilter            bool
 
 	// Block Reward Data
 	Params *params.ChainConfig
@@ -216,6 +222,16 @@ func LoadConfiguration() (*Configuration, error) {
 			return nil, fmt.Errorf("%w: unable to parse %s %s", err, EnableGethTracer, envEnableGethTracer)
 		}
 		config.EnableGethTracer = val
+	}
+
+	config.TokenFilter = true
+	envTokenFilter := os.Getenv(TokenFilterEnv)
+	if len(envTokenFilter) > 0 {
+		val, err := strconv.ParseBool(envTokenFilter)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse %s %s", err, TokenFilterEnv, envTokenFilter)
+		}
+		config.TokenFilter = val
 	}
 
 	return config, nil

@@ -2091,6 +2091,7 @@ func TestBlock_ERC20Mint(t *testing.T) {
 		tc:              tc,
 		p:               params.GoerliChainConfig,
 		traceSemaphore:  semaphore.NewWeighted(100),
+		filterTokens:    true,
 		supportedTokens: supportedTokens,
 	}
 

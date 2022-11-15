@@ -93,6 +93,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 			MaxTraceConcurrency: cfg.MaxConcurrentTraces,
 			EnableTraceCache:    cfg.EnableTraceCache,
 			EnableGethTracer:    cfg.EnableGethTracer,
+			FilterTokens:        cfg.TokenFilter,
 			SupportedTokens:     getSupportedTokens(cfg.Network.Network),
 		}
 		var err error
