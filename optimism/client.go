@@ -115,6 +115,7 @@ type Client struct {
 
 	currencyFetcher CurrencyFetcher
 	traceSemaphore  *semaphore.Weighted
+	filterTokens    bool
 	supportedTokens map[string]bool
 }
 
@@ -123,6 +124,7 @@ type ClientOptions struct {
 	MaxTraceConcurrency int64
 	EnableTraceCache    bool
 	EnableGethTracer    bool
+	FilterTokens        bool
 	SupportedTokens     map[string]bool
 }
 
@@ -179,6 +181,7 @@ func NewClient(url string, params *params.ChainConfig, opts ClientOptions) (*Cli
 		currencyFetcher: currencyFetcher,
 		traceSemaphore:  semaphore.NewWeighted(opts.MaxTraceConcurrency),
 		traceCache:      traceCache,
+		filterTokens:    opts.FilterTokens,
 		supportedTokens: opts.SupportedTokens,
 	}, nil
 }
@@ -565,7 +568,8 @@ func (ec *Client) erc20TokenOps(
 			continue
 		}
 
-		if _, ok := ec.supportedTokens[strings.ToLower(contractAddress)]; !ok {
+		_, ok = ec.supportedTokens[strings.ToLower(contractAddress)]
+		if ec.filterTokens && !ok {
 			continue
 		}
 

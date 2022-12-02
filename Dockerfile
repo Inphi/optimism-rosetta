@@ -45,6 +45,7 @@ RUN mv src/rosetta-ethereum /app/rosetta-ethereum \
   && mkdir /app/optimism \
   && mv src/optimism/call_tracer.js /app/optimism/call_tracer.js \
   && mv src/optimism/geth.toml /app/optimism/geth.toml \
+  && mv src/tokenList.json /app/tokenList.json \
   && rm -rf src
 
 ## Build Final Image
@@ -62,6 +63,8 @@ WORKDIR /app
 # Copy binary from rosetta-builder
 COPY --from=rosetta-builder /app/optimism /app/optimism
 COPY --from=rosetta-builder /app/rosetta-ethereum /app/rosetta-ethereum
+
+COPY --from=rosetta-builder /app/tokenList.json /app/tokenList.json
 
 # Set permissions for everything added to /app
 RUN chmod -R 755 /app/*
