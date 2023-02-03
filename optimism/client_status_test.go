@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
@@ -93,7 +93,7 @@ func TestStatus_NotSyncing(t *testing.T) {
 	).Run(
 		func(args mock.Arguments) {
 			header := args.Get(1).(**types.Header)
-			file, err := ioutil.ReadFile("testdata/basic_header.json")
+			file, err := os.ReadFile("testdata/basic_header.json")
 			assert.NoError(t, err)
 
 			*header = new(types.Header)
@@ -166,7 +166,7 @@ func TestStatus_Syncing(t *testing.T) {
 	).Run(
 		func(args mock.Arguments) {
 			header := args.Get(1).(**types.Header)
-			file, err := ioutil.ReadFile("testdata/basic_header.json")
+			file, err := os.ReadFile("testdata/basic_header.json")
 			assert.NoError(t, err)
 
 			*header = new(types.Header)

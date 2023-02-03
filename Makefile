@@ -31,9 +31,6 @@ clean:
 tidy:
 	go mod tidy
 
-# format:
-# 	gofmt -s -w -l .
-
 deps:
 	go get ./...
 
@@ -41,6 +38,9 @@ test:
 	${TEST_SCRIPT}
 
 build:
+	go build -v -o rosetta-ethereum ./cmd/...
+
+build-docker:
 	docker build -t rosetta-ethereum:latest https://github.com/inphi/optimism-rosetta.git
 
 build-local:

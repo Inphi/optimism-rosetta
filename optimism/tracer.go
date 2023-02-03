@@ -17,7 +17,7 @@ package optimism
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sync"
 	"time"
 
@@ -42,7 +42,7 @@ func loadTraceConfig(opt tracerSpec, timeout time.Duration) (*eth.TraceConfig, e
 	if opt.UseGethTracer {
 		loadedTracer = "rosetta"
 	} else {
-		loadedFile, err := ioutil.ReadFile(opt.TracerPath)
+		loadedFile, err := os.ReadFile(opt.TracerPath)
 		if err != nil {
 			return nil, fmt.Errorf("%w: could not load tracer file", err)
 		}

@@ -3,7 +3,7 @@ package optimism
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -60,7 +60,7 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 		func(args mock.Arguments) {
 			r := args.Get(1).(*json.RawMessage)
 
-			file, err := ioutil.ReadFile("testdata/goerli_bedrock_block_5003318.json")
+			file, err := os.ReadFile("testdata/goerli_bedrock_block_5003318.json")
 			assert.NoError(t, err)
 
 			*r = json.RawMessage(file)
@@ -74,7 +74,7 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 	mockDebugTraceTransaction(ctx, t, mockJSONRPC, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
 	mockGetTransactionReceipt(ctx, t, mockJSONRPC, []common.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
 
-	correctRaw, err := ioutil.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")
+	correctRaw, err := os.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")
 	assert.NoError(t, err)
 	var correct *RosettaTypes.BlockResponse
 	assert.NoError(t, json.Unmarshal(correctRaw, &correct))
@@ -113,7 +113,7 @@ func mockDebugTraceTransaction(ctx context.Context, t *testing.T, mockJSONRPC *m
 			)
 			assert.Equal(t, testBedrockTraceConfig, r[0].Args[1])
 
-			file, err := ioutil.ReadFile(txFileData)
+			file, err := os.ReadFile(txFileData)
 			assert.NoError(t, err)
 
 			call := new(Call)
@@ -146,7 +146,7 @@ func mockGetTransactionReceipt(ctx context.Context, t *testing.T, mockJSONRPC *m
 					r[i].Args[0],
 				)
 
-				file, err := ioutil.ReadFile(txFileData[i])
+				file, err := os.ReadFile(txFileData[i])
 				assert.NoError(t, err)
 
 				receipt := new(types.Receipt)

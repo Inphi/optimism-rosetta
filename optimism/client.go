@@ -304,7 +304,7 @@ func (ec *Client) getBlockReceipts(
 	reqs := make([]rpc.BatchElem, len(txs))
 	for i := range reqs {
 		reqs[i] = rpc.BatchElem{
-			Method: "eth_getTransactionReceipt",
+			Method: EthGetTransactionReceipt,
 			Args:   []interface{}{txs[i].tx.Hash().Hex()},
 			Result: &receipts[i],
 		}
@@ -332,6 +332,7 @@ func (ec *Client) getBlockReceipts(
 	return receipts, nil
 }
 
+//nolint:gocognit
 func (ec *Client) erc20TokenOps(
 	ctx context.Context,
 	block *types.Block,
@@ -825,7 +826,7 @@ func (ec *Client) transactionReceipt(
 	txHash common.Hash,
 ) (*types.Receipt, error) {
 	var r *types.Receipt
-	err := ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	err := ec.c.CallContext(ctx, &r, EthGetTransactionReceipt, txHash)
 	if err == nil {
 		if r == nil {
 			return nil, ethereum.NotFound
@@ -1027,6 +1028,8 @@ func decodeHexData(data string) (*big.Int, error) {
 // Balance returns the balance of a *RosettaTypes.AccountIdentifier
 // at a *RosettaTypes.PartialBlockIdentifier.
 // The OP Token and ETH balances will be returned if currencies is unspecified
+//
+//nolint:gocognit
 func (ec *Client) Balance(
 	ctx context.Context,
 	account *RosettaTypes.AccountIdentifier,
@@ -1193,7 +1196,7 @@ func (ec *Client) Call(
 	request *RosettaTypes.CallRequest,
 ) (*RosettaTypes.CallResponse, error) {
 	switch request.Method { // nolint:gocritic
-	case "eth_getBlockByNumber":
+	case EthGetBlockByNumber:
 		var input GetBlockByNumberInput
 		if err := RosettaTypes.UnmarshalMap(request.Parameters, &input); err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrCallParametersInvalid, err.Error())
@@ -1207,7 +1210,7 @@ func (ec *Client) Call(
 		return &RosettaTypes.CallResponse{
 			Result: res,
 		}, nil
-	case "eth_getTransactionReceipt":
+	case EthGetTransactionReceipt:
 		var input GetTransactionReceiptInput
 		if err := RosettaTypes.UnmarshalMap(request.Parameters, &input); err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrCallParametersInvalid, err.Error())
@@ -1238,7 +1241,7 @@ func (ec *Client) Call(
 		return &RosettaTypes.CallResponse{
 			Result: receiptMap,
 		}, nil
-	case "eth_call":
+	case EthCall:
 		resp, err := ec.contractCall(ctx, request.Parameters)
 		if err != nil {
 			return nil, err
@@ -1247,7 +1250,7 @@ func (ec *Client) Call(
 		return &RosettaTypes.CallResponse{
 			Result: resp,
 		}, nil
-	case "eth_estimateGas":
+	case EthEstimateGas:
 		resp, err := ec.estimateGas(ctx, request.Parameters)
 		if err != nil {
 			return nil, err

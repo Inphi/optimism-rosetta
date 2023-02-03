@@ -207,6 +207,21 @@ const (
 	ContractAddressKey string = "token_address"
 )
 
+// RPC Methods
+const (
+	// EthGetTransactionReceipt is the RPC method used to fetch a transaction receipt.
+	EthGetTransactionReceipt = "eth_getTransactionReceipt"
+
+	// EthGetBlockByNumber is the RPC method used to fetch a block by number.
+	EthGetBlockByNumber = "eth_getBlockByNumber"
+
+	// EthCall is the RPC method used to call a contract.
+	EthCall = "eth_call"
+
+	// EthEstimateGas is the RPC method used to estimate gas.
+	EthEstimateGas = "eth_estimateGas"
+)
+
 var (
 	// TestnetGethArguments are the arguments to start a ropsten geth instance.
 	TestnetGethArguments = fmt.Sprintf("%s --testnet", MainnetGethArguments)
@@ -281,10 +296,10 @@ var (
 
 	// CallMethods are all supported call methods.
 	CallMethods = []string{
-		"eth_getBlockByNumber",
-		"eth_getTransactionReceipt",
-		"eth_call",
-		"eth_estimateGas",
+		EthGetBlockByNumber,
+		EthGetTransactionReceipt,
+		EthCall,
+		EthEstimateGas,
 	}
 )
 

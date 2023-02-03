@@ -19,9 +19,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/inphi/optimism-rosetta/configuration"
@@ -142,7 +142,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 }
 
 func getSupportedTokens(network string) map[string]bool {
-	content, err := ioutil.ReadFile("tokenList.json")
+	content, err := os.ReadFile("tokenList.json")
 	if err != nil {
 		log.Fatal("Error when opening file: ", err)
 	}
@@ -155,9 +155,9 @@ func getSupportedTokens(network string) map[string]bool {
 
 	if val, ok := payload[network]; ok {
 		return val
-	} else {
-		return map[string]bool{
-			"0x4200000000000000000000000000000000000042": true, // OP
-		}
+	}
+
+	return map[string]bool{
+		"0x4200000000000000000000000000000000000042": true, // OP
 	}
 }
