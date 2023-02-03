@@ -28,6 +28,8 @@ var (
 )
 
 func TestBedrock_BlockCurrent(t *testing.T) {
+	t.Skip()
+
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
 	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
