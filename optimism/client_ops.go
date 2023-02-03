@@ -3,6 +3,7 @@ package optimism
 import (
 	"math/big"
 
+	"github.com/coinbase/rosetta-sdk-go/types"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	OptimismTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
@@ -60,6 +61,16 @@ func patchFeeOps(chainID *big.Int, block *OptimismTypes.Block, tx *OptimismTypes
 	}
 }
 
+func Amount(value *big.Int, currency *types.Currency) *types.Amount {
+	if value == nil {
+		return nil
+	}
+	return &types.Amount{
+		Value:    value.String(),
+		Currency: currency,
+	}
+}
+
 // FeeOps returns the fee operations for a given transaction.
 func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 	if tx.Transaction.IsDepositTx() {
@@ -98,7 +109,7 @@ func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 			Account: &RosettaTypes.AccountIdentifier{
 				Address: MustChecksum(tx.From.String()),
 			},
-			Amount: evmClient.Amount(new(big.Int).Neg(tx.Receipt.TransactionFee), Currency),
+			Amount: Amount(new(big.Int).Neg(tx.Receipt.TransactionFee), Currency),
 		},
 
 		{
@@ -115,7 +126,7 @@ func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 			Account: &RosettaTypes.AccountIdentifier{
 				Address: MustChecksum(feeRewarder),
 			},
-			Amount: evmClient.Amount(sequencerFeeAmount, Currency),
+			Amount: Amount(sequencerFeeAmount, Currency),
 		},
 
 		{
@@ -130,10 +141,10 @@ func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 			Type:   FeeOpType,
 			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: common.BaseFeeVault.Hex(),
+				Address: BaseFeeVault.Hex(),
 			},
 			// Note: The basefee is not actually burned on L2
-			Amount: evmClient.Amount(tx.FeeBurned, Currency),
+			Amount: Amount(tx.FeeBurned, Currency),
 		},
 
 		{
@@ -148,9 +159,9 @@ func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 			Type:   FeeOpType,
 			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: common.L1FeeVault.Hex(),
+				Address: L1FeeVault.Hex(),
 			},
-			Amount: evmClient.Amount(receipt.L1Fee, Currency),
+			Amount: Amount(receipt.L1Fee, Currency),
 		},
 	}
 

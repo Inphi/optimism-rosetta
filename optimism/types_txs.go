@@ -21,6 +21,17 @@ type rpcTransaction struct {
 	txExtraInfo
 }
 
+// LoadedTransaction converts an [rpcTransaction] to a [LoadedTransaction].
+func (tx *rpcTransaction) LoadedTransaction() *legacyTransaction {
+	ethTx := legacyTransaction{
+		Transaction: tx.tx,
+		From:        tx.txExtraInfo.From,
+		BlockNumber: tx.txExtraInfo.BlockNumber,
+		BlockHash:   tx.txExtraInfo.BlockHash,
+	}
+	return &ethTx
+}
+
 // UnmarshalJSON unmarshals an [rpcTransaction] from bytes.
 func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
 	if err := json.Unmarshal(msg, &tx.tx); err != nil {
