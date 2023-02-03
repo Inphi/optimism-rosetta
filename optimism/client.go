@@ -433,21 +433,19 @@ func (ec *Client) getTransactionTraces(
 		return traces, nil
 	}
 
-	reqs := make([]rpc.BatchElem, len(txs))
-	// TODO(inphi): Run this sequentially to avoid DoS'ing l2geth
-	for i := range reqs {
-		reqs[i] = rpc.BatchElem{
+	// Fetch traces sequentially to avoid DoS'ing the backend
+	for i := range txs {
+		req := rpc.BatchElem{
 			Method: "debug_traceTransaction",
 			Args:   []interface{}{txs[i].tx.Hash().Hex(), ec.tc},
 			Result: &traces[i],
 		}
-	}
-	if err := ec.c.BatchCallContext(ctx, reqs); err != nil {
-		return nil, err
-	}
-	for i := range reqs {
-		if reqs[i].Error != nil {
-			return nil, reqs[i].Error
+		// TODO: Don't batch 1-sized requests
+		if err := ec.c.BatchCallContext(ctx, []rpc.BatchElem{req}); err != nil {
+			return nil, err
+		}
+		if req.Error != nil {
+			return nil, req.Error
 		}
 		if traces[i] == nil {
 			return nil, fmt.Errorf("got empty trace for %x", txs[i].tx.Hash().Hex())
