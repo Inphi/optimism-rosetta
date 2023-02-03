@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	mocks "github.com/coinbase/rosetta-ethereum/mocks/optimism"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
+	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

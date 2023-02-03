@@ -25,8 +25,8 @@ import (
 	"testing"
 	"time"
 
-	mocks "github.com/coinbase/rosetta-ethereum/mocks/optimism"
-	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
+	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
+	"github.com/inphi/optimism-rosetta/optimism/utilities/artifacts"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"

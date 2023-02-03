@@ -8,12 +8,7 @@ import (
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
-// // IsDepositTx returns true if the transaction is a deposit tx type.
-// func (tx *loadedTransaction) IsDepositTx() bool {
-// 	return tx.Transaction. == DepositTxType
-// }
-
-func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
+func feeOps(tx *legacyTransaction) []*RosettaTypes.Operation {
 	return []*RosettaTypes.Operation{
 		{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
@@ -66,7 +61,7 @@ func patchFeeOps(chainID *big.Int, block *OptimismTypes.Block, tx *OptimismTypes
 }
 
 // FeeOps returns the fee operations for a given transaction.
-func FeeOps(tx *loadedTransaction) ([]*RosettaTypes.Operation, error) {
+func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 	if tx.Transaction.IsDepositTx() {
 		return nil, nil
 	}
@@ -98,12 +93,12 @@ func FeeOps(tx *loadedTransaction) ([]*RosettaTypes.Operation, error) {
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
 				Index: 0,
 			},
-			Type:   sdkTypes.FeeOpType,
-			Status: RosettaTypes.String(sdkTypes.SuccessStatus),
+			Type:   FeeOpType,
+			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: evmClient.MustChecksum(tx.From.String()),
+				Address: MustChecksum(tx.From.String()),
 			},
-			Amount: evmClient.Amount(new(big.Int).Neg(tx.Receipt.TransactionFee), sdkTypes.Currency),
+			Amount: evmClient.Amount(new(big.Int).Neg(tx.Receipt.TransactionFee), Currency),
 		},
 
 		{
@@ -115,12 +110,12 @@ func FeeOps(tx *loadedTransaction) ([]*RosettaTypes.Operation, error) {
 					Index: 0,
 				},
 			},
-			Type:   sdkTypes.FeeOpType,
-			Status: RosettaTypes.String(sdkTypes.SuccessStatus),
+			Type:   FeeOpType,
+			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: evmClient.MustChecksum(feeRewarder),
+				Address: MustChecksum(feeRewarder),
 			},
-			Amount: evmClient.Amount(sequencerFeeAmount, sdkTypes.Currency),
+			Amount: evmClient.Amount(sequencerFeeAmount, Currency),
 		},
 
 		{
@@ -132,13 +127,13 @@ func FeeOps(tx *loadedTransaction) ([]*RosettaTypes.Operation, error) {
 					Index: 0,
 				},
 			},
-			Type:   sdkTypes.FeeOpType,
-			Status: RosettaTypes.String(sdkTypes.SuccessStatus),
+			Type:   FeeOpType,
+			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
 				Address: common.BaseFeeVault.Hex(),
 			},
 			// Note: The basefee is not actually burned on L2
-			Amount: evmClient.Amount(tx.FeeBurned, sdkTypes.Currency),
+			Amount: evmClient.Amount(tx.FeeBurned, Currency),
 		},
 
 		{
@@ -150,12 +145,12 @@ func FeeOps(tx *loadedTransaction) ([]*RosettaTypes.Operation, error) {
 					Index: 0,
 				},
 			},
-			Type:   sdkTypes.FeeOpType,
-			Status: RosettaTypes.String(sdkTypes.SuccessStatus),
+			Type:   FeeOpType,
+			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
 				Address: common.L1FeeVault.Hex(),
 			},
-			Amount: evmClient.Amount(receipt.L1Fee, sdkTypes.Currency),
+			Amount: evmClient.Amount(receipt.L1Fee, Currency),
 		},
 	}
 

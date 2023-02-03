@@ -23,9 +23,9 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/inphi/optimism-rosetta/optimism/utilities/artifacts"
 )
 
 const (

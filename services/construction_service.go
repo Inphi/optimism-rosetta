@@ -28,11 +28,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coinbase/rosetta-ethereum/configuration"
-	"github.com/coinbase/rosetta-ethereum/optimism"
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
 	"github.com/ethereum-optimism/optimism/l2geth/accounts/abi"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
+	"github.com/inphi/optimism-rosetta/configuration"
+	"github.com/inphi/optimism-rosetta/optimism"
 
 	ethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/crypto"

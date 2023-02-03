@@ -1,4 +1,4 @@
-module github.com/coinbase/rosetta-ethereum
+module github.com/inphi/optimism-rosetta
 
 require (
 	github.com/OneOfOne/xxhash v1.2.5 // indirect

@@ -24,9 +24,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coinbase/rosetta-ethereum/configuration"
-	"github.com/coinbase/rosetta-ethereum/optimism"
-	"github.com/coinbase/rosetta-ethereum/services"
+	"github.com/inphi/optimism-rosetta/configuration"
+	"github.com/inphi/optimism-rosetta/optimism"
+	"github.com/inphi/optimism-rosetta/services"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/server"

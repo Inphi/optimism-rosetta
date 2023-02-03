@@ -20,7 +20,7 @@ set -e
 usage() {
   this=$1
   cat <<EOF
-$this: download pre-compiled Docker images for coinbase/rosetta-ethereum 
+$this: download pre-compiled Docker images for coinbase/rosetta-ethereum
 
 Usage: $this [-d]
   -d turns on debug logging

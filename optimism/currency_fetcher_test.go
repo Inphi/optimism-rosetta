@@ -18,10 +18,10 @@ import (
 	"context"
 	"testing"
 
-	mocks "github.com/coinbase/rosetta-ethereum/mocks/optimism"
-	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
+	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
+	"github.com/inphi/optimism-rosetta/optimism/utilities/artifacts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 

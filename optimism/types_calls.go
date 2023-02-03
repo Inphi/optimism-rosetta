@@ -1,4 +1,4 @@
-package types
+package optimism
 
 import (
 	"encoding/json"

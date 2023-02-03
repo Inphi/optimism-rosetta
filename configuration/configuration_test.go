@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coinbase/rosetta-ethereum/optimism"
+	"github.com/inphi/optimism-rosetta/optimism"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
