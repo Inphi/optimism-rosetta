@@ -244,18 +244,6 @@ func toBlockNumArg(number *big.Int) string {
 	return hexutil.EncodeBig(number)
 }
 
-// Header returns a block header from the current canonical chain. If number is
-// nil, the latest known header is returned.
-func (ec *Client) blockHeader(ctx context.Context, number *big.Int) (*types.Header, error) {
-	var head *types.Header
-	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", toBlockNumArg(number), false)
-	if err == nil && head == nil {
-		return nil, ethereum.NotFound
-	}
-
-	return head, err
-}
-
 func (ec *Client) getTransactionTraces(
 	ctx context.Context,
 	txs []rpcTransaction,
@@ -1007,34 +995,6 @@ type rpcProgress struct {
 	HighestBlock  hexutil.Uint64
 	PulledStates  hexutil.Uint64
 	KnownStates   hexutil.Uint64
-}
-
-// TODO: make this a sequencer height check instead
-// syncProgress retrieves the current progress of the sync algorithm. If there's
-// no sync currently running, it returns nil.
-func (ec *Client) syncProgress(ctx context.Context) (*ethereum.SyncProgress, error) {
-	var raw json.RawMessage
-	if err := ec.c.CallContext(ctx, &raw, "eth_syncing"); err != nil {
-		return nil, err
-	}
-
-	var syncing bool
-	if err := json.Unmarshal(raw, &syncing); err == nil {
-		return nil, nil // Not syncing (always false)
-	}
-
-	var progress rpcProgress
-	if err := json.Unmarshal(raw, &progress); err != nil {
-		return nil, err
-	}
-
-	return &ethereum.SyncProgress{
-		StartingBlock: uint64(progress.StartingBlock),
-		CurrentBlock:  uint64(progress.CurrentBlock),
-		HighestBlock:  uint64(progress.HighestBlock),
-		PulledStates:  uint64(progress.PulledStates),
-		KnownStates:   uint64(progress.KnownStates),
-	}, nil
 }
 
 type graphqlBalance struct {

@@ -2,9 +2,13 @@ package optimism
 
 import (
 	"context"
+	"encoding/json"
+	"math/big"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/p2p"
+	ethereum "github.com/ethereum-optimism/optimism/l2geth"
+	types "github.com/ethereum-optimism/optimism/l2geth/core/types"
+	p2p "github.com/ethereum/go-ethereum/p2p"
 )
 
 // Status returns geth status information
@@ -63,6 +67,18 @@ func (ec *Client) Status(ctx context.Context) (
 		nil
 }
 
+// Header returns a block header from the current canonical chain. If number is
+// nil, the latest known header is returned.
+func (ec *Client) blockHeader(ctx context.Context, number *big.Int) (*types.Header, error) {
+	var head *types.Header
+	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", toBlockNumArg(number), false)
+	if err == nil && head == nil {
+		return nil, ethereum.NotFound
+	}
+
+	return head, err
+}
+
 // Peers retrieves all peers of the node.
 func (ec *Client) peers(ctx context.Context) ([]*RosettaTypes.Peer, error) {
 	var info []*p2p.PeerInfo
@@ -90,4 +106,32 @@ func (ec *Client) peers(ctx context.Context) ([]*RosettaTypes.Peer, error) {
 	}
 
 	return peers, nil
+}
+
+// TODO: make this a sequencer height check instead
+// syncProgress retrieves the current progress of the sync algorithm. If there's
+// no sync currently running, it returns nil.
+func (ec *Client) syncProgress(ctx context.Context) (*ethereum.SyncProgress, error) {
+	var raw json.RawMessage
+	if err := ec.c.CallContext(ctx, &raw, "eth_syncing"); err != nil {
+		return nil, err
+	}
+
+	var syncing bool
+	if err := json.Unmarshal(raw, &syncing); err == nil {
+		return nil, nil // Not syncing (always false)
+	}
+
+	var progress rpcProgress
+	if err := json.Unmarshal(raw, &progress); err != nil {
+		return nil, err
+	}
+
+	return &ethereum.SyncProgress{
+		StartingBlock: uint64(progress.StartingBlock),
+		CurrentBlock:  uint64(progress.CurrentBlock),
+		HighestBlock:  uint64(progress.HighestBlock),
+		PulledStates:  uint64(progress.PulledStates),
+		KnownStates:   uint64(progress.KnownStates),
+	}, nil
 }
