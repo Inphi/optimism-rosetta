@@ -9,10 +9,10 @@ import (
 	mocks "github.com/coinbase/rosetta-ethereum/mocks/optimism"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
-	"github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/sync/semaphore"
@@ -43,6 +43,7 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 		tc:              testBedrockTraceConfig,
 		p:               params.GoerliChainConfig,
 		traceSemaphore:  semaphore.NewWeighted(100),
+		filterTokens:    false,
 	}
 
 	ctx := context.Background()
@@ -148,7 +149,6 @@ func mockGetTransactionReceipt(ctx context.Context, t *testing.T, mockJSONRPC *m
 				file, err := ioutil.ReadFile(txFileData[i])
 				assert.NoError(t, err)
 
-				// TODO: we should use op-geth types here because l2geth Receipts do not contain a Type field.
 				receipt := new(types.Receipt)
 				assert.NoError(t, receipt.UnmarshalJSON(file))
 				*(r[0].Result.(**types.Receipt)) = receipt
