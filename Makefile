@@ -1,7 +1,7 @@
 .PHONY: deps build run lint run-mainnet-online run-mainnet-offline run-testnet-online \
 	run-testnet-offline check-comments add-license check-license shorten-lines \
 	spellcheck salus build-local format check-format update-tracer test coverage coverage-local \
-	update-bootstrap-balances mocks
+	update-bootstrap-balances mocks test tests format lint tidy
 
 ADDLICENSE_INSTALL=go install github.com/google/addlicense@latest
 ADDLICENSE_CMD=addlicense
@@ -13,6 +13,7 @@ GOLINT_INSTALL=go get golang.org/x/lint/golint
 GOLINT_CMD=golint
 GOVERALLS_INSTALL=go install github.com/mattn/goveralls@latest
 GOVERALLS_CMD=goveralls
+GOIMPORTS_INSTALL=go get golang.org/x/tools/cmd/goimports
 GOIMPORTS_CMD=go run golang.org/x/tools/cmd/goimports
 GO_PACKAGES=./services/... ./cmd/... ./configuration/... ./optimism/...
 GO_FOLDERS=$(shell echo ${GO_PACKAGES} | sed -e "s/\.\///g" | sed -e "s/\/\.\.\.//g")
@@ -21,6 +22,18 @@ LINT_SETTINGS=golint,misspell,gocyclo,gocritic,whitespace,goconst,gocognit,bodyc
 PWD=$(shell pwd)
 NOFILE=100000
 
+
+all: clean deps tidy format test lint
+
+clean:
+	go clean
+
+tidy:
+	go mod tidy
+
+# format:
+# 	gofmt -s -w -l .
+
 deps:
 	go get ./...
 
@@ -28,7 +41,7 @@ test:
 	${TEST_SCRIPT}
 
 build:
-	docker build -t rosetta-ethereum:latest https://github.com/coinbase/rosetta-ethereum.git
+	docker build -t rosetta-ethereum:latest https://github.com/inphi/optimism-rosetta.git
 
 build-local:
 	docker build -t rosetta-ethereum:latest .
@@ -63,12 +76,7 @@ run-mainnet-remote:
 run-testnet-remote:
 	docker run -d --rm --ulimit "nofile=${NOFILE}:${NOFILE}" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "GETH=$(geth)" -p 8080:8080 -p 30303:30303 rosetta-ethereum:latest
 
-check-comments:
-	${GOLINT_INSTALL}
-	${GOLINT_CMD} -set_exit_status ${GO_FOLDERS} .
-	go mod tidy
-
-lint: | check-comments
+lint:
 	golangci-lint run --timeout 2m0s -v -E ${LINT_SETTINGS},gomnd
 
 add-license:
@@ -84,6 +92,7 @@ shorten-lines:
 	${GOLINES_CMD} -w --shorten-comments ${GO_FOLDERS} .
 
 format:
+	${GOIMPORTS_INSTALL}
 	gofmt -s -w -l .
 	${GOIMPORTS_CMD} -w .
 

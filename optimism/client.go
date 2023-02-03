@@ -117,8 +117,10 @@ type Client struct {
 	traceSemaphore  *semaphore.Weighted
 	filterTokens    bool
 	supportedTokens map[string]bool
-
-	bedrockBlock *big.Int
+	supportsSyncing bool
+	skipAdminCalls  bool
+	supportsPeering bool
+	bedrockBlock    *big.Int
 }
 
 type ClientOptions struct {
@@ -128,7 +130,10 @@ type ClientOptions struct {
 	EnableGethTracer    bool
 	FilterTokens        bool
 	SupportedTokens     map[string]bool
-	bedrockBlock        *big.Int
+	BedrockBlock        *big.Int
+	SuportsSyncing      bool
+	SkipAdminCalls      bool
+	SupportsPeering     bool
 }
 
 // NewClient creates a Client that from the provided url and params.
@@ -186,55 +191,16 @@ func NewClient(url string, params *params.ChainConfig, opts ClientOptions) (*Cli
 		traceCache:      traceCache,
 		filterTokens:    opts.FilterTokens,
 		supportedTokens: opts.SupportedTokens,
-		bedrockBlock:    opts.bedrockBlock,
+		supportsSyncing: opts.SuportsSyncing,
+		skipAdminCalls:  opts.SkipAdminCalls,
+		supportsPeering: opts.SupportsPeering,
+		bedrockBlock:    opts.BedrockBlock,
 	}, nil
 }
 
 // Close shuts down the RPC client connection.
 func (ec *Client) Close() {
 	ec.c.Close()
-}
-
-// Status returns geth status information
-// for determining node healthiness.
-func (ec *Client) Status(ctx context.Context) (
-	*RosettaTypes.BlockIdentifier,
-	int64,
-	*RosettaTypes.SyncStatus,
-	[]*RosettaTypes.Peer,
-	error,
-) {
-	// TODO: figure out if header corresponds to replica or sequencer
-	header, err := ec.blockHeader(ctx, nil)
-	if err != nil {
-		return nil, -1, nil, nil, err
-	}
-
-	// TODO: Redo sync status with comparison to sequencer here
-	// TODO: use rollup_getInfo instead
-	// https://community.optimism.io/docs/developers/l2/json-rpc.html#rollup-getinfo
-	// progress, err := ec.syncProgress(ctx)
-	// if err != nil {
-	// 	return nil, -1, nil, nil, err
-	// }
-
-	var syncStatus *RosettaTypes.SyncStatus
-	currentIndex := int64(header.Number.Uint64())
-	targetIndex := int64(header.Number.Uint64()) // TODO: use rollup_getInfo value
-
-	syncStatus = &RosettaTypes.SyncStatus{
-		CurrentIndex: &currentIndex,
-		TargetIndex:  &targetIndex,
-	}
-
-	return &RosettaTypes.BlockIdentifier{
-			Hash:  header.Hash().Hex(),
-			Index: header.Number.Int64(),
-		},
-		convertTime(header.Time),
-		syncStatus,
-		nil, // Replicas currently do not have peers
-		nil
 }
 
 // PendingNonceAt returns the account nonce of the given account in the pending state.
