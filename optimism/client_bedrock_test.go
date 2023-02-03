@@ -43,6 +43,7 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 		tc:              testBedrockTraceConfig,
 		p:               params.GoerliChainConfig,
 		traceSemaphore:  semaphore.NewWeighted(100),
+		filterTokens:    false,
 	}
 
 	ctx := context.Background()
@@ -148,7 +149,6 @@ func mockGetTransactionReceipt(ctx context.Context, t *testing.T, mockJSONRPC *m
 				file, err := ioutil.ReadFile(txFileData[i])
 				assert.NoError(t, err)
 
-				// TODO: we should use op-geth types here because l2geth Receipts do not contain a Type field.
 				receipt := new(types.Receipt)
 				assert.NoError(t, receipt.UnmarshalJSON(file))
 				*(r[0].Result.(**types.Receipt)) = receipt
