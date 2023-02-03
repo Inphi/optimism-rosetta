@@ -170,6 +170,141 @@
                 "decimals": 18
               }
             }
+          },
+          {
+            "operation_identifier": {
+              "index": 4
+            },
+            "type": "ERC20_TRANSFER",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xE60CeAd5FCD752B6694f90a16af7a46e5b6Df817"
+            },
+            "amount": {
+              "value": "-100",
+              "currency": {
+                "symbol": "LINK",
+                "decimals": 18,
+                "metadata": {
+                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                }
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 5
+            },
+            "related_operations": [
+              {
+                "index": 4
+              }
+            ],
+            "type": "ERC20_TRANSFER",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x6E532F86CD5721A976f15560Aa0683521cFaB7e7"
+            },
+            "amount": {
+              "value": "100",
+              "currency": {
+                "symbol": "LINK",
+                "decimals": 18,
+                "metadata": {
+                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                }
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 6
+            },
+            "type": "ERC20_TRANSFER",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x6E532F86CD5721A976f15560Aa0683521cFaB7e7"
+            },
+            "amount": {
+              "value": "-100",
+              "currency": {
+                "symbol": "LINK",
+                "decimals": 18,
+                "metadata": {
+                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                }
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 7
+            },
+            "related_operations": [
+              {
+                "index": 6
+              }
+            ],
+            "type": "ERC20_TRANSFER",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x25c53f77e4f6FC85CbA2a892Ac62A44C770389cC"
+            },
+            "amount": {
+              "value": "100",
+              "currency": {
+                "symbol": "LINK",
+                "decimals": 18,
+                "metadata": {
+                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                }
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 8
+            },
+            "type": "ERC20_TRANSFER",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x25c53f77e4f6FC85CbA2a892Ac62A44C770389cC"
+            },
+            "amount": {
+              "value": "-100",
+              "currency": {
+                "symbol": "LINK",
+                "decimals": 18,
+                "metadata": {
+                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                }
+              }
+            }
+          },
+          {
+            "operation_identifier": {
+              "index": 9
+            },
+            "related_operations": [
+              {
+                "index": 8
+              }
+            ],
+            "type": "ERC20_TRANSFER",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0x794C23BB0a718F4a79eE96531d40C54A67f7f037"
+            },
+            "amount": {
+              "value": "100",
+              "currency": {
+                "symbol": "LINK",
+                "decimals": 18,
+                "metadata": {
+                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                }
+              }
+            }
           }
         ],
         "metadata": {
