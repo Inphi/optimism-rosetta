@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/ethereum-optimism/optimism/l2geth/common"
-	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -37,7 +37,7 @@ type tracerSpec struct {
 	UseGethTracer bool
 }
 
-func loadTraceConfig(opt tracerSpec, timeout time.Duration) (*tracers.TraceConfig, error) {
+func loadTraceConfig(opt tracerSpec, timeout time.Duration) (*eth.TraceConfig, error) {
 	var loadedTracer string
 	if opt.UseGethTracer {
 		loadedTracer = "rosetta"
@@ -49,7 +49,7 @@ func loadTraceConfig(opt tracerSpec, timeout time.Duration) (*tracers.TraceConfi
 		loadedTracer = string(loadedFile)
 	}
 	tracerTimeout := fmt.Sprintf("%ds", int(timeout.Seconds()))
-	return &tracers.TraceConfig{
+	return &eth.TraceConfig{
 		Timeout: &tracerTimeout,
 		Tracer:  &loadedTracer,
 	}, nil
@@ -67,7 +67,7 @@ type TraceCache interface {
 
 type traceCache struct {
 	client        JSONRPC
-	tc            *tracers.TraceConfig
+	tc            *eth.TraceConfig
 	tracerTimeout time.Duration
 	cache         *lru.Cache
 	m             sync.Mutex
