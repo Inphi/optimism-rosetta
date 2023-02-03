@@ -3,6 +3,7 @@ module github.com/inphi/optimism-rosetta
 require (
 	github.com/coinbase/rosetta-sdk-go v0.8.2
 	github.com/ethereum/go-ethereum v1.10.26
+// github.com/ethereum-optimism/op-geth v0.0.0-20221104231810-30db39cae2be
 )
 
 require (

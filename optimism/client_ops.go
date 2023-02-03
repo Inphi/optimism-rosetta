@@ -3,10 +3,8 @@ package optimism
 import (
 	"math/big"
 
-	"github.com/coinbase/rosetta-sdk-go/types"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	OptimismTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
-	EthTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 func feeOps(tx *legacyTransaction) []*RosettaTypes.Operation {
@@ -61,109 +59,109 @@ func patchFeeOps(chainID *big.Int, block *OptimismTypes.Block, tx *OptimismTypes
 	}
 }
 
-func Amount(value *big.Int, currency *types.Currency) *types.Amount {
-	if value == nil {
-		return nil
-	}
-	return &types.Amount{
-		Value:    value.String(),
-		Currency: currency,
-	}
-}
+// func Amount(value *big.Int, currency *types.Currency) *types.Amount {
+// 	if value == nil {
+// 		return nil
+// 	}
+// 	return &types.Amount{
+// 		Value:    value.String(),
+// 		Currency: currency,
+// 	}
+// }
 
-// FeeOps returns the fee operations for a given transaction.
-func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
-	if tx.Transaction.IsDepositTx() {
-		return nil, nil
-	}
+// // FeeOps returns the fee operations for a given transaction.
+// func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
+// 	if tx.Transaction.IsDepositTx() {
+// 		return nil, nil
+// 	}
 
-	var receipt EthTypes.Receipt
-	if err := receipt.UnmarshalJSON(tx.Receipt.RawMessage); err != nil {
-		return nil, err
-	}
+// 	var receipt EthTypes.Receipt
+// 	if err := receipt.UnmarshalJSON(tx.Receipt.RawMessage); err != nil {
+// 		return nil, err
+// 	}
 
-	sequencerFeeAmount := new(big.Int).Set(tx.FeeAmount)
-	if tx.FeeBurned != nil {
-		sequencerFeeAmount.Sub(sequencerFeeAmount, tx.FeeBurned)
-	}
-	if receipt.L1Fee != nil {
-		sequencerFeeAmount.Sub(sequencerFeeAmount, receipt.L1Fee)
-	}
+// 	sequencerFeeAmount := new(big.Int).Set(tx.FeeAmount)
+// 	if tx.FeeBurned != nil {
+// 		sequencerFeeAmount.Sub(sequencerFeeAmount, tx.FeeBurned)
+// 	}
+// 	if receipt.L1Fee != nil {
+// 		sequencerFeeAmount.Sub(sequencerFeeAmount, receipt.L1Fee)
+// 	}
 
-	if sequencerFeeAmount == nil {
-		return nil, nil
-	}
+// 	if sequencerFeeAmount == nil {
+// 		return nil, nil
+// 	}
 
-	feeRewarder := tx.Miner
-	if len(tx.Author) > 0 {
-		feeRewarder = tx.Author
-	}
+// 	feeRewarder := tx.Miner
+// 	if len(tx.Author) > 0 {
+// 		feeRewarder = tx.Author
+// 	}
 
-	ops := []*RosettaTypes.Operation{
-		{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 0,
-			},
-			Type:   FeeOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: MustChecksum(tx.From.String()),
-			},
-			Amount: Amount(new(big.Int).Neg(tx.Receipt.TransactionFee), Currency),
-		},
+// 	ops := []*RosettaTypes.Operation{
+// 		{
+// 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+// 				Index: 0,
+// 			},
+// 			Type:   FeeOpType,
+// 			Status: RosettaTypes.String(SuccessStatus),
+// 			Account: &RosettaTypes.AccountIdentifier{
+// 				Address: MustChecksum(tx.From.String()),
+// 			},
+// 			Amount: Amount(new(big.Int).Neg(tx.Receipt.TransactionFee), Currency),
+// 		},
 
-		{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 1,
-			},
-			RelatedOperations: []*RosettaTypes.OperationIdentifier{
-				{
-					Index: 0,
-				},
-			},
-			Type:   FeeOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: MustChecksum(feeRewarder),
-			},
-			Amount: Amount(sequencerFeeAmount, Currency),
-		},
+// 		{
+// 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+// 				Index: 1,
+// 			},
+// 			RelatedOperations: []*RosettaTypes.OperationIdentifier{
+// 				{
+// 					Index: 0,
+// 				},
+// 			},
+// 			Type:   FeeOpType,
+// 			Status: RosettaTypes.String(SuccessStatus),
+// 			Account: &RosettaTypes.AccountIdentifier{
+// 				Address: MustChecksum(feeRewarder),
+// 			},
+// 			Amount: Amount(sequencerFeeAmount, Currency),
+// 		},
 
-		{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 2,
-			},
-			RelatedOperations: []*RosettaTypes.OperationIdentifier{
-				{
-					Index: 0,
-				},
-			},
-			Type:   FeeOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: BaseFeeVault.Hex(),
-			},
-			// Note: The basefee is not actually burned on L2
-			Amount: Amount(tx.FeeBurned, Currency),
-		},
+// 		{
+// 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+// 				Index: 2,
+// 			},
+// 			RelatedOperations: []*RosettaTypes.OperationIdentifier{
+// 				{
+// 					Index: 0,
+// 				},
+// 			},
+// 			Type:   FeeOpType,
+// 			Status: RosettaTypes.String(SuccessStatus),
+// 			Account: &RosettaTypes.AccountIdentifier{
+// 				Address: BaseFeeVault.Hex(),
+// 			},
+// 			// Note: The basefee is not actually burned on L2
+// 			Amount: Amount(tx.FeeBurned, Currency),
+// 		},
 
-		{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 3,
-			},
-			RelatedOperations: []*RosettaTypes.OperationIdentifier{
-				{
-					Index: 0,
-				},
-			},
-			Type:   FeeOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: L1FeeVault.Hex(),
-			},
-			Amount: Amount(receipt.L1Fee, Currency),
-		},
-	}
+// 		{
+// 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+// 				Index: 3,
+// 			},
+// 			RelatedOperations: []*RosettaTypes.OperationIdentifier{
+// 				{
+// 					Index: 0,
+// 				},
+// 			},
+// 			Type:   FeeOpType,
+// 			Status: RosettaTypes.String(SuccessStatus),
+// 			Account: &RosettaTypes.AccountIdentifier{
+// 				Address: L1FeeVault.Hex(),
+// 			},
+// 			Amount: Amount(receipt.L1Fee, Currency),
+// 		},
+// 	}
 
-	return ops, nil
-}
+// 	return ops, nil
+// }
