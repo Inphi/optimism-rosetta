@@ -117,6 +117,8 @@ type Client struct {
 	traceSemaphore  *semaphore.Weighted
 	filterTokens    bool
 	supportedTokens map[string]bool
+
+	bedrockBlock *big.Int
 }
 
 type ClientOptions struct {
@@ -126,6 +128,7 @@ type ClientOptions struct {
 	EnableGethTracer    bool
 	FilterTokens        bool
 	SupportedTokens     map[string]bool
+	bedrockBlock        *big.Int
 }
 
 // NewClient creates a Client that from the provided url and params.
@@ -183,6 +186,7 @@ func NewClient(url string, params *params.ChainConfig, opts ClientOptions) (*Cli
 		traceCache:      traceCache,
 		filterTokens:    opts.FilterTokens,
 		supportedTokens: opts.SupportedTokens,
+		bedrockBlock:    opts.bedrockBlock,
 	}, nil
 }
 
@@ -695,107 +699,6 @@ func blockContainsDuplicateTransaction(blockHash common.Hash) bool {
 	return originalFeeAmountInDupTx[blockHash.Hex()] != ""
 }
 
-// Call is an Ethereum debug trace.
-type Call struct {
-	Type         string         `json:"type"`
-	From         common.Address `json:"from"`
-	To           common.Address `json:"to"`
-	Value        *big.Int       `json:"value"`
-	GasUsed      *big.Int       `json:"gasUsed"`
-	Input        string         `json:"input"`
-	Revert       bool
-	ErrorMessage string  `json:"error"`
-	Calls        []*Call `json:"calls"`
-}
-
-type flatCall struct {
-	Type         string         `json:"type"`
-	From         common.Address `json:"from"`
-	To           common.Address `json:"to"`
-	Value        *big.Int       `json:"value"`
-	GasUsed      *big.Int       `json:"gasUsed"`
-	Input        string         `json:"input"`
-	Revert       bool
-	ErrorMessage string `json:"error"`
-}
-
-func (t *Call) flatten() *flatCall {
-	return &flatCall{
-		Type:         t.Type,
-		From:         t.From,
-		To:           t.To,
-		Value:        t.Value,
-		GasUsed:      t.GasUsed,
-		Input:        t.Input,
-		Revert:       t.Revert,
-		ErrorMessage: t.ErrorMessage,
-	}
-}
-
-// UnmarshalJSON is a custom unmarshaler for Call.
-func (t *Call) UnmarshalJSON(input []byte) error {
-	type CustomTrace struct {
-		Type         string         `json:"type"`
-		From         common.Address `json:"from"`
-		To           common.Address `json:"to"`
-		Value        *hexutil.Big   `json:"value"`
-		GasUsed      *hexutil.Big   `json:"gasUsed"`
-		Input        string         `json:"input"`
-		Revert       bool
-		ErrorMessage string  `json:"error"`
-		Calls        []*Call `json:"calls"`
-	}
-	var dec CustomTrace
-	if err := json.Unmarshal(input, &dec); err != nil {
-		return err
-	}
-
-	t.Type = dec.Type
-	t.From = dec.From
-	t.To = dec.To
-	if dec.Value != nil {
-		t.Value = (*big.Int)(dec.Value)
-	} else {
-		t.Value = new(big.Int)
-	}
-	if dec.GasUsed != nil {
-		t.GasUsed = (*big.Int)(dec.Value)
-	} else {
-		t.GasUsed = new(big.Int)
-	}
-	t.Input = dec.Input
-	if dec.ErrorMessage != "" {
-		// Any error surfaced by the decoder means that the transaction
-		// has reverted.
-		t.Revert = true
-	}
-	t.ErrorMessage = dec.ErrorMessage
-	t.Calls = dec.Calls
-	return nil
-}
-
-// flattenTraces recursively flattens all traces.
-func flattenTraces(data *Call, flattened []*flatCall) []*flatCall {
-	results := append(flattened, data.flatten())
-	for _, child := range data.Calls {
-		// Ensure all children of a reverted call
-		// are also reverted!
-		if data.Revert {
-			child.Revert = true
-
-			// Copy error message from parent
-			// if child does not have one
-			if len(child.ErrorMessage) == 0 {
-				child.ErrorMessage = data.ErrorMessage
-			}
-		}
-
-		children := flattenTraces(child, flattened)
-		results = append(results, children...)
-	}
-	return results
-}
-
 func containsTopic(log *types.Log, topic string) bool {
 	for _, t := range log.Topics {
 		hex := t.Hex()
@@ -1085,100 +988,6 @@ func decodeAddressUint256(hex string) (common.Address, *big.Int, error) {
 	return addr, uint256, nil
 }
 
-type txExtraInfo struct {
-	BlockNumber *string         `json:"blockNumber,omitempty"`
-	BlockHash   *common.Hash    `json:"blockHash,omitempty"`
-	From        *common.Address `json:"from,omitempty"`
-}
-
-type rpcTransaction struct {
-	tx *types.Transaction
-	txExtraInfo
-}
-
-func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
-	if err := json.Unmarshal(msg, &tx.tx); err != nil {
-		return err
-	}
-	return json.Unmarshal(msg, &tx.txExtraInfo)
-}
-
-func (tx *rpcTransaction) LoadedTransaction() *loadedTransaction {
-	ethTx := &loadedTransaction{
-		Transaction: tx.tx,
-		From:        tx.txExtraInfo.From,
-		BlockNumber: tx.txExtraInfo.BlockNumber,
-		BlockHash:   tx.txExtraInfo.BlockHash,
-	}
-	return ethTx
-}
-
-type loadedTransaction struct {
-	Transaction *types.Transaction
-	From        *common.Address
-	BlockNumber *string
-	BlockHash   *common.Hash
-	FeeAmount   *big.Int
-	Miner       string
-	Status      bool
-
-	Trace    *Call
-	RawTrace json.RawMessage
-	Receipt  *types.Receipt
-}
-
-func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
-	return []*RosettaTypes.Operation{
-		{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 0,
-			},
-			Type:   FeeOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: MustChecksum(tx.From.String()),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    new(big.Int).Neg(tx.FeeAmount).String(),
-				Currency: Currency,
-			},
-		},
-		{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 1,
-			},
-			RelatedOperations: []*RosettaTypes.OperationIdentifier{
-				{
-					Index: 0,
-				},
-			},
-			Type:   FeeOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: MustChecksum(tx.Miner),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    tx.FeeAmount.String(),
-				Currency: Currency,
-			},
-		},
-	}
-}
-
-// Set the fees of applicable zero gas transactions to zero
-func patchFeeOps(chainID *big.Int, block *types.Block, tx *types.Transaction, ops []*RosettaTypes.Operation) {
-	if chainID.Cmp(goerliChainID) != 0 {
-		return
-	}
-	if tx.GasPrice().Uint64() == 0 && block.NumberU64() < goerliRollupFeeEnforcementBlockHeight {
-		for _, op := range ops {
-			if op.Type == FeeOpType {
-				op.Amount.Value = "0"
-			}
-		}
-	}
-}
-
 // transactionReceipt returns the receipt of a transaction by transaction hash.
 // Note that the receipt is not available for pending transactions.
 func (ec *Client) transactionReceipt(
@@ -1302,7 +1111,7 @@ func (ec *Client) estimateGas(
 	}, nil
 }
 
-//  EstimateGas retrieves the currently gas limit
+// EstimateGas retrieves the currently gas limit
 func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
 	arg := map[string]interface{}{
 		"from": msg.From,
@@ -1354,6 +1163,7 @@ func (ec *Client) getParsedBlock(
 	*RosettaTypes.Block,
 	error,
 ) {
+	// TODO: dispatch based on if it's pre or post bedrock
 	block, loadedTransactions, err := ec.getBlock(ctx, blockMethod, args...)
 	if err != nil {
 		return nil, fmt.Errorf("%w: could not get block", err)

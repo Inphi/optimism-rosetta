@@ -114,6 +114,7 @@ type Configuration struct {
 	EnableTraceCache       bool
 	EnableGethTracer       bool
 	TokenFilter            bool
+	SupportsSyncing        bool
 
 	// Block Reward Data
 	Params *params.ChainConfig
