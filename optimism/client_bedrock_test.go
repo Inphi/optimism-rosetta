@@ -3,6 +3,7 @@ package optimism
 import (
 	"context"
 	"encoding/json"
+	"math/big"
 	"os"
 	"testing"
 
@@ -45,8 +46,6 @@ func (testSuite *ClientBedrockTestSuite) SetupTest() {
 }
 
 func (testSuite *ClientBedrockTestSuite) TestBedrock_BlockCurrent() {
-	testSuite.T().Skip("TODO: Implement bedrock support")
-
 	cf, err := newERC20CurrencyFetcher(testSuite.mockJSONRPC)
 	testSuite.NoError(err)
 	c := &Client{
@@ -57,6 +56,7 @@ func (testSuite *ClientBedrockTestSuite) TestBedrock_BlockCurrent() {
 		p:               params.GoerliChainConfig,
 		traceSemaphore:  semaphore.NewWeighted(100),
 		filterTokens:    false,
+		bedrockBlock:    big.NewInt(5_003_318),
 	}
 
 	ctx := context.Background()
@@ -92,6 +92,7 @@ func (testSuite *ClientBedrockTestSuite) TestBedrock_BlockCurrent() {
 	var correct *RosettaTypes.BlockResponse
 	testSuite.NoError(json.Unmarshal(correctRaw, &correct))
 
+	// Fetch the latest block
 	resp, err := c.Block(
 		ctx,
 		nil,

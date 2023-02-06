@@ -231,17 +231,6 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
 }
 
-func toBlockNumArg(number *big.Int) string {
-	if number == nil {
-		return "latest"
-	}
-	pending := big.NewInt(-1)
-	if number.Cmp(pending) == 0 {
-		return "pending"
-	}
-	return hexutil.EncodeBig(number)
-}
-
 func (ec *Client) getTransactionTraces(
 	ctx context.Context,
 	txs []rpcTransaction,
@@ -827,29 +816,6 @@ func (ec *Client) transactionReceipt(
 ) (*types.Receipt, error) {
 	var r *types.Receipt
 	err := ec.c.CallContext(ctx, &r, EthGetTransactionReceipt, txHash)
-	if err == nil {
-		if r == nil {
-			return nil, ethereum.NotFound
-		}
-	}
-
-	return r, err
-}
-
-func (ec *Client) blockByNumber(
-	ctx context.Context,
-	index *int64,
-	showTxDetails bool,
-) (map[string]interface{}, error) {
-	var blockIndex string
-	if index == nil {
-		blockIndex = toBlockNumArg(nil)
-	} else {
-		blockIndex = toBlockNumArg(big.NewInt(*index))
-	}
-
-	r := make(map[string]interface{})
-	err := ec.c.CallContext(ctx, &r, "eth_getBlockByNumber", blockIndex, showTxDetails)
 	if err == nil {
 		if r == nil {
 			return nil, ethereum.NotFound
