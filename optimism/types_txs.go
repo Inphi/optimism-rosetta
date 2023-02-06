@@ -44,7 +44,7 @@ func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
 // LoadedTransaction is an interface for a parsed transaction type.
 type LoadedTransaction interface {
 	IsDepositTx() bool
-	FromRpcTransaction(*rpcTransaction) LoadedTransaction
+	FromRPCTransaction(*rpcTransaction) LoadedTransaction
 }
 
 // legacyTransaction is a pre-bedrock transaction type.
@@ -63,6 +63,8 @@ type legacyTransaction struct {
 }
 
 // NewLegacyTransaction creates a new bedrock transaction.
+//
+//nolint:golint
 func NewLegacyTransaction() *legacyTransaction {
 	return &legacyTransaction{}
 }
@@ -73,8 +75,8 @@ func (lt *legacyTransaction) IsDepositTx() bool {
 	return false
 }
 
-// FromRpcTransaction constructs a [legacyTransaction] from an [rpcTransaction].
-func (lt *legacyTransaction) FromRpcTransaction(tx *rpcTransaction) *legacyTransaction {
+// FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
+func (lt *legacyTransaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
 	ethTx := &legacyTransaction{
 		Transaction: tx.tx,
 		From:        tx.txExtraInfo.From,
@@ -116,8 +118,10 @@ type bedrockTransaction struct {
 }
 
 // NewTransaction creates a new post-bedrock transaction.
-func NewTransaction() *bedrockTransaction {
-	return &bedrockTransaction{}
+//
+//nolint:golint
+func NewTransaction() bedrockTransaction {
+	return bedrockTransaction{}
 }
 
 // IsDepositTx returns true if the transaction is a deposit tx type.
@@ -126,8 +130,8 @@ func (lt *bedrockTransaction) IsDepositTx() bool {
 	return false
 }
 
-// FromRpcTransaction constructs a [legacyTransaction] from an [rpcTransaction].
-func (lt *bedrockTransaction) FromRpcTransaction(tx *rpcTransaction) *legacyTransaction {
+// FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
+func (lt *bedrockTransaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
 	ethTx := &legacyTransaction{
 		Transaction: tx.tx,
 		From:        tx.txExtraInfo.From,

@@ -951,7 +951,6 @@ func TestBlock_985(t *testing.T) {
 
 	mockJSONRPC.AssertExpectations(t)
 	mockGraphQL.AssertExpectations(t)
-
 }
 
 // Block with tx send to non-whitelisted contract

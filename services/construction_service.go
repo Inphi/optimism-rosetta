@@ -317,7 +317,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		}
 	}
 
-	// TODO(inphi): Upgrade to use EIP1559 on mainnet once avaialble
+	// TODO(inphi): Upgrade to use EIP1559 on mainnet once available
 	gasPrice, err := s.client.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, wrapErr(ErrGeth, err)
@@ -675,13 +675,13 @@ func (s *ConstructionAPIService) calculateGasLimit(
 
 // calculateNonce will calculate the nonce for the from address if
 // nonce is not provided
-func (a *ConstructionAPIService) calculateNonce(
+func (s *ConstructionAPIService) calculateNonce(
 	ctx context.Context,
 	nonceInput *big.Int,
 	from string,
 ) (uint64, error) {
 	if nonceInput == nil {
-		nonce, err := a.client.PendingNonceAt(ctx, common.HexToAddress(from))
+		nonce, err := s.client.PendingNonceAt(ctx, common.HexToAddress(from))
 		if err != nil {
 			return 0, err
 		}
@@ -838,7 +838,6 @@ func constructContractCallData(methodSig string, methodArgsGeneric interface{}) 
 
 	// switch on the type of the method args. method args can come in from json as either a string or list of strings
 	switch methodArgs := methodArgsGeneric.(type) {
-
 	// case 0: no method arguments, return the selector
 	case nil:
 		return data, nil
@@ -930,7 +929,7 @@ func encodeMethodArgsStrings(sigData []byte, methodSig string, methodArgs []stri
 		case strings.HasPrefix(v, "bytes"):
 			{
 				var value []byte
-				copy(value[:], methodArgs[i])
+				copy(value, methodArgs[i])
 				argData = value
 			}
 		case strings.HasPrefix(v, "string"):
@@ -945,7 +944,6 @@ func encodeMethodArgsStrings(sigData []byte, methodSig string, methodArgs []stri
 				}
 				argData = value
 			}
-
 		}
 		argumentsData = append(argumentsData, argData)
 	}
@@ -955,6 +953,8 @@ func encodeMethodArgsStrings(sigData []byte, methodSig string, methodArgs []stri
 
 // validateRequest validates if the intent in operations matches
 // the intent in metadata of this particular request
+//
+//nolint:unparam,gocritic
 func validateRequest(
 	fromOp *types.Operation,
 	toOp *types.Operation,
@@ -1055,7 +1055,7 @@ func erc20VotesDelegateArgs(data []byte) (common.Address, error) {
 
 func dataHasFunc(data []byte, expectedMethodID []byte) bool {
 	methodID := data[:4]
-	return bytes.Compare(methodID, expectedMethodID) == 0
+	return bytes.Equal(methodID, expectedMethodID)
 }
 
 func rosettaOperations(
