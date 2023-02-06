@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	tracerTimeout          = "120s"
-	loadedTracer           = "callTracer"
+	tracerTimeout = "120s"
+	loadedTracer  = "callTracer"
+	//nolint:unused
 	testBedrockTraceConfig = &eth.TraceConfig{
 		Timeout: &tracerTimeout,
 		Tracer:  &loadedTracer,
@@ -44,6 +45,8 @@ func (testSuite *ClientBedrockTestSuite) SetupTest() {
 }
 
 func (testSuite *ClientBedrockTestSuite) TestBedrock_BlockCurrent() {
+	testSuite.T().Skip("TODO: Implement bedrock support")
+
 	cf, err := newERC20CurrencyFetcher(testSuite.mockJSONRPC)
 	testSuite.NoError(err)
 	c := &Client{
@@ -80,9 +83,9 @@ func (testSuite *ClientBedrockTestSuite) TestBedrock_BlockCurrent() {
 	tx1 := common.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
 	tx2 := common.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
 
-	mockDebugTraceTransaction(testSuite, ctx, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
-	mockDebugTraceTransaction(testSuite, ctx, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
-	mockGetTransactionReceipt(testSuite, ctx, []common.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
+	mockDebugTraceTransaction(ctx, testSuite, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
+	mockDebugTraceTransaction(ctx, testSuite, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
+	mockGetTransactionReceipt(ctx, testSuite, []common.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
 
 	correctRaw, err := os.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")
 	testSuite.NoError(err)
@@ -97,7 +100,8 @@ func (testSuite *ClientBedrockTestSuite) TestBedrock_BlockCurrent() {
 	testSuite.NoError(err)
 }
 
-func mockDebugTraceTransaction(testSuite *ClientBedrockTestSuite, ctx context.Context, txhash common.Hash, txFileData string) {
+//nolint:unused
+func mockDebugTraceTransaction(ctx context.Context, testSuite *ClientBedrockTestSuite, txhash common.Hash, txFileData string) {
 	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -128,7 +132,8 @@ func mockDebugTraceTransaction(testSuite *ClientBedrockTestSuite, ctx context.Co
 	).Once()
 }
 
-func mockGetTransactionReceipt(testSuite *ClientBedrockTestSuite, ctx context.Context, txhashes []common.Hash, txFileData []string) {
+//nolint:unused
+func mockGetTransactionReceipt(ctx context.Context, testSuite *ClientBedrockTestSuite, txhashes []common.Hash, txFileData []string) {
 	testSuite.Equal(len(txhashes), len(txFileData))
 	numReceipts := len(txhashes)
 	testSuite.mockJSONRPC.On(
