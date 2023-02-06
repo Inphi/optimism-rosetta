@@ -32,14 +32,12 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 
 	mockJSONRPC := &mocks.JSONRPC{}
 	mockGraphQL := &mocks.GraphQL{}
-	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
-	assert.NoError(t, err)
+	mockCurrencyFetcher := &mocks.CurrencyFetcher{}
 
-	assert.NoError(t, err)
 	c := &Client{
 		c:               mockJSONRPC,
 		g:               mockGraphQL,
-		currencyFetcher: cf,
+		currencyFetcher: mockCurrencyFetcher,
 		tc:              testBedrockTraceConfig,
 		p:               params.GoerliChainConfig,
 		traceSemaphore:  semaphore.NewWeighted(100),
@@ -65,6 +63,18 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 
 			*r = json.RawMessage(file)
 		},
+	).Once()
+	mockCurrencyFetcher.On(
+		"FetchCurrency",
+		ctx,
+		uint64(5003318),
+		mock.Anything,
+	).Return(
+		&RosettaTypes.Currency{
+			Symbol:   "LINK",
+			Decimals: 18,
+			Metadata: map[string]interface{}{"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f"}},
+		nil,
 	).Once()
 
 	tx1 := common.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
