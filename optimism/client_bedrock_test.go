@@ -13,8 +13,8 @@ import (
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -27,18 +27,28 @@ var (
 	}
 )
 
-func TestBedrock_BlockCurrent(t *testing.T) {
-	t.Skip()
+type ClientBedrockTestSuite struct {
+	suite.Suite
 
-	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-	cf, err := newERC20CurrencyFetcher(mockJSONRPC)
-	assert.NoError(t, err)
+	mockJSONRPC *mocks.JSONRPC
+	mockGraphQL *mocks.GraphQL
+}
 
-	assert.NoError(t, err)
+func TestClientBedrock(t *testing.T) {
+	suite.Run(t, new(ClientBedrockTestSuite))
+}
+
+func (testSuite *ClientBedrockTestSuite) SetupTest() {
+	testSuite.mockJSONRPC = &mocks.JSONRPC{}
+	testSuite.mockGraphQL = &mocks.GraphQL{}
+}
+
+func (testSuite *ClientBedrockTestSuite) TestBedrock_BlockCurrent() {
+	cf, err := newERC20CurrencyFetcher(testSuite.mockJSONRPC)
+	testSuite.NoError(err)
 	c := &Client{
-		c:               mockJSONRPC,
-		g:               mockGraphQL,
+		c:               testSuite.mockJSONRPC,
+		g:               testSuite.mockGraphQL,
 		currencyFetcher: cf,
 		tc:              testBedrockTraceConfig,
 		p:               params.GoerliChainConfig,
@@ -47,7 +57,7 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	mockJSONRPC.On(
+	testSuite.mockJSONRPC.On(
 		"CallContext",
 		ctx,
 		mock.Anything,
@@ -61,7 +71,7 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 			r := args.Get(1).(*json.RawMessage)
 
 			file, err := os.ReadFile("testdata/goerli_bedrock_block_5003318.json")
-			assert.NoError(t, err)
+			testSuite.NoError(err)
 
 			*r = json.RawMessage(file)
 		},
@@ -70,29 +80,25 @@ func TestBedrock_BlockCurrent(t *testing.T) {
 	tx1 := common.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
 	tx2 := common.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
 
-	mockDebugTraceTransaction(ctx, t, mockJSONRPC, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
-	mockDebugTraceTransaction(ctx, t, mockJSONRPC, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
-	mockGetTransactionReceipt(ctx, t, mockJSONRPC, []common.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
+	mockDebugTraceTransaction(testSuite, ctx, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
+	mockDebugTraceTransaction(testSuite, ctx, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
+	mockGetTransactionReceipt(testSuite, ctx, []common.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
 
 	correctRaw, err := os.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")
-	assert.NoError(t, err)
+	testSuite.NoError(err)
 	var correct *RosettaTypes.BlockResponse
-	assert.NoError(t, json.Unmarshal(correctRaw, &correct))
+	testSuite.NoError(json.Unmarshal(correctRaw, &correct))
 
 	resp, err := c.Block(
 		ctx,
 		nil,
 	)
-	assert.Equal(t, correct.Block, resp)
-	assert.NoError(t, err)
-
-	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
-
+	testSuite.Equal(correct.Block, resp)
+	testSuite.NoError(err)
 }
 
-func mockDebugTraceTransaction(ctx context.Context, t *testing.T, mockJSONRPC *mocks.JSONRPC, txhash common.Hash, txFileData string) {
-	mockJSONRPC.On(
+func mockDebugTraceTransaction(testSuite *ClientBedrockTestSuite, ctx context.Context, txhash common.Hash, txFileData string) {
+	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
 		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
@@ -104,29 +110,28 @@ func mockDebugTraceTransaction(ctx context.Context, t *testing.T, mockJSONRPC *m
 		func(args mock.Arguments) {
 			r := args.Get(1).([]rpc.BatchElem)
 
-			assert.Len(t, r, 1)
-			assert.Len(t, r[0].Args, 2)
-			assert.Equal(
-				t,
+			testSuite.Len(r, 1)
+			testSuite.Len(r[0].Args, 2)
+			testSuite.Equal(
 				txhash.Hex(),
 				r[0].Args[0],
 			)
-			assert.Equal(t, testBedrockTraceConfig, r[0].Args[1])
+			testSuite.Equal(testBedrockTraceConfig, r[0].Args[1])
 
 			file, err := os.ReadFile(txFileData)
-			assert.NoError(t, err)
+			testSuite.NoError(err)
 
 			call := new(Call)
-			assert.NoError(t, call.UnmarshalJSON(file))
+			testSuite.NoError(call.UnmarshalJSON(file))
 			*(r[0].Result.(**Call)) = call
 		},
 	).Once()
 }
 
-func mockGetTransactionReceipt(ctx context.Context, t *testing.T, mockJSONRPC *mocks.JSONRPC, txhashes []common.Hash, txFileData []string) {
-	assert.Equal(t, len(txhashes), len(txFileData))
+func mockGetTransactionReceipt(testSuite *ClientBedrockTestSuite, ctx context.Context, txhashes []common.Hash, txFileData []string) {
+	testSuite.Equal(len(txhashes), len(txFileData))
 	numReceipts := len(txhashes)
-	mockJSONRPC.On(
+	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
 		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
@@ -138,19 +143,18 @@ func mockGetTransactionReceipt(ctx context.Context, t *testing.T, mockJSONRPC *m
 		func(args mock.Arguments) {
 			r := args.Get(1).([]rpc.BatchElem)
 
-			assert.Len(t, r, numReceipts)
+			testSuite.Len(r, numReceipts)
 			for i := range txhashes {
-				assert.Equal(
-					t,
+				testSuite.Equal(
 					txhashes[i].Hex(),
 					r[i].Args[0],
 				)
 
 				file, err := os.ReadFile(txFileData[i])
-				assert.NoError(t, err)
+				testSuite.NoError(err)
 
 				receipt := new(types.Receipt)
-				assert.NoError(t, receipt.UnmarshalJSON(file))
+				testSuite.NoError(receipt.UnmarshalJSON(file))
 				*(r[0].Result.(**types.Receipt)) = receipt
 			}
 		},

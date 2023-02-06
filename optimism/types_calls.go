@@ -90,6 +90,7 @@ func (t *Call) UnmarshalJSON(input []byte) error {
 
 // flattenTraces recursively flattens all traces.
 func flattenTraces(data *Call, flattened []*FlatCall) []*FlatCall {
+	//nolint:gocritic
 	results := append(flattened, data.flatten())
 	for _, child := range data.Calls {
 		// Ensure all children of a reverted call

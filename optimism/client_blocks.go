@@ -140,7 +140,7 @@ func (ec *Client) getBlock(
 		receipt := receipts[i]
 
 		var feeAmount *big.Int
-		if feeAmountInDupTx := originalFeeAmountInDupTx[string(body.Hash.Hex())]; feeAmountInDupTx == "" {
+		if feeAmountInDupTx := originalFeeAmountInDupTx[body.Hash.Hex()]; feeAmountInDupTx == "" {
 			gasUsedBig := new(big.Int).SetUint64(receipt.GasUsed)
 			l2feeAmount := gasUsedBig.Mul(gasUsedBig, txs[i].GasPrice())
 			feeAmount = l2feeAmount.Add(l2feeAmount, receipts[i].L1Fee)
@@ -175,6 +175,7 @@ func (ec *Client) getBlock(
 	), loadedTxs, nil
 }
 
+//nolint:unparam
 func (ec *Client) populateTransactions(
 	ctx context.Context,
 	blockIdentifier *RosettaTypes.BlockIdentifier,

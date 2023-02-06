@@ -72,7 +72,7 @@ var (
 	gasPriceOracleOwnerGoerli  = common.HexToAddress("0xa693B8f8207FF043F6bbC2E2120bbE4C2251Efe9")
 
 	// The following mainnet block hashes have transaction (hashes) that are also present in succeeding blocks.
-	// This occured due to a bug in contract whitelisting. Unfortunately eth_getTransactionByX now returns the succeeding block rather than the original.
+	// This occurred due to a bug in contract whitelisting. Unfortunately eth_getTransactionByX now returns the succeeding block rather than the original.
 	// This is only an issue when reconciling account balances of the affected contracts.
 	// We fix this by hardcoding the original tx fees rather using the computed fees in the succeeding block (which had different block fee parameters at the time).
 	originalFeeAmountInDupTx = map[string]string{
@@ -540,7 +540,9 @@ func containsTopic(log *types.Log, topic string) bool {
 
 // traceOps returns all *RosettaTypes.Operation for a given
 // array of flattened traces.
-func traceOps(block *types.Block, calls []*FlatCall, startIndex int) []*RosettaTypes.Operation { // nolint: gocognit
+//
+//nolint:gocyclo,gocognit
+func traceOps(block *types.Block, calls []*FlatCall, startIndex int) []*RosettaTypes.Operation {
 	var ops []*RosettaTypes.Operation
 	if len(calls) == 0 {
 		return ops
@@ -969,6 +971,7 @@ type rpcProgress struct {
 	KnownStates   hexutil.Uint64
 }
 
+//nolint:unused
 type graphqlBalance struct {
 	Errors []struct {
 		Message string   `json:"message"`
