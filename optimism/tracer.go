@@ -17,6 +17,7 @@ package optimism
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"sync"
 	"time"
@@ -25,6 +26,27 @@ import (
 	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	lru "github.com/hashicorp/golang-lru"
 )
+
+// Open Ethereum API traces
+type OpenEthTraceCall struct {
+	Output string         `json:"output"`
+	Trace  []OpenEthTrace `json:"trace"`
+}
+
+type OpenEthTrace struct {
+	Subtraces       int64         `json:"subtraces"`
+	Action          OpenEthAction `json:"action"`
+	Type            string        `json:"type"`
+	TransactionHash string        `json:"transactionHash"`
+}
+
+type OpenEthAction struct {
+	Type    string         `json:"callType"`
+	From    common.Address `json:"from"`
+	To      common.Address `json:"to"`
+	Value   *big.Int       `json:"value"`
+	GasUsed *big.Int       `json:"gas"`
+}
 
 // convert raw eth data from client to rosetta
 

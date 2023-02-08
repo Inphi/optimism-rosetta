@@ -34,6 +34,20 @@ const (
 	StopOpType = "STOP"
 )
 
+// ERC20 Log Consts
+const (
+	NumTopicsERC20Transfer = 3
+	UnknownERC20Symbol     = "ERC20_UNKNOWN"
+	UnknownERC20Decimals   = 0
+
+	UnknownERC721Symbol   = "ERC721_UNKNOWN"
+	UnknownERC721Decimals = 0
+)
+
+const (
+	zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000"
+)
+
 // Event Topics
 const (
 	// TransferEvent is emitted when an ERC20 token is transferred.
@@ -146,6 +160,9 @@ const (
 
 	// ERC20BurnOpType is used to represent token burn operations
 	ERC20BurnOpType = "ERC20_BURN"
+
+	// ERC20TransferOpType is used to represent token transfer operations
+	ERC20TransferOpType = "ERC20_TRANSFER"
 
 	// CallOpType is used to represent CALL trace operations.
 	CallOpType = "CALL"

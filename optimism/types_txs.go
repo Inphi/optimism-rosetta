@@ -124,10 +124,12 @@ func NewTransaction() bedrockTransaction {
 	return bedrockTransaction{}
 }
 
+// L1ToL2DepositType is the transaction type for L1ToL2 deposits.
+const L1ToL2DepositType = 126 // (126)
+
 // IsDepositTx returns true if the transaction is a deposit tx type.
 func (lt *bedrockTransaction) IsDepositTx() bool {
-	// TODO: how to determine if deposit tx for legacy transactions?
-	return false
+	return lt.Transaction.Type() == L1ToL2DepositType
 }
 
 // FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
