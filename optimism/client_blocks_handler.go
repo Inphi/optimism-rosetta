@@ -51,10 +51,8 @@ func (ec *Client) getBlock(
 
 func (ec *Client) getParsedBlock(
 	ctx context.Context,
-	blockMethod string,
 	head *types.Header,
 	body *rpcBlock,
-	args ...interface{},
 ) (
 	*RosettaTypes.Block,
 	error,

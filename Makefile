@@ -42,6 +42,7 @@ test:
 	${TEST_SCRIPT}
 
 lint:
+	${LINT_INSTALL}
 	golangci-lint run --timeout 2m0s -v -E ${LINT_SETTINGS}
 
 ##################################################################################

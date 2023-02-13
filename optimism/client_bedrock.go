@@ -13,7 +13,7 @@ import (
 
 // IsPreBedrock returns if the given block number is before the bedrock block.
 func (c *Client) IsPreBedrock(b *big.Int) bool {
-	return b.Cmp(c.bedrockBlock) < 0
+	return c.bedrockBlock == nil || b.Cmp(c.bedrockBlock) < 0
 }
 
 // rpcBedrockBlock is a post-bedrock block.
@@ -32,6 +32,8 @@ type BedrockRPCTransaction struct {
 }
 
 // LoadedTransaction converts an [rpcTransaction] to a bedrockTransaction.
+//
+//nolint:golint
 func (tx *BedrockRPCTransaction) LoadedTransaction() *bedrockTransaction {
 	ethTx := bedrockTransaction{
 		Transaction: tx.Tx,
@@ -50,7 +52,7 @@ type TxExtraInfo struct {
 }
 
 // getBedrockBlock returns a [EthTypes.Header] and [rpcBedrockBlock] for a given block or a respective error.
-func (ec *Client) getBedrockBlock(
+func (c *Client) getBedrockBlock(
 	ctx context.Context,
 	blockMethod string,
 	args ...interface{},
@@ -60,7 +62,7 @@ func (ec *Client) getBedrockBlock(
 	error,
 ) {
 	var raw json.RawMessage
-	err := ec.c.CallContext(ctx, &raw, blockMethod, args...)
+	err := c.c.CallContext(ctx, &raw, blockMethod, args...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: block fetch failed", err)
 	} else if len(raw) == 0 {

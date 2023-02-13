@@ -56,20 +56,20 @@ func (ec *Client) Block(
 ) (*RosettaTypes.Block, error) {
 	// Derive block method and id
 	derivedBlockMethod := "eth_getBlockByNumber"
-	derivedBlockId := toBlockNumArg(nil)
+	derivedBlockID := toBlockNumArg(nil)
 	if blockIdentifier != nil {
 		if blockIdentifier.Hash != nil {
 			derivedBlockMethod = "eth_getBlockByHash"
-			derivedBlockId = *blockIdentifier.Hash
+			derivedBlockID = *blockIdentifier.Hash
 		}
 
 		if blockIdentifier.Index != nil {
 			derivedBlockMethod = "eth_getBlockByNumber"
-			derivedBlockId = toBlockNumArg(big.NewInt(*blockIdentifier.Index))
+			derivedBlockID = toBlockNumArg(big.NewInt(*blockIdentifier.Index))
 		}
 	}
 
-	return ec.disptachBlockRequest(ctx, derivedBlockMethod, derivedBlockId, true)
+	return ec.disptachBlockRequest(ctx, derivedBlockMethod, derivedBlockID, true)
 }
 
 // dispatchBlockRequest dispatches a block request to the correct block fetcher.
@@ -83,7 +83,7 @@ func (ec *Client) disptachBlockRequest(
 	if err == nil {
 		preBedrock := ec.IsPreBedrock(header.Number)
 		if preBedrock {
-			return ec.getParsedBlock(ctx, blockMethod, header, block, args)
+			return ec.getParsedBlock(ctx, header, block)
 		}
 	}
 

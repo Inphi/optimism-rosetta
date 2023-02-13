@@ -3,7 +3,7 @@ module github.com/inphi/optimism-rosetta
 require (
 	github.com/coinbase/rosetta-sdk-go v0.8.2
 	github.com/ethereum/go-ethereum v1.10.26
-	// github.com/ethereum-optimism/op-geth v0.0.0-20221104231810-30db39cae2be
+// github.com/ethereum-optimism/op-geth v0.0.0-20221104231810-30db39cae2be
 )
 
 require (
@@ -19,9 +19,9 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.2
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
-	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/net v0.6.0 // indirect
 	golang.org/x/sync v0.1.0
-	golang.org/x/tools v0.5.0 // indirect
+	golang.org/x/tools v0.6.0 // indirect
 )
 
 go 1.16
