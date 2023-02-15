@@ -3,12 +3,12 @@ package optimism
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum-optimism/optimism/l2geth/common"
 	"github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
@@ -186,6 +186,106 @@ func (testSuite *ClientBedrockTestSuite) TestGetBedrockBlock() {
 	testSuite.NoError(err)
 }
 
+func (testSuite *ClientBedrockTestSuite) TestTraceBlockByHash() {
+	// testSuite.T().Skip()
+
+	ctx := context.Background()
+
+	c := &Client{
+		c:               testSuite.mockJSONRPC,
+		g:               testSuite.mockGraphQL,
+		currencyFetcher: testSuite.mockCurrencyFetcher,
+		tc:              testBedrockTraceConfig,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
+		filterTokens:    false,
+		bedrockBlock:    big.NewInt(5_003_318),
+	}
+
+	tx1 := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
+	tx2 := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
+	gasPrice := big.NewInt(10000)
+	blockNumber := big.NewInt(1)
+	blockNumberString := blockNumber.String()
+	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	myTx := EthTypes.NewTransaction(
+		0,
+		to,
+		big.NewInt(0),
+		0,
+		gasPrice,
+		nil,
+	)
+	txs := []BedrockRPCTransaction{
+		{
+			Tx: myTx,
+			TxExtraInfo: TxExtraInfo{
+				BlockNumber: &blockNumberString,
+				BlockHash:   &tx1,
+				From:        &to,
+				TxHash:      &tx1,
+			},
+		},
+		{
+			Tx: myTx,
+			TxExtraInfo: TxExtraInfo{
+				BlockNumber: &blockNumberString,
+				BlockHash:   &tx2,
+				From:        &to,
+				TxHash:      &tx2,
+			},
+		},
+	}
+
+	// Mock the trace calls
+	mockDebugTraceBedrockTransaction(ctx, testSuite, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
+	mockDebugTraceBedrockTransaction(ctx, testSuite, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
+
+	// Call
+	blkHash := EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774")
+	m, err := c.TraceBlockByHash(ctx, blkHash, txs)
+	testSuite.NoError(err)
+	testSuite.Equal(len(m), 2)
+	testSuite.NotNil(m[tx1.Hex()])
+}
+
+//nolint:unused
+func mockDebugTraceBedrockTransaction(ctx context.Context, testSuite *ClientBedrockTestSuite, txhash EthCommon.Hash, txFileData string) {
+	testSuite.mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		"debug_traceBlockByHash",
+		mock.Anything,
+		mock.Anything,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+
+			file, err := os.ReadFile(txFileData)
+			testSuite.NoError(err)
+
+			call := new(Call)
+			testSuite.NoError(call.UnmarshalJSON(file))
+			fmt.Printf("call: %+v\n", call)
+			j, err := json.Marshal(&[]*rpcCall{
+				{
+					Result: call,
+				},
+			})
+			// Marshal call
+			fmt.Printf("Marshalled call: %s\n", j)
+			testSuite.NoError(err)
+			rawMessage := json.RawMessage(j)
+
+			*r = rawMessage
+
+		},
+	).Once()
+}
+
 func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	testSuite.T().Skip()
 
@@ -251,12 +351,12 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 		nil,
 	).Once()
 
-	tx1 := common.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
-	tx2 := common.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
+	tx1 := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
+	tx2 := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
 
 	mockDebugTraceTransaction(ctx, testSuite, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
 	mockDebugTraceTransaction(ctx, testSuite, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
-	mockGetTransactionReceipt(ctx, testSuite, []common.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
+	mockGetTransactionReceipt(ctx, testSuite, []EthCommon.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
 
 	correctRaw, err := os.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")
 	testSuite.NoError(err)
@@ -273,7 +373,7 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 }
 
 //nolint:unused
-func mockDebugTraceTransaction(ctx context.Context, testSuite *ClientBedrockTestSuite, txhash common.Hash, txFileData string) {
+func mockDebugTraceTransaction(ctx context.Context, testSuite *ClientBedrockTestSuite, txhash EthCommon.Hash, txFileData string) {
 	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -305,7 +405,7 @@ func mockDebugTraceTransaction(ctx context.Context, testSuite *ClientBedrockTest
 }
 
 //nolint:unused
-func mockGetTransactionReceipt(ctx context.Context, testSuite *ClientBedrockTestSuite, txhashes []common.Hash, txFileData []string) {
+func mockGetTransactionReceipt(ctx context.Context, testSuite *ClientBedrockTestSuite, txhashes []EthCommon.Hash, txFileData []string) {
 	testSuite.Equal(len(txhashes), len(txFileData))
 	numReceipts := len(txhashes)
 	testSuite.mockJSONRPC.On(

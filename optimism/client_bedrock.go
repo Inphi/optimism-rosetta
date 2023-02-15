@@ -70,13 +70,16 @@ func (c *Client) getBedrockBlock(
 	}
 
 	// Decode bedrock header and transactions
+	fmt.Println("Got raw block, decoding EthTypes.Header and rpcBedrockBlock...")
 	var head EthTypes.Header
 	var body rpcBedrockBlock
 	if err := json.Unmarshal(raw, &head); err != nil {
 		return nil, nil, err
 	}
+	fmt.Println("Successfully decoded header")
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return nil, nil, err
 	}
+	fmt.Println("Successfully decoded body")
 	return &head, &body, nil
 }

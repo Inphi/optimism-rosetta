@@ -92,13 +92,14 @@ func (ec *Client) getParsedBedrockBlock(
 	*RosettaTypes.Block,
 	error,
 ) {
-	fmt.Printf("Inside getParsedBedrockBlock...")
+	fmt.Printf("Inside getParsedBedrockBlock...\n")
 	head, body, err := ec.getBedrockBlock(ctx, blockMethod, args...)
-	if err == nil {
+	fmt.Printf("Got bedrock block and header, err: %v\n", err)
+	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Parsed bedrock head: %v\n", head)
-	fmt.Printf("Parsed bedrock body: %v\n", body)
+	// fmt.Printf("Parsed bedrock head: %v\n", head)
+	// fmt.Printf("Parsed bedrock body: %v\n", body)
 
 	var m map[string][]*FlatCall
 	var addTraces bool
