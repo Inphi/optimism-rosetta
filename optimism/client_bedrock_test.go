@@ -238,13 +238,15 @@ func (testSuite *ClientBedrockTestSuite) TestTraceBlockByHash() {
 	}
 
 	// Mock the trace calls
-	mockDebugTraceBedrockTransaction(ctx, testSuite, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
-	mockDebugTraceBedrockTransaction(ctx, testSuite, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
+	mockDebugTraceBedrockTransaction(ctx, testSuite, tx1, "testdata/goerli_bedrock_block_trace_5003318.json")
+	// mockDebugTraceBedrockTransaction(ctx, testSuite, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
 
 	// Call
 	blkHash := EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774")
 	m, err := c.TraceBlockByHash(ctx, blkHash, txs)
 	testSuite.NoError(err)
+
+	fmt.Printf("m: %+v\n", m)
 	testSuite.Equal(len(m), 2)
 	testSuite.NotNil(m[tx1.Hex()])
 }
@@ -263,23 +265,9 @@ func mockDebugTraceBedrockTransaction(ctx context.Context, testSuite *ClientBedr
 	).Run(
 		func(args mock.Arguments) {
 			r := args.Get(1).(*json.RawMessage)
-
 			file, err := os.ReadFile(txFileData)
 			testSuite.NoError(err)
-
-			call := new(Call)
-			testSuite.NoError(call.UnmarshalJSON(file))
-			fmt.Printf("call: %+v\n", call)
-			j, err := json.Marshal(&[]*rpcCall{
-				{
-					Result: call,
-				},
-			})
-			// Marshal call
-			fmt.Printf("Marshalled call: %s\n", j)
-			testSuite.NoError(err)
-			rawMessage := json.RawMessage(j)
-
+			rawMessage := json.RawMessage(file)
 			*r = rawMessage
 
 		},
