@@ -82,6 +82,7 @@ func (ec *Client) getParsedBlock(
 	txs := make([]*types.Transaction, len(body.Transactions))
 	loadedTxs := make([]*legacyTransaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
+		fmt.Printf("Loading transaction %d: %+v\n", i, tx)
 		txs[i] = tx.tx
 		receipt := receipts[i]
 

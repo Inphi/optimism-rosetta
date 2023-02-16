@@ -98,14 +98,14 @@ func (ec *Client) getParsedBedrockBlock(
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Printf("Parsed bedrock head: %v\n", head)
-	// fmt.Printf("Parsed bedrock body: %v\n", body)
 
+	fmt.Print("Tracing block by hash...\n")
 	var m map[string][]*FlatCall
 	var addTraces bool
 	if head.Number.Int64() != GenesisBlockIndex {
 		addTraces = true
 		m, err = ec.TraceBlockByHash(ctx, body.Hash, body.Transactions)
+		fmt.Printf("Got block traces, m: %v\n err: %v\n", m, err)
 
 		if err != nil {
 			return nil, err
@@ -119,6 +119,7 @@ func (ec *Client) getParsedBedrockBlock(
 	txs := make([]*EthTypes.Transaction, len(body.Transactions))
 	loadedTxs := make([]*bedrockTransaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
+		fmt.Printf("Loading transaction %d: %+v\n", i, tx)
 		txs[i] = tx.Tx
 
 		loadedTxs[i] = tx.LoadedTransaction()

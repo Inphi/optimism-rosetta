@@ -3,7 +3,6 @@ package optimism
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -155,22 +154,6 @@ func (testSuite *ClientBedrockTestSuite) TestGetBedrockBlock() {
 		BaseFee:     big.NewInt(49),
 	}
 	testSuite.Equal(expectedHeader, correctHeader)
-	// expectedBlock := &rpcBedrockBlock{
-	// 	Hash: EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774"),
-	// 	Transactions: []BedrockRPCTransaction{
-	// 		BedrockRPCTransaction{
-	// 			Tx:          &EthTypes.Transaction{},
-	// 			TxExtraInfo: TxExtraInfo{
-	// 				"0x4c5836",
-	// 				EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774"),
-	// 				EthCommon.HexToAddress(""),
-	// 				EthCommon.HexToHash(""),
-	// 			},
-	// 		},
-	// 	},
-	// 	UncleHashes: []EthCommon.Hash{},
-	// }
-	// testSuite.Equal(expectedBlock, correctBlock)
 	expectedBlockHash := EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774")
 	testSuite.Equal(expectedBlockHash, correctBlock.Hash)
 
@@ -187,8 +170,6 @@ func (testSuite *ClientBedrockTestSuite) TestGetBedrockBlock() {
 }
 
 func (testSuite *ClientBedrockTestSuite) TestTraceBlockByHash() {
-	// testSuite.T().Skip()
-
 	ctx := context.Background()
 
 	c := &Client{
@@ -237,22 +218,20 @@ func (testSuite *ClientBedrockTestSuite) TestTraceBlockByHash() {
 		},
 	}
 
-	// Mock the trace calls
-	mockDebugTraceBedrockTransaction(ctx, testSuite, tx1, "testdata/goerli_bedrock_block_trace_5003318.json")
-	// mockDebugTraceBedrockTransaction(ctx, testSuite, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
+	// Mock the block trace
+	mockDebugTraceBedrockBlock(ctx, testSuite, tx1, "testdata/goerli_bedrock_block_trace_5003318.json")
 
 	// Call
 	blkHash := EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774")
 	m, err := c.TraceBlockByHash(ctx, blkHash, txs)
 	testSuite.NoError(err)
 
-	fmt.Printf("m: %+v\n", m)
 	testSuite.Equal(len(m), 2)
 	testSuite.NotNil(m[tx1.Hex()])
 }
 
 //nolint:unused
-func mockDebugTraceBedrockTransaction(ctx context.Context, testSuite *ClientBedrockTestSuite, txhash EthCommon.Hash, txFileData string) {
+func mockDebugTraceBedrockBlock(ctx context.Context, testSuite *ClientBedrockTestSuite, txhash EthCommon.Hash, txFileData string) {
 	testSuite.mockJSONRPC.On(
 		"CallContext",
 		ctx,
@@ -342,8 +321,9 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	tx1 := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
 	tx2 := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
 
-	mockDebugTraceTransaction(ctx, testSuite, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
-	mockDebugTraceTransaction(ctx, testSuite, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
+	// mockDebugTraceTransaction(ctx, testSuite, tx1, "testdata/goerli_bedrock_tx_5003318_1.json")
+	// mockDebugTraceTransaction(ctx, testSuite, tx2, "testdata/goerli_bedrock_tx_5003318_2.json")
+	mockDebugTraceBedrockBlock(ctx, testSuite, tx1, "testdata/goerli_bedrock_block_trace_5003318.json")
 	mockGetTransactionReceipt(ctx, testSuite, []EthCommon.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
 
 	correctRaw, err := os.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")

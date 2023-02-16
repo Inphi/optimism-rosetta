@@ -27,8 +27,16 @@ type rpcBedrockBlock struct {
 // https://github.com/ethereum/go-ethereum/blob/980b7682b474db61ecbd78171e7cacfec8214048
 // /core/types/dynamic_fee_tx.go#L25
 type BedrockRPCTransaction struct {
-	Tx *EthTypes.Transaction
+	Tx *EthTypes.Transaction `json:"tx"`
 	TxExtraInfo
+}
+
+// UnmarshalJSON unmarshals an [BedrockRPCTransaction] from bytes.
+func (tx *BedrockRPCTransaction) UnmarshalJSON(msg []byte) error {
+	if err := json.Unmarshal(msg, &tx.Tx); err != nil {
+		return err
+	}
+	return json.Unmarshal(msg, &tx.TxExtraInfo)
 }
 
 // LoadedTransaction converts an [rpcTransaction] to a bedrockTransaction.
