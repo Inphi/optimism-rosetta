@@ -27,7 +27,7 @@ type rpcBedrockBlock struct {
 // https://github.com/ethereum/go-ethereum/blob/980b7682b474db61ecbd78171e7cacfec8214048
 // /core/types/dynamic_fee_tx.go#L25
 type BedrockRPCTransaction struct {
-	Tx *EthTypes.Transaction `json:"tx"`
+	Tx InnerBedrockTransaction `json:"tx"`
 	TxExtraInfo
 }
 
@@ -42,15 +42,15 @@ func (tx *BedrockRPCTransaction) UnmarshalJSON(msg []byte) error {
 // LoadedTransaction converts an [rpcTransaction] to a bedrockTransaction.
 //
 //nolint:golint
-func (tx *BedrockRPCTransaction) LoadedTransaction() *bedrockTransaction {
-	ethTx := bedrockTransaction{
-		Transaction: tx.Tx,
-		From:        tx.TxExtraInfo.From,
-		BlockNumber: tx.TxExtraInfo.BlockNumber,
-		BlockHash:   tx.TxExtraInfo.BlockHash,
-	}
-	return &ethTx
-}
+// func (tx *BedrockRPCTransaction) LoadedTransaction() *bedrockTransaction {
+// 	ethTx := bedrockTransaction{
+// 		Transaction: tx.Tx,
+// 		From:        tx.TxExtraInfo.From,
+// 		BlockNumber: tx.TxExtraInfo.BlockNumber,
+// 		BlockHash:   tx.TxExtraInfo.BlockHash,
+// 	}
+// 	return &ethTx
+// }
 
 type TxExtraInfo struct {
 	BlockNumber *string            `json:"blockNumber,omitempty"`

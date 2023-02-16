@@ -16,8 +16,8 @@ var ErrClientBlockOrphaned = errors.New("block orphaned")
 
 // EffectiveGasPrice returns the price of gas charged to this Transaction to be included in the
 // block.
-func EffectiveGasPrice(tx *EthTypes.Transaction, baseFee *big.Int) (*big.Int, error) {
-	if tx.Type() != uint8(eip1559TxType) {
+func EffectiveGasPrice(tx InnerBedrockTransaction, baseFee *big.Int) (*big.Int, error) {
+	if tx.GetType() != uint64(eip1559TxType) {
 		return tx.GasPrice(), nil
 	}
 	// For EIP-1559 the gas price is determined by the base fee & miner tip sinstead

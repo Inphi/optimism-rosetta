@@ -40,7 +40,7 @@ func (testSuite *ClientBlocksTestSuite) TestGetBlockReceipts() {
 	blockNumber := big.NewInt(1)
 	blockNumberString := blockNumber.String()
 	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
-	myTx := EthTypes.NewTransaction(
+	myTx := NewBedrockTransaction(
 		0,
 		to,
 		big.NewInt(0),
