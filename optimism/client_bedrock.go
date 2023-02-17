@@ -23,6 +23,15 @@ type rpcBedrockBlock struct {
 	UncleHashes  []EthCommon.Hash        `json:"uncles"`
 }
 
+// NewRpcBedrockBlock constructs a new [rpcBedrockBlock] with the given fields
+func NewRpcBedrockBlock(hash EthCommon.Hash, txs []BedrockRPCTransaction, uncles []EthCommon.Hash) *rpcBedrockBlock {
+	return &rpcBedrockBlock{
+		Hash:         hash,
+		Transactions: txs,
+		UncleHashes:  uncles,
+	}
+}
+
 // EthTypes.Transaction contains TxData, which is DynamicFeeTx:
 // https://github.com/ethereum/go-ethereum/blob/980b7682b474db61ecbd78171e7cacfec8214048
 // /core/types/dynamic_fee_tx.go#L25
@@ -40,19 +49,6 @@ func (tx *BedrockRPCTransaction) UnmarshalJSON(msg []byte) error {
 	tx.Tx = &innerTx
 	return json.Unmarshal(msg, &tx.TxExtraInfo)
 }
-
-// LoadedTransaction converts an [rpcTransaction] to a bedrockTransaction.
-//
-//nolint:golint
-// func (tx *BedrockRPCTransaction) LoadedTransaction() *bedrockTransaction {
-// 	ethTx := bedrockTransaction{
-// 		Transaction: tx.Tx,
-// 		From:        tx.TxExtraInfo.From,
-// 		BlockNumber: tx.TxExtraInfo.BlockNumber,
-// 		BlockHash:   tx.TxExtraInfo.BlockHash,
-// 	}
-// 	return &ethTx
-// }
 
 type TxExtraInfo struct {
 	BlockNumber *string            `json:"blockNumber,omitempty"`

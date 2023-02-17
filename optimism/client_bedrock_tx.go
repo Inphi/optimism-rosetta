@@ -37,7 +37,27 @@ type transaction struct {
 	HashValue            EthCommon.Hash     `json:"hash"`
 }
 
-// NewTransaction creates an unsigned legacy transaction.
+// NewTransactionFromFields creates a new [transaction] from the fields
+func NewTransactionFromFields(ty uint64, nonce uint64, price *big.Int, maxPriorityFee *big.Int, maxFee *big.Int, gasLim uint64, value *big.Int, data []byte, v *big.Int, r *big.Int, s *big.Int, recipient EthCommon.Address, chain *big.Int, hash EthCommon.Hash) *transaction {
+	return &transaction{
+		Type:                 (EthHexutil.Uint64)(ty),
+		Nonce:                (*EthHexutil.Uint64)(&nonce),
+		Price:                (*EthHexutil.Big)(price),
+		MaxPriorityFeePerGas: (*EthHexutil.Big)(maxPriorityFee),
+		MaxFeePerGas:         (*EthHexutil.Big)(maxFee),
+		GasLimit:             (EthHexutil.Uint64)(gasLim),
+		Value:                (*EthHexutil.Big)(value),
+		Data:                 (*EthHexutil.Bytes)(&data),
+		V:                    (*EthHexutil.Big)(v),
+		R:                    (*EthHexutil.Big)(r),
+		S:                    (*EthHexutil.Big)(s),
+		Recipient:            (*EthCommon.Address)(&recipient),
+		ChainID:              (*EthHexutil.Big)(chain),
+		HashValue:            (EthCommon.Hash)(hash),
+	}
+}
+
+// NewBedrockTransaction creates an unsigned legacy transaction.
 func NewBedrockTransaction(
 	nonce uint64,
 	to EthCommon.Address,
