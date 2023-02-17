@@ -91,21 +91,16 @@ func (ec *Client) getParsedBedrockBlock(
 	*RosettaTypes.Block,
 	error,
 ) {
-	fmt.Printf("Inside getParsedBedrockBlock...\n")
 	head, body, err := ec.getBedrockBlock(ctx, blockMethod, args...)
-	fmt.Printf("Got bedrock block and header, err: %v\n", err)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Print("Tracing block by hash...\n")
 	var m map[string][]*FlatCall
 	var addTraces bool
 	if head.Number.Int64() != GenesisBlockIndex {
 		addTraces = true
 		m, err = ec.TraceBlockByHash(ctx, body.Hash, body.Transactions)
-		fmt.Printf("Got block traces, m: %v\n err: %v\n", m, err)
-
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +113,6 @@ func (ec *Client) getParsedBedrockBlock(
 	txs := make([]InnerBedrockTransaction, len(body.Transactions))
 	loadedTxs := make([]*bedrockTransaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
-		fmt.Printf("Loading transaction %d: %+v\n", i, tx)
 		txs[i] = tx.Tx
 
 		loadedTxs[i] = tx.LoadTransaction()
@@ -155,8 +149,9 @@ func (ec *Client) getParsedBedrockBlock(
 			} else {
 				tx.FeeAmount = big.NewInt(0)
 			}
-			// TODO: RosettaTxReceipt has no "Status"
-			// tx.Status = receipts[i].Status == 1
+			// We have to extract the status from the raw receipt since RosettaTxReceipt has no status field
+			status, _ := ExtractStatus(receipts[i])
+			tx.Status = status == 1
 		}
 
 		// EIP-1559 Support

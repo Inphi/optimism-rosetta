@@ -1,6 +1,7 @@
 package optimism
 
 import (
+	"fmt"
 	"math/big"
 
 	EthCommon "github.com/ethereum/go-ethereum/common"
@@ -114,12 +115,15 @@ func (t *transaction) GetType() uint64 {
 }
 
 func (t *transaction) GasPrice() *big.Int {
+	if t.Price == nil {
+		return big.NewInt(0)
+	}
 	return new(big.Int).Set((*big.Int)(t.Price))
 }
 
-func (t *transaction) GasTipCap() *big.Int { return new(big.Int) }
+func (t *transaction) GasTipCap() *big.Int { return t.MaxPriorityFeePerGas.ToInt() }
 
-func (t *transaction) GasFeeCap() *big.Int { return new(big.Int) }
+func (t *transaction) GasFeeCap() *big.Int { return t.MaxPriorityFeePerGas.ToInt() }
 
 // EffectiveGasTip returns the effective miner gasTipCap for the given base fee.
 // Note: if the effective gasTipCap is negative, this method returns both error
@@ -133,8 +137,10 @@ func (t *transaction) EffectiveGasTip(baseFee *big.Int) (*big.Int, error) {
 	}
 	var err error
 	gasFeeCap := t.GasFeeCap()
+	fmt.Printf("Comparing base fee %v to gas fee cap %v\n", baseFee, gasFeeCap)
 	if gasFeeCap.Cmp(baseFee) == -1 {
 		err = EthTypes.ErrGasFeeCapTooLow
+		// return big.NewInt(0), nil
 	}
 	return EthMath.BigMin(t.GasTipCap(), gasFeeCap.Sub(gasFeeCap, baseFee)), err
 }

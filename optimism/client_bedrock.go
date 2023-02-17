@@ -141,6 +141,7 @@ func (tx *BedrockRPCTransaction) LoadTransaction() *bedrockTransaction {
 	ethTx := &bedrockTransaction{
 		Transaction: tx.Tx,
 		From:        tx.TxExtraInfo.From,
+		TxHash:      tx.TxHash,
 		BlockNumber: tx.TxExtraInfo.BlockNumber,
 		BlockHash:   tx.TxExtraInfo.BlockHash,
 	}
