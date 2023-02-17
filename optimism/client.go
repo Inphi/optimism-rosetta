@@ -322,32 +322,33 @@ func (ec *Client) getBlock(
 	blockMethod string,
 	args ...interface{},
 ) (
-	*types.Block,
+	*types.Header,
+	[]Transaction,
 	[]*loadedTransaction,
 	error,
 ) {
 	var raw json.RawMessage
 	err := ec.c.CallContext(ctx, &raw, blockMethod, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: block fetch failed", err)
+		return nil, nil, nil, fmt.Errorf("%w: block fetch failed", err)
 	} else if len(raw) == 0 {
-		return nil, nil, ethereum.NotFound
+		return nil, nil, nil, ethereum.NotFound
 	}
 
 	// Decode header and transactions
 	var head types.Header
 	var body rpcBlock
 	if err := json.Unmarshal(raw, &head); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if err := json.Unmarshal(raw, &body); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Get all transaction receipts
 	receipts, err := ec.getBlockReceipts(ctx, body.Hash, body.Transactions)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: could not get receipts for %x", err, body.Hash[:])
+		return nil, nil, nil, fmt.Errorf("%w: could not get receipts for %x", err, body.Hash[:])
 	}
 
 	// Get block traces (not possible to make idempotent block transaction trace requests)
@@ -361,12 +362,12 @@ func (ec *Client) getBlock(
 		addTraces = true
 		traces, err = ec.getTransactionTraces(ctx, body.Transactions)
 		if err != nil {
-			return nil, nil, fmt.Errorf("%w: could not get traces for all txs in block %x", err, body.Hash[:])
+			return nil, nil, nil, fmt.Errorf("%w: could not get traces for all txs in block %x", err, body.Hash[:])
 		}
 	}
 
 	// Convert all txs to loaded txs
-	txs := make([]*types.Transaction, len(body.Transactions))
+	txs := make([]Transaction, len(body.Transactions))
 	loadedTxs := make([]*loadedTransaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
 		txs[i] = tx.tx
@@ -402,10 +403,7 @@ func (ec *Client) getBlock(
 		loadedTxs[i].Trace = traces[i]
 	}
 
-	return types.NewBlockWithHeader(&head).WithBody(
-		txs,
-		nil, // Sequencer blocks do not have uncles with instant confirmation
-	), loadedTxs, nil
+	return &head, txs, loadedTxs, nil
 }
 
 func (ec *Client) getTransactionTraces(
@@ -498,7 +496,7 @@ func (ec *Client) getBlockReceipts(
 
 func (ec *Client) erc20TokenOps(
 	ctx context.Context,
-	block *types.Block,
+	head *types.Header,
 	tx *loadedTransaction,
 	startIndex int,
 ) ([]*RosettaTypes.Operation, error) {
@@ -524,7 +522,7 @@ func (ec *Client) erc20TokenOps(
 			if toAddress, amount, err := decodeAddressUint256(input[fnSelectorLen:]); err == nil {
 				contractAddress := tx.Trace.To.String()
 				fromAddress := tx.Trace.From.String()
-				currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.NumberU64(), contractAddress)
+				currency, err := ec.currencyFetcher.FetchCurrency(ctx, head.Number.Uint64(), contractAddress)
 				// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 				if err != nil {
 					log.Printf("error while fetching currency details for currency: %s: %v", contractAddress, err)
@@ -583,7 +581,7 @@ func (ec *Client) erc20TokenOps(
 			return nil, fmt.Errorf("%s is not a valid address", toAddress)
 		}
 
-		currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.NumberU64(), contractAddress)
+		currency, err := ec.currencyFetcher.FetchCurrency(ctx, head.Number.Uint64(), contractAddress)
 		// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 		if err != nil {
 			log.Printf("error while fetching currency details for currency: %s: %v", contractAddress, err)
@@ -806,7 +804,7 @@ func containsTopic(log *types.Log, topic string) bool {
 
 // traceOps returns all *RosettaTypes.Operation for a given
 // array of flattened traces.
-func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // nolint: gocognit
+func traceOps(blockTransactions []Transaction, calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // nolint: gocognit
 	var ops []*RosettaTypes.Operation
 	if len(calls) == 0 {
 		return ops
@@ -869,7 +867,7 @@ func traceOps(block *types.Block, calls []*flatCall, startIndex int) []*RosettaT
 			value := new(big.Int).Neg(trace.Value).String()
 			// The OP bug here means that the ETH balance of the self-destructed contract remains unchanged
 			// TODO(inphi): Bedrock fixes this
-			if block.Transactions()[0].Hash().String() == opBugAccidentalTriggerTx &&
+			if blockTransactions[0].Hash().String() == opBugAccidentalTriggerTx &&
 				opStatus == SuccessStatus &&
 				trace.Type == SelfDestructOpType &&
 				from == opBugAccidentalTriggerContract.String() {
@@ -1090,14 +1088,16 @@ type txExtraInfo struct {
 }
 
 type rpcTransaction struct {
-	tx *types.Transaction
+	tx Transaction
 	txExtraInfo
 }
 
 func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
-	if err := json.Unmarshal(msg, &tx.tx); err != nil {
+	tximpl := new(transaction)
+	if err := json.Unmarshal(msg, tximpl); err != nil {
 		return err
 	}
+	tx.tx = tximpl
 	return json.Unmarshal(msg, &tx.txExtraInfo)
 }
 
@@ -1112,7 +1112,7 @@ func (tx *rpcTransaction) LoadedTransaction() *loadedTransaction {
 }
 
 type loadedTransaction struct {
-	Transaction *types.Transaction
+	Transaction Transaction
 	From        *common.Address
 	BlockNumber *string
 	BlockHash   *common.Hash
@@ -1164,11 +1164,11 @@ func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
 }
 
 // Set the fees of applicable zero gas transactions to zero
-func patchFeeOps(chainID *big.Int, block *types.Block, tx *types.Transaction, ops []*RosettaTypes.Operation) {
+func patchFeeOps(chainID *big.Int, block *types.Header, tx Transaction, ops []*RosettaTypes.Operation) {
 	if chainID.Cmp(goerliChainID) != 0 {
 		return
 	}
-	if tx.GasPrice().Uint64() == 0 && block.NumberU64() < goerliRollupFeeEnforcementBlockHeight {
+	if tx.GasPrice().Uint64() == 0 && block.Number.Uint64() < goerliRollupFeeEnforcementBlockHeight {
 		for _, op := range ops {
 			if op.Type == FeeOpType {
 				op.Amount.Value = "0"
@@ -1352,25 +1352,25 @@ func (ec *Client) getParsedBlock(
 	*RosettaTypes.Block,
 	error,
 ) {
-	block, loadedTransactions, err := ec.getBlock(ctx, blockMethod, args...)
+	head, blockTxs, loadedTransactions, err := ec.getBlock(ctx, blockMethod, args...)
 	if err != nil {
 		return nil, fmt.Errorf("%w: could not get block", err)
 	}
 
 	blockIdentifier := &RosettaTypes.BlockIdentifier{
-		Hash:  block.Hash().String(),
-		Index: block.Number().Int64(),
+		Hash:  head.Hash().String(),
+		Index: head.Number.Int64(),
 	}
 
 	parentBlockIdentifier := blockIdentifier
 	if blockIdentifier.Index != GenesisBlockIndex {
 		parentBlockIdentifier = &RosettaTypes.BlockIdentifier{
-			Hash:  block.ParentHash().Hex(),
+			Hash:  head.ParentHash.Hex(),
 			Index: blockIdentifier.Index - 1,
 		}
 	}
 
-	txs, err := ec.populateTransactions(ctx, blockIdentifier, block, loadedTransactions)
+	txs, err := ec.populateTransactions(ctx, blockIdentifier, head, blockTxs, loadedTransactions)
 	if err != nil {
 		return nil, err
 	}
@@ -1378,7 +1378,7 @@ func (ec *Client) getParsedBlock(
 	return &RosettaTypes.Block{
 		BlockIdentifier:       blockIdentifier,
 		ParentBlockIdentifier: parentBlockIdentifier,
-		Timestamp:             convertTime(block.Time()),
+		Timestamp:             convertTime(head.Time),
 		Transactions:          txs,
 	}, nil
 }
@@ -1390,12 +1390,13 @@ func convertTime(time uint64) int64 {
 func (ec *Client) populateTransactions(
 	ctx context.Context,
 	blockIdentifier *RosettaTypes.BlockIdentifier,
-	block *types.Block,
+	head *types.Header,
+	blockTxs []Transaction,
 	loadedTransactions []*loadedTransaction,
 ) ([]*RosettaTypes.Transaction, error) {
 	transactions := make(
 		[]*RosettaTypes.Transaction,
-		len(block.Transactions()),
+		len(blockTxs),
 	)
 
 	for i, tx := range loadedTransactions {
@@ -1412,7 +1413,7 @@ func (ec *Client) populateTransactions(
 			}
 		}
 
-		transaction, err := ec.populateTransaction(ctx, block, tx)
+		transaction, err := ec.populateTransaction(ctx, head, blockTxs, tx)
 		if err != nil {
 			return nil, fmt.Errorf("%w: cannot parse %s", err, tx.Transaction.Hash().Hex())
 		}
@@ -1425,17 +1426,18 @@ func (ec *Client) populateTransactions(
 
 func (ec *Client) populateTransaction(
 	ctx context.Context,
-	block *types.Block,
+	header *types.Header,
+	blockTxs []Transaction,
 	tx *loadedTransaction,
 ) (*RosettaTypes.Transaction, error) {
 	ops := []*RosettaTypes.Operation{}
 
 	// Compute fee operations
 	feeOps := feeOps(tx)
-	patchFeeOps(ec.p.ChainID, block, tx.Transaction, feeOps)
+	patchFeeOps(ec.p.ChainID, header, tx.Transaction, feeOps)
 	ops = append(ops, feeOps...)
 
-	erc20TokenOps, err := ec.erc20TokenOps(ctx, block, tx, len(ops))
+	erc20TokenOps, err := ec.erc20TokenOps(ctx, header, tx, len(ops))
 	if err != nil {
 		return nil, err
 	}
@@ -1443,7 +1445,7 @@ func (ec *Client) populateTransaction(
 
 	traces := flattenTraces(tx.Trace, []*flatCall{})
 
-	traceOps := traceOps(block, traces, len(ops))
+	traceOps := traceOps(blockTxs, traces, len(ops))
 	ops = append(ops, traceOps...)
 
 	// Marshal receipt and trace data
