@@ -239,7 +239,10 @@ func (ec *Client) populateBedrockTransaction(
 	head *EthTypes.Header,
 	tx *bedrockTransaction,
 ) (*RosettaTypes.Transaction, error) {
-	ops := []*RosettaTypes.Operation{}
+	ops, err := ec.ParseOps(tx)
+	if err != nil {
+		return nil, err
+	}
 
 	keccak := crypto.Keccak256([]byte(erc20TransferEventLogTopics))
 	encodedTransferMethod := hexutil.Encode(keccak)

@@ -1,7 +1,6 @@
 package optimism
 
 import (
-	"fmt"
 	"math/big"
 
 	EthCommon "github.com/ethereum/go-ethereum/common"
@@ -17,6 +16,7 @@ type InnerBedrockTransaction interface {
 	Gas() uint64
 	GasPrice() *big.Int
 	GetType() uint64
+	GetValue() *big.Int
 	EffectiveGasTip(*big.Int) (*big.Int, error)
 }
 
@@ -94,6 +94,10 @@ func (lt *transaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction
 	return ethTx
 }
 
+func (t *transaction) GetValue() *big.Int {
+	return t.Value.ToInt()
+}
+
 func (t *transaction) Hash() EthCommon.Hash {
 	return t.HashValue
 }
@@ -137,7 +141,6 @@ func (t *transaction) EffectiveGasTip(baseFee *big.Int) (*big.Int, error) {
 	}
 	var err error
 	gasFeeCap := t.GasFeeCap()
-	fmt.Printf("Comparing base fee %v to gas fee cap %v\n", baseFee, gasFeeCap)
 	if gasFeeCap.Cmp(baseFee) == -1 {
 		err = EthTypes.ErrGasFeeCapTooLow
 		// return big.NewInt(0), nil

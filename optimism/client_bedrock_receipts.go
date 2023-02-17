@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 
+	L2GethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
@@ -41,6 +42,16 @@ func ExtractStatus(rosettaTxReceipt *RosettaTxReceipt) (uint64, error) {
 		return 0, err
 	}
 	return receipt.Status, nil
+}
+
+// ExtractL1Fee attempts to unmarshal an [L1Fee] from the RawMessage field in a [RosettaTxReceipt]
+// TODO: hoist this up to initial receipt unmarshalling in the bedrock block handler so we can error early
+func ExtractL1Fee(rosettaTxReceipt *RosettaTxReceipt) *big.Int {
+	var receipt L2GethTypes.Receipt
+	if err := json.Unmarshal(rosettaTxReceipt.RawMessage, &receipt); err != nil {
+		return nil
+	}
+	return receipt.L1Fee
 }
 
 // getBedrockBlockReceipts returns the receipts for all transactions in a block.

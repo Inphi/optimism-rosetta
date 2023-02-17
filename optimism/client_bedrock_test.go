@@ -426,7 +426,29 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 		},
 	}
 	testSuite.Equal(expectedFirstRosettaTx.TransactionIdentifier, resp.Transactions[0].TransactionIdentifier)
-	testSuite.Equal(expectedFirstRosettaTx.Operations, resp.Transactions[0].Operations)
+	respFirstOps := resp.Transactions[0].Operations
+	testSuite.Equal(1, len(respFirstOps))
+	testSuite.Equal(
+		&RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 0,
+			},
+			Status: RosettaTypes.String(SuccessStatus),
+			Type:   MintOpType,
+			Amount: &RosettaTypes.Amount{
+				Value: "0",
+				Currency: &RosettaTypes.Currency{
+					Symbol:   "ETH",
+					Decimals: 18,
+				},
+			},
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001",
+			},
+		},
+		respFirstOps[0],
+	)
+
 	testSuite.Equal(expectedFirstRosettaTx.RelatedTransactions, resp.Transactions[0].RelatedTransactions)
 	testSuite.Equal(expectedFirstRosettaTx.Metadata["gas_limit"], resp.Transactions[0].Metadata["gas_limit"])
 	testSuite.Equal(expectedFirstRosettaTx.Metadata["gas_price"], resp.Transactions[0].Metadata["gas_price"])
@@ -469,27 +491,24 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	}
 	testSuite.Equal(expectedSecondRosettaTx.TransactionIdentifier, resp.Transactions[1].TransactionIdentifier)
 	// Check operations
-	testSuite.Equal(6, len(resp.Transactions[1].Operations))
-	// The first operation should be an erc20 transfer
+	testSuite.Equal(10, len(resp.Transactions[1].Operations))
+	// The first 4 operations should be deposit ops
 	testSuite.Equal(
 		&RosettaTypes.Operation{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
 				Index: 0,
 			},
 			Status: RosettaTypes.String(SuccessStatus),
-			Type:   ERC20TransferOpType,
+			Type:   FeeOpType,
 			Amount: &RosettaTypes.Amount{
-				Value: "100",
+				Value: "-915705014651280",
 				Currency: &RosettaTypes.Currency{
-					Symbol:   "LINK",
+					Symbol:   "ETH",
 					Decimals: 18,
-					Metadata: map[string]interface{}{
-						"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f",
-					},
 				},
 			},
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: "0xE60CeAd5FCD752B6694f90a16af7a46e5b6Df817",
+				Address: "0xE261E28d9FCCd3742629fEF031E63327585B40f0",
 			},
 		},
 		resp.Transactions[1].Operations[0],
@@ -505,19 +524,16 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 				},
 			},
 			Status: RosettaTypes.String(SuccessStatus),
-			Type:   ERC20TransferOpType,
+			Type:   FeeOpType,
 			Amount: &RosettaTypes.Amount{
-				Value: "100",
+				Value: "915704999694765",
 				Currency: &RosettaTypes.Currency{
-					Symbol:   "LINK",
+					Symbol:   "ETH",
 					Decimals: 18,
-					Metadata: map[string]interface{}{
-						"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f",
-					},
 				},
 			},
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: "0x6E532F86CD5721A976f15560Aa0683521cFaB7e7",
+				Address: "0x4200000000000000000000000000000000000011",
 			},
 		},
 		resp.Transactions[1].Operations[1],
@@ -527,20 +543,22 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
 				Index: 2,
 			},
+			RelatedOperations: []*RosettaTypes.OperationIdentifier{
+				{
+					Index: 0,
+				},
+			},
 			Status: RosettaTypes.String(SuccessStatus),
-			Type:   ERC20TransferOpType,
+			Type:   FeeOpType,
 			Amount: &RosettaTypes.Amount{
-				Value: "100",
+				Value: "14956515",
 				Currency: &RosettaTypes.Currency{
-					Symbol:   "LINK",
+					Symbol:   "ETH",
 					Decimals: 18,
-					Metadata: map[string]interface{}{
-						"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f",
-					},
 				},
 			},
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: "0x6E532F86CD5721A976f15560Aa0683521cFaB7e7",
+				Address: "0x4200000000000000000000000000000000000019",
 			},
 		},
 		resp.Transactions[1].Operations[2],
@@ -552,27 +570,26 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 			},
 			RelatedOperations: []*RosettaTypes.OperationIdentifier{
 				{
-					Index: 2,
+					Index: 0,
 				},
 			},
 			Status: RosettaTypes.String(SuccessStatus),
-			Type:   ERC20TransferOpType,
+			Type:   FeeOpType,
 			Amount: &RosettaTypes.Amount{
-				Value: "100",
+				Value: "0",
 				Currency: &RosettaTypes.Currency{
-					Symbol:   "LINK",
+					Symbol:   "ETH",
 					Decimals: 18,
-					Metadata: map[string]interface{}{
-						"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f",
-					},
 				},
 			},
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: "0x25c53f77e4f6FC85CbA2a892Ac62A44C770389cC",
+				Address: "0x420000000000000000000000000000000000001A",
 			},
 		},
 		resp.Transactions[1].Operations[3],
 	)
+
+	// The next 6 are the erc20 operations
 	testSuite.Equal(
 		&RosettaTypes.Operation{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
@@ -591,7 +608,7 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 				},
 			},
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: "0x25c53f77e4f6FC85CbA2a892Ac62A44C770389cC",
+				Address: "0xE60CeAd5FCD752B6694f90a16af7a46e5b6Df817",
 			},
 		},
 		resp.Transactions[1].Operations[4],
@@ -619,10 +636,112 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 				},
 			},
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: "0x794C23BB0a718F4a79eE96531d40C54A67f7f037",
+				Address: "0x6E532F86CD5721A976f15560Aa0683521cFaB7e7",
 			},
 		},
 		resp.Transactions[1].Operations[5],
+	)
+	testSuite.Equal(
+		&RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 6,
+			},
+			Status: RosettaTypes.String(SuccessStatus),
+			Type:   ERC20TransferOpType,
+			Amount: &RosettaTypes.Amount{
+				Value: "100",
+				Currency: &RosettaTypes.Currency{
+					Symbol:   "LINK",
+					Decimals: 18,
+					Metadata: map[string]interface{}{
+						"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f",
+					},
+				},
+			},
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: "0x6E532F86CD5721A976f15560Aa0683521cFaB7e7",
+			},
+		},
+		resp.Transactions[1].Operations[6],
+	)
+	testSuite.Equal(
+		&RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 7,
+			},
+			RelatedOperations: []*RosettaTypes.OperationIdentifier{
+				{
+					Index: 6,
+				},
+			},
+			Status: RosettaTypes.String(SuccessStatus),
+			Type:   ERC20TransferOpType,
+			Amount: &RosettaTypes.Amount{
+				Value: "100",
+				Currency: &RosettaTypes.Currency{
+					Symbol:   "LINK",
+					Decimals: 18,
+					Metadata: map[string]interface{}{
+						"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f",
+					},
+				},
+			},
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: "0x25c53f77e4f6FC85CbA2a892Ac62A44C770389cC",
+			},
+		},
+		resp.Transactions[1].Operations[7],
+	)
+	testSuite.Equal(
+		&RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 8,
+			},
+			Status: RosettaTypes.String(SuccessStatus),
+			Type:   ERC20TransferOpType,
+			Amount: &RosettaTypes.Amount{
+				Value: "100",
+				Currency: &RosettaTypes.Currency{
+					Symbol:   "LINK",
+					Decimals: 18,
+					Metadata: map[string]interface{}{
+						"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f",
+					},
+				},
+			},
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: "0x25c53f77e4f6FC85CbA2a892Ac62A44C770389cC",
+			},
+		},
+		resp.Transactions[1].Operations[8],
+	)
+	testSuite.Equal(
+		&RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 9,
+			},
+			RelatedOperations: []*RosettaTypes.OperationIdentifier{
+				{
+					Index: 8,
+				},
+			},
+			Status: RosettaTypes.String(SuccessStatus),
+			Type:   ERC20TransferOpType,
+			Amount: &RosettaTypes.Amount{
+				Value: "100",
+				Currency: &RosettaTypes.Currency{
+					Symbol:   "LINK",
+					Decimals: 18,
+					Metadata: map[string]interface{}{
+						"token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f",
+					},
+				},
+			},
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: "0x794C23BB0a718F4a79eE96531d40C54A67f7f037",
+			},
+		},
+		resp.Transactions[1].Operations[9],
 	)
 
 	// Check other transaction fields

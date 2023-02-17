@@ -1,0 +1,230 @@
+package optimism
+
+import (
+	"log"
+	"math/big"
+	"strings"
+
+	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
+	EthTypes "github.com/ethereum/go-ethereum/core/types"
+)
+
+// ParseOps mimics the down-stream implementation of [rosetta-geth-sdk], exposing a hook for down-stream clients.
+func (ec *Client) ParseOps(
+	tx *bedrockTransaction,
+) ([]*RosettaTypes.Operation, error) {
+	var ops []*RosettaTypes.Operation
+
+	feeOps, err := FeeOps(tx)
+	if err != nil {
+		return nil, err
+	}
+	ops = append(ops, feeOps...)
+	ops = append(ops, MintOps(tx, len(ops))...)
+	ops = append(ops, TraceOps(tx.Trace, len(ops))...)
+
+	return ops, nil
+}
+
+// MintOps constructs a list of [RosettaTypes.Operation]s for an Optimism Deposit or "mint" transaction.
+func MintOps(tx *bedrockTransaction, startIndex int) []*RosettaTypes.Operation {
+	if !tx.IsDepositTx() {
+		return nil
+	}
+
+	opIndex := int64(startIndex)
+	opType := MintOpType
+	opStatus := SuccessStatus
+	fromAddress := MustChecksum(tx.From.String())
+	amount := Amount(tx.Transaction.GetValue(), Currency)
+
+	return []*RosettaTypes.Operation{
+		GenerateOp(opIndex, nil, opType, opStatus, fromAddress, amount, nil),
+	}
+}
+
+const ProxyContractFilter = "0x420000000000000000000000000000000000"
+const ImplementationContractFilter = "0xc0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d3"
+
+func isIdenticalContractAddress(from string, to string) bool {
+	from = strings.ToLower(from)
+	to = strings.ToLower(to)
+	proxyContractIndex := from[len(ProxyContractFilter):]
+	implementationContractIndex := to[len(ImplementationContractFilter):]
+	if strings.Contains(from, ProxyContractFilter) && strings.Contains(to, ImplementationContractFilter) && proxyContractIndex == implementationContractIndex {
+		return true
+	}
+
+	return false
+}
+
+// TraceOps constructs [RosettaTypes.Operation]s from a list of [FlatCall]s.
+func TraceOps(calls []*FlatCall, startIndex int) []*RosettaTypes.Operation { // nolint: gocognit
+	var ops []*RosettaTypes.Operation
+	if len(calls) == 0 {
+		return ops
+	}
+
+	destroyedAccountBalance := make(map[string]*big.Int)
+	for _, call := range calls {
+		opType := strings.ToUpper(call.Type)
+		fromAddress := MustChecksum(call.From.String())
+		toAddress := MustChecksum(call.To.String())
+		if strings.Contains(fromAddress, ProxyContractFilter) && isIdenticalContractAddress(fromAddress, toAddress) {
+			toAddress = fromAddress
+		}
+		value := call.Value
+		metadata := map[string]interface{}{}
+
+		// Handle the case where not all operation statuses are successful
+		opStatus := SuccessStatus
+		if call.Revert {
+			opStatus = FailureStatus
+			metadata["error"] = call.ErrorMessage
+		}
+
+		// Generate "from" operation
+		fromOpIndex := int64(len(ops) + startIndex)
+		fromAmount := Amount(new(big.Int).Neg(value), Currency)
+		fromOp := GenerateOp(fromOpIndex, nil, opType, opStatus, fromAddress, fromAmount, metadata)
+		if _, ok := destroyedAccountBalance[fromAddress]; ok && opStatus == SuccessStatus {
+			destroyedAccountBalance[fromAddress] = new(big.Int).Sub(destroyedAccountBalance[fromAddress], value)
+		}
+		ops = append(ops, fromOp)
+
+		// Add to the destroyed account balance if SELFDESTRUCT, and overwrite existing balance.
+		if opType == SelfDestructOpType {
+			destroyedAccountBalance[fromAddress] = new(big.Int)
+
+			// If destination of of SELFDESTRUCT is self, we should skip.
+			// In the EVM, the balance is reset after the balance is increased on the destination, so this is a no-op.
+			if fromAddress == toAddress {
+				continue
+			}
+		}
+
+		// If the account is resurrected, we remove it from the destroyed account balance map.
+		if CreateType(opType) {
+			delete(destroyedAccountBalance, toAddress)
+		}
+
+		// Generate "to" operation
+		lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
+		toOpIndex := lastOpIndex + 1
+		toRelatedOps := []*RosettaTypes.OperationIdentifier{
+			{
+				Index: lastOpIndex,
+			},
+		}
+		toAmount := Amount(new(big.Int).Abs(value), Currency)
+		toOp := GenerateOp(toOpIndex, toRelatedOps, opType, opStatus, toAddress, toAmount, metadata)
+		if _, ok := destroyedAccountBalance[toAddress]; ok && opStatus == SuccessStatus {
+			destroyedAccountBalance[toAddress] = new(big.Int).Add(destroyedAccountBalance[toAddress], value)
+		}
+		ops = append(ops, toOp)
+	}
+
+	// Zero-out all destroyed accounts that are removed during transaction finalization.
+	for acct, balance := range destroyedAccountBalance {
+		if _, ok := ChecksumAddress(acct); !ok || balance.Sign() == 0 {
+			continue
+		}
+
+		if balance.Sign() < 0 {
+			log.Fatalf("negative balance for suicided account %s: %s\n", acct, balance.String())
+		}
+
+		// Generate "destruct" operation
+		destructOpIndex := ops[len(ops)-1].OperationIdentifier.Index + 1
+		destructOpType := DestructOpType
+		destructOpStatus := RosettaTypes.String(SuccessStatus)
+		address := acct
+		amount := Amount(new(big.Int).Neg(balance), Currency)
+		destructOp := GenerateOp(destructOpIndex, nil, destructOpType, *destructOpStatus, address, amount, nil)
+		ops = append(ops, destructOp)
+	}
+
+	return ops
+}
+
+// FeeOps returns the fee operations for a given transaction.
+func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
+	if tx.IsDepositTx() {
+		return nil, nil
+	}
+
+	var receipt EthTypes.Receipt
+	if err := receipt.UnmarshalJSON(tx.Receipt.RawMessage); err != nil {
+		return nil, err
+	}
+
+	sequencerFeeAmount := new(big.Int).Set(tx.FeeAmount)
+	L1Fee := big.NewInt(0)
+	if tx.FeeBurned != nil {
+		sequencerFeeAmount.Sub(sequencerFeeAmount, tx.FeeBurned)
+	}
+	l1fee := ExtractL1Fee(tx.Receipt)
+	if l1fee != nil {
+		L1Fee = l1fee
+		sequencerFeeAmount.Sub(sequencerFeeAmount, L1Fee)
+	}
+	if sequencerFeeAmount == nil {
+		return nil, nil
+	}
+
+	feeRewarder := tx.Miner
+	if len(tx.Author) > 0 {
+		feeRewarder = tx.Author
+	}
+
+	opType := FeeOpType
+	opStatus := SuccessStatus
+	fromAddress := MustChecksum(tx.From.String())
+	fromAmount := Amount(new(big.Int).Neg(tx.Receipt.TransactionFee), Currency)
+	sequencerRelatedOps := []*RosettaTypes.OperationIdentifier{
+		{
+			Index: 0,
+		},
+	}
+	sequencerAddress := MustChecksum(feeRewarder)
+	sequencerAmount := Amount(sequencerFeeAmount, Currency)
+	baseFeeVaultRelatedOps := []*RosettaTypes.OperationIdentifier{
+		{
+			Index: 0,
+		},
+	}
+	baseFeeVaultAddress := BaseFeeVault.Hex()
+	baseFeeVaultAmount := Amount(tx.FeeBurned, Currency)
+	L1FeeVaultRelatedOps := []*RosettaTypes.OperationIdentifier{
+		{
+			Index: 0,
+		},
+	}
+	L1FeeVaultAddress := L1FeeVault.Hex()
+	L1FeeVaultAmount := Amount(L1Fee, Currency)
+
+	ops := []*RosettaTypes.Operation{
+		GenerateOp(0, nil, opType, opStatus, fromAddress, fromAmount, nil),
+		GenerateOp(1, sequencerRelatedOps, opType, opStatus, sequencerAddress, sequencerAmount, nil),
+		GenerateOp(2, baseFeeVaultRelatedOps, opType, opStatus, baseFeeVaultAddress, baseFeeVaultAmount, nil),
+		GenerateOp(3, L1FeeVaultRelatedOps, opType, opStatus, L1FeeVaultAddress, L1FeeVaultAmount, nil),
+	}
+
+	return ops, nil
+}
+
+func GenerateOp(opIndex int64, relatedOps []*RosettaTypes.OperationIdentifier, opType string, opStatus string, address string, amount *RosettaTypes.Amount, metadata map[string]interface{}) *RosettaTypes.Operation {
+	return &RosettaTypes.Operation{
+		OperationIdentifier: &RosettaTypes.OperationIdentifier{
+			Index: opIndex,
+		},
+		RelatedOperations: relatedOps,
+		Type:              opType,
+		Status:            RosettaTypes.String(opStatus),
+		Account: &RosettaTypes.AccountIdentifier{
+			Address: address,
+		},
+		Amount:   amount,
+		Metadata: metadata,
+	}
+}
