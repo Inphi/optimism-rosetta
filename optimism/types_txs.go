@@ -4,11 +4,8 @@ import (
 	"encoding/json"
 	"math/big"
 
-	// BedrockTypes "github.com/ethereum-optimism/op-geth"
 	OptimismCommon "github.com/ethereum-optimism/optimism/l2geth/common"
 	OptimismTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
-	EthCommon "github.com/ethereum/go-ethereum/common"
-	EthTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 type txExtraInfo struct {
@@ -77,63 +74,6 @@ func (lt *legacyTransaction) IsDepositTx() bool {
 
 // FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
 func (lt *legacyTransaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
-	ethTx := &legacyTransaction{
-		Transaction: tx.tx,
-		From:        tx.txExtraInfo.From,
-		BlockNumber: tx.txExtraInfo.BlockNumber,
-		BlockHash:   tx.txExtraInfo.BlockHash,
-	}
-	return ethTx
-}
-
-// RosettaTxReceipt is a Rosetta-compatible receipt type.
-type RosettaTxReceipt struct {
-	Type           uint8 `json:"type,omitempty"`
-	GasPrice       *big.Int
-	GasUsed        *big.Int
-	TransactionFee *big.Int
-	Logs           []*EthTypes.Log
-	RawMessage     json.RawMessage
-}
-
-// bedrockTransaction is a post-bedrock transaction type.
-type bedrockTransaction struct {
-	Transaction *EthTypes.Transaction
-	From        *EthCommon.Address
-	BlockNumber *string
-	BlockHash   *EthCommon.Hash
-	TxHash      *EthCommon.Hash // may not equal Transaction.Hash() due to state sync indicator
-	FeeAmount   *big.Int
-	FeeBurned   *big.Int // nil if no fees were burned
-	Miner       string
-	Author      string
-	Status      bool
-
-	Trace    []*FlatCall
-	RawTrace json.RawMessage
-	Receipt  *RosettaTxReceipt
-
-	BaseFee      *big.Int
-	IsBridgedTxn bool
-}
-
-// NewTransaction creates a new post-bedrock transaction.
-//
-//nolint:golint
-func NewTransaction() bedrockTransaction {
-	return bedrockTransaction{}
-}
-
-// L1ToL2DepositType is the transaction type for L1ToL2 deposits.
-const L1ToL2DepositType = 126 // (126)
-
-// IsDepositTx returns true if the transaction is a deposit tx type.
-func (lt *bedrockTransaction) IsDepositTx() bool {
-	return lt.Transaction.Type() == L1ToL2DepositType
-}
-
-// FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
-func (lt *bedrockTransaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
 	ethTx := &legacyTransaction{
 		Transaction: tx.tx,
 		From:        tx.txExtraInfo.From,

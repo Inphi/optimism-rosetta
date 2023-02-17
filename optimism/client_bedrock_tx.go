@@ -56,7 +56,23 @@ func NewBedrockTransaction(
 	}
 }
 
-// implement Transaction interface
+// IsDepositTx returns true if the transaction is a deposit tx type.
+func (lt *transaction) IsDepositTx() bool {
+	// TODO: how to determine if deposit tx for legacy transactions?
+	return false
+}
+
+// FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
+func (lt *transaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
+	ethTx := &legacyTransaction{
+		Transaction: tx.tx,
+		From:        tx.txExtraInfo.From,
+		BlockNumber: tx.txExtraInfo.BlockNumber,
+		BlockHash:   tx.txExtraInfo.BlockHash,
+	}
+	return ethTx
+}
+
 func (t *transaction) Hash() EthCommon.Hash {
 	return t.HashValue
 }

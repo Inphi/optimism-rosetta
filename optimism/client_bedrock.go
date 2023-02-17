@@ -33,9 +33,11 @@ type BedrockRPCTransaction struct {
 
 // UnmarshalJSON unmarshals an [BedrockRPCTransaction] from bytes.
 func (tx *BedrockRPCTransaction) UnmarshalJSON(msg []byte) error {
-	if err := json.Unmarshal(msg, &tx.Tx); err != nil {
+	var innerTx transaction
+	if err := json.Unmarshal(msg, &innerTx); err != nil {
 		return err
 	}
+	tx.Tx = &innerTx
 	return json.Unmarshal(msg, &tx.TxExtraInfo)
 }
 
@@ -90,4 +92,72 @@ func (c *Client) getBedrockBlock(
 	}
 	fmt.Println("Successfully decoded body")
 	return &head, &body, nil
+}
+
+// RosettaTxReceipt is a Rosetta-compatible receipt type.
+type RosettaTxReceipt struct {
+	Type           uint8 `json:"type,omitempty"`
+	GasPrice       *big.Int
+	GasUsed        *big.Int
+	TransactionFee *big.Int
+	Logs           []*EthTypes.Log
+	RawMessage     json.RawMessage
+}
+
+// bedrockTransaction is a post-bedrock transaction type.
+type bedrockTransaction struct {
+	Transaction InnerBedrockTransaction
+	From        *EthCommon.Address
+	BlockNumber *string
+	BlockHash   *EthCommon.Hash
+	TxHash      *EthCommon.Hash // may not equal Transaction.Hash() due to state sync indicator
+	FeeAmount   *big.Int
+	FeeBurned   *big.Int // nil if no fees were burned
+	Miner       string
+	Author      string
+	Status      bool
+
+	Trace    []*FlatCall
+	RawTrace json.RawMessage
+	Receipt  *RosettaTxReceipt
+
+	BaseFee      *big.Int
+	IsBridgedTxn bool
+}
+
+// NewTransaction creates a new post-bedrock transaction.
+//
+//nolint:golint
+func NewTransaction() bedrockTransaction {
+	return bedrockTransaction{}
+}
+
+// L1ToL2DepositType is the transaction type for L1ToL2 deposits.
+const L1ToL2DepositType = 126 // (126)
+
+// IsDepositTx returns true if the transaction is a deposit tx type.
+func (bt *bedrockTransaction) IsDepositTx() bool {
+	return bt.Transaction.GetType() == L1ToL2DepositType
+}
+
+// LoadTransaction constructs a [bedrockTransaction] from a [BedrockRPCTransaction].
+func (tx *BedrockRPCTransaction) LoadTransaction() *bedrockTransaction {
+	ethTx := &bedrockTransaction{
+		Transaction: tx.Tx,
+		From:        tx.TxExtraInfo.From,
+		BlockNumber: tx.TxExtraInfo.BlockNumber,
+		BlockHash:   tx.TxExtraInfo.BlockHash,
+	}
+	return ethTx
+}
+
+// FromRPCTransaction constructs a [bedrockTransaction] from a [BedrockRPCTransaction].
+func (bt *bedrockTransaction) FromRPCTransaction(tx *BedrockRPCTransaction) *bedrockTransaction {
+	ethTx := &bedrockTransaction{
+		Transaction: tx.Tx,
+		From:        tx.TxExtraInfo.From,
+		BlockNumber: tx.TxExtraInfo.BlockNumber,
+		BlockHash:   tx.TxExtraInfo.BlockHash,
+	}
+	return ethTx
 }

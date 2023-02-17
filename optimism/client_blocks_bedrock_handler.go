@@ -7,7 +7,6 @@ import (
 	"math/big"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/coinbase/rosetta-sdk-go/utils"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
@@ -116,13 +115,13 @@ func (ec *Client) getParsedBedrockBlock(
 	}
 
 	// Convert all txs to loaded txs
-	txs := make([]*EthTypes.Transaction, len(body.Transactions))
+	txs := make([]InnerBedrockTransaction, len(body.Transactions))
 	loadedTxs := make([]*bedrockTransaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
 		fmt.Printf("Loading transaction %d: %+v\n", i, tx)
 		txs[i] = tx.Tx
 
-		loadedTxs[i] = tx.LoadedTransaction()
+		loadedTxs[i] = tx.LoadTransaction()
 		loadedTxs[i].Transaction = txs[i]
 		loadedTxs[i].BaseFee = head.BaseFee
 		loadedTxs[i].Miner = MustChecksum(head.Coinbase.Hex())
@@ -137,16 +136,6 @@ func (ec *Client) getParsedBedrockBlock(
 		if flattenedCalls, ok := m[hsh]; ok {
 			loadedTxs[i].Trace = flattenedCalls
 		}
-	}
-
-	// Construct the block
-	block := EthTypes.NewBlockWithHeader(head).WithBody(
-		txs,
-		nil, // sequencer blocks don't have uncles
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("%w: geth error", err)
 	}
 
 	// Get all transaction receipts
@@ -179,14 +168,14 @@ func (ec *Client) getParsedBedrockBlock(
 	}
 
 	blockIdentifier := &RosettaTypes.BlockIdentifier{
-		Index: block.Number().Int64(),
-		Hash:  block.Hash().String(),
+		Index: head.Number.Int64(),
+		Hash:  head.Hash().String(),
 	}
 
 	parentBlockIdentifier := blockIdentifier
 	if blockIdentifier.Index != GenesisBlockIndex {
 		parentBlockIdentifier = &RosettaTypes.BlockIdentifier{
-			Hash:  block.ParentHash().Hex(),
+			Hash:  head.ParentHash.Hex(),
 			Index: blockIdentifier.Index - 1,
 		}
 	}
@@ -196,7 +185,7 @@ func (ec *Client) getParsedBedrockBlock(
 	transactions, err := ec.populateBedrockTransactions(
 		ctx,
 		blockIdentifier,
-		block,
+		head,
 		loadedTxs,
 	)
 
@@ -207,7 +196,7 @@ func (ec *Client) getParsedBedrockBlock(
 	return &RosettaTypes.Block{
 		BlockIdentifier:       blockIdentifier,
 		ParentBlockIdentifier: parentBlockIdentifier,
-		Timestamp:             int64(block.Time() * utils.MillisecondsInSecond),
+		Timestamp:             convertTime(head.Time),
 		Transactions:          transactions,
 		Metadata:              nil,
 	}, nil
@@ -217,12 +206,12 @@ func (ec *Client) getParsedBedrockBlock(
 func (ec *Client) populateBedrockTransactions(
 	ctx context.Context,
 	blockIdentifier *RosettaTypes.BlockIdentifier,
-	block *EthTypes.Block,
+	head *EthTypes.Header,
 	loadedTransactions []*bedrockTransaction,
 ) ([]*RosettaTypes.Transaction, error) {
 	transactions := make(
 		[]*RosettaTypes.Transaction,
-		len(block.Transactions()),
+		len(loadedTransactions),
 	)
 
 	for i, tx := range loadedTransactions {
@@ -239,7 +228,7 @@ func (ec *Client) populateBedrockTransactions(
 			}
 		}
 
-		transaction, err := ec.populateBedrockTransaction(ctx, block, tx)
+		transaction, err := ec.populateBedrockTransaction(ctx, head, tx)
 		if err != nil {
 			return nil, fmt.Errorf("%w: cannot parse %s", err, tx.Transaction.Hash().Hex())
 		}
@@ -252,7 +241,7 @@ func (ec *Client) populateBedrockTransactions(
 // populateBedrockTransaction populates a Rosetta transaction from a bedrock transaction.
 func (ec *Client) populateBedrockTransaction(
 	ctx context.Context,
-	block *EthTypes.Block,
+	head *EthTypes.Header,
 	tx *bedrockTransaction,
 ) (*RosettaTypes.Transaction, error) {
 	ops := []*RosettaTypes.Operation{}
@@ -275,7 +264,7 @@ func (ec *Client) populateBedrockTransaction(
 		if !ec.filterTokens || (ec.filterTokens && ec.supportedTokens[log.Address.String()]) {
 			switch len(log.Topics) {
 			case TopicsInErc20Transfer:
-				currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.NumberU64(), log.Address.Hex())
+				currency, err := ec.currencyFetcher.FetchCurrency(ctx, head.Number.Uint64(), log.Address.Hex())
 				if err != nil {
 					return nil, err
 				}

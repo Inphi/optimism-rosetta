@@ -348,7 +348,7 @@ func (ec *Client) erc20TokenOps(
 			if toAddress, amount, err := decodeAddressUint256(input[fnSelectorLen:]); err == nil {
 				contractAddress := tx.Trace.To.String()
 				fromAddress := tx.Trace.From.String()
-				currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.NumberU64(), contractAddress)
+				currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.Number().Uint64(), contractAddress)
 				// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 				if err != nil {
 					log.Printf("error while fetching currency details for currency: %s: %v", contractAddress, err)
@@ -407,7 +407,7 @@ func (ec *Client) erc20TokenOps(
 			return nil, fmt.Errorf("%s is not a valid address", toAddress)
 		}
 
-		currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.NumberU64(), contractAddress)
+		currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.Number().Uint64(), contractAddress)
 		// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 		if err != nil {
 			log.Printf("error while fetching currency details for currency: %s: %v", contractAddress, err)
