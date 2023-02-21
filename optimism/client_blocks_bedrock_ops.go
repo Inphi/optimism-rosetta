@@ -9,6 +9,9 @@ import (
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
+const ProxyContractFilter = "0x420000000000000000000000000000000000"
+const ImplementationContractFilter = "0xc0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d3"
+
 // ParseOps mimics the down-stream implementation of [rosetta-geth-sdk], exposing a hook for down-stream clients.
 func (ec *Client) ParseOps(
 	tx *bedrockTransaction,
@@ -21,7 +24,8 @@ func (ec *Client) ParseOps(
 	}
 	ops = append(ops, feeOps...)
 	ops = append(ops, MintOps(tx, len(ops))...)
-	ops = append(ops, TraceOps(tx.Trace, len(ops))...)
+	tracedOps := TraceOps(tx.Trace, len(ops))
+	ops = append(ops, tracedOps...)
 
 	return ops, nil
 }
@@ -43,9 +47,6 @@ func MintOps(tx *bedrockTransaction, startIndex int) []*RosettaTypes.Operation {
 	}
 }
 
-const ProxyContractFilter = "0x420000000000000000000000000000000000"
-const ImplementationContractFilter = "0xc0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d3"
-
 func isIdenticalContractAddress(from string, to string) bool {
 	from = strings.ToLower(from)
 	to = strings.ToLower(to)
@@ -59,7 +60,9 @@ func isIdenticalContractAddress(from string, to string) bool {
 }
 
 // TraceOps constructs [RosettaTypes.Operation]s from a list of [FlatCall]s.
-func TraceOps(calls []*FlatCall, startIndex int) []*RosettaTypes.Operation { // nolint: gocognit
+//
+//nolint:gocognit
+func TraceOps(calls []*FlatCall, startIndex int) []*RosettaTypes.Operation {
 	var ops []*RosettaTypes.Operation
 	if len(calls) == 0 {
 		return ops
@@ -67,40 +70,62 @@ func TraceOps(calls []*FlatCall, startIndex int) []*RosettaTypes.Operation { // 
 
 	destroyedAccountBalance := make(map[string]*big.Int)
 	for _, call := range calls {
-		opType := strings.ToUpper(call.Type)
-		fromAddress := MustChecksum(call.From.String())
-		toAddress := MustChecksum(call.To.String())
-		if strings.Contains(fromAddress, ProxyContractFilter) && isIdenticalContractAddress(fromAddress, toAddress) {
-			toAddress = fromAddress
-		}
-		value := call.Value
-		metadata := map[string]interface{}{}
-
 		// Handle the case where not all operation statuses are successful
+		metadata := map[string]interface{}{}
 		opStatus := SuccessStatus
 		if call.Revert {
 			opStatus = FailureStatus
 			metadata["error"] = call.ErrorMessage
 		}
 
-		// Generate "from" operation
-		fromOpIndex := int64(len(ops) + startIndex)
-		fromAmount := Amount(new(big.Int).Neg(value), Currency)
-		fromOp := GenerateOp(fromOpIndex, nil, opType, opStatus, fromAddress, fromAmount, metadata)
-		if _, ok := destroyedAccountBalance[fromAddress]; ok && opStatus == SuccessStatus {
-			destroyedAccountBalance[fromAddress] = new(big.Int).Sub(destroyedAccountBalance[fromAddress], value)
+		opType := strings.ToUpper(call.Type)
+
+		// Checksum addresses
+		fromAddress := MustChecksum(call.From.String())
+		toAddress := MustChecksum(call.To.String())
+		if strings.Contains(fromAddress, ProxyContractFilter) && isIdenticalContractAddress(fromAddress, toAddress) {
+			toAddress = fromAddress
 		}
-		ops = append(ops, fromOp)
+
+		// Parse value
+		var zeroValue bool
+		if call.Value.Sign() == 0 {
+			zeroValue = true
+		}
+
+		// Skip all 0 value CallType operations
+		shouldAdd := true
+		if zeroValue && CallType(call.Type) {
+			shouldAdd = false
+		}
+
+		if shouldAdd {
+			// Generate "from" operation
+			fromOpIndex := int64(len(ops) + startIndex)
+			fromAmount := Amount(new(big.Int).Neg(call.Value), Currency)
+			fromOp := GenerateOp(fromOpIndex, nil, opType, opStatus, fromAddress, fromAmount, metadata)
+			if _, ok := destroyedAccountBalance[fromAddress]; ok && opStatus == SuccessStatus {
+				destroyedAccountBalance[fromAddress] = new(big.Int).Sub(destroyedAccountBalance[fromAddress], call.Value)
+			}
+			ops = append(ops, fromOp)
+		}
 
 		// Add to the destroyed account balance if SELFDESTRUCT, and overwrite existing balance.
 		if opType == SelfDestructOpType {
 			destroyedAccountBalance[fromAddress] = new(big.Int)
 
-			// If destination of of SELFDESTRUCT is self, we should skip.
+			// If destination of SELFDESTRUCT is self, we should skip.
 			// In the EVM, the balance is reset after the balance is increased on the destination, so this is a no-op.
 			if fromAddress == toAddress {
 				continue
 			}
+		}
+
+		// Skip empty to addresses (this may not
+		// actually occur but leaving it as a
+		// sanity check)
+		if len(call.To.String()) == 0 {
+			continue
 		}
 
 		// If the account is resurrected, we remove it from the destroyed account balance map.
@@ -109,19 +134,21 @@ func TraceOps(calls []*FlatCall, startIndex int) []*RosettaTypes.Operation { // 
 		}
 
 		// Generate "to" operation
-		lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
-		toOpIndex := lastOpIndex + 1
-		toRelatedOps := []*RosettaTypes.OperationIdentifier{
-			{
-				Index: lastOpIndex,
-			},
+		if shouldAdd {
+			lastOpIndex := ops[len(ops)-1].OperationIdentifier.Index
+			toOpIndex := lastOpIndex + 1
+			toRelatedOps := []*RosettaTypes.OperationIdentifier{
+				{
+					Index: lastOpIndex,
+				},
+			}
+			toAmount := Amount(new(big.Int).Abs(call.Value), Currency)
+			toOp := GenerateOp(toOpIndex, toRelatedOps, opType, opStatus, toAddress, toAmount, metadata)
+			if _, ok := destroyedAccountBalance[toAddress]; ok && opStatus == SuccessStatus {
+				destroyedAccountBalance[toAddress] = new(big.Int).Add(destroyedAccountBalance[toAddress], call.Value)
+			}
+			ops = append(ops, toOp)
 		}
-		toAmount := Amount(new(big.Int).Abs(value), Currency)
-		toOp := GenerateOp(toOpIndex, toRelatedOps, opType, opStatus, toAddress, toAmount, metadata)
-		if _, ok := destroyedAccountBalance[toAddress]; ok && opStatus == SuccessStatus {
-			destroyedAccountBalance[toAddress] = new(big.Int).Add(destroyedAccountBalance[toAddress], value)
-		}
-		ops = append(ops, toOp)
 	}
 
 	// Zero-out all destroyed accounts that are removed during transaction finalization.

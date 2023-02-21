@@ -67,12 +67,13 @@ func (ec *Client) getBedrockBlockReceipts(
 	}
 
 	ethReceipts := make([]*EthTypes.Receipt, len(txs))
+	rawReceipts := make([]json.RawMessage, len(txs))
 	reqs := make([]rpc.BatchElem, len(txs))
 	for i := range reqs {
 		reqs[i] = rpc.BatchElem{
 			Method: "eth_getTransactionReceipt",
 			Args:   []interface{}{txs[i].TxExtraInfo.TxHash.String()},
-			Result: &ethReceipts[i],
+			Result: &rawReceipts[i],
 		}
 	}
 
@@ -94,23 +95,28 @@ func (ec *Client) getBedrockBlockReceipts(
 			return nil, reqs[i].Error
 		}
 
+		// Unmarshal the raw receipt into a typed receipt
+		if err := json.Unmarshal(rawReceipts[i], &ethReceipts[i]); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal receipt for %x: %v", txs[i].Tx.Hash().Hex(), err)
+		}
+
 		gasPrice, err := EffectiveGasPrice(txs[i].Tx, baseFee)
 		if err != nil {
 			return nil, err
 		}
 		gasUsed := new(big.Int).SetUint64(ethReceipts[i].GasUsed)
 		feeAmount := new(big.Int).Mul(gasUsed, gasPrice)
-
-		receiptJSON, err := ethReceipts[i].MarshalJSON()
-		if err != nil {
-			return nil, fmt.Errorf("unable to marshal receipt for %x: %v", txs[i].Tx.Hash().Hex(), err)
+		var r L2GethTypes.Receipt
+		if err := json.Unmarshal(rawReceipts[i], &r); err == nil {
+			feeAmount.Add(feeAmount, r.L1Fee)
 		}
+
 		receipt := &RosettaTxReceipt{
 			Type:           ethReceipts[i].Type,
 			GasPrice:       gasPrice,
 			GasUsed:        gasUsed,
 			Logs:           ethReceipts[i].Logs,
-			RawMessage:     receiptJSON,
+			RawMessage:     rawReceipts[i],
 			TransactionFee: feeAmount,
 		}
 

@@ -114,8 +114,7 @@ func (t *transaction) To() *EthCommon.Address {
 	if t.Recipient == nil {
 		return nil
 	}
-	to := *t.Recipient
-	return &to
+	return t.Recipient
 }
 
 func (t *transaction) Gas() uint64 {
@@ -130,7 +129,7 @@ func (t *transaction) GasPrice() *big.Int {
 	if t.Price == nil {
 		return big.NewInt(0)
 	}
-	return new(big.Int).Set((*big.Int)(t.Price))
+	return (*big.Int)(t.Price)
 }
 
 func (t *transaction) GasTipCap() *big.Int { return t.MaxPriorityFeePerGas.ToInt() }

@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-var TopicsInErc20Transfer = 3
+const TopicsInErc20Transfer = 3
 
 // geth traces types
 type rpcCall struct {
@@ -48,7 +48,7 @@ func (ec *Client) TraceBlockByHash(
 		}
 		flatCalls := FlattenTraces(tx.Result, []*FlatCall{})
 		// Ethereum native traces are guaranteed to return all transactions
-		txHash := txs[i].TxExtraInfo.BlockHash.Hex()
+		txHash := txs[i].TxExtraInfo.TxHash.Hex()
 		if txHash == "" {
 			return nil, fmt.Errorf("could not get %dth tx hash for block %s", i, blockHash.Hex())
 		}
@@ -175,8 +175,6 @@ func (ec *Client) getParsedBedrockBlock(
 		}
 	}
 
-	// TODO: Populate cross chain txs
-
 	transactions, err := ec.populateBedrockTransactions(
 		ctx,
 		blockIdentifier,
@@ -211,16 +209,16 @@ func (ec *Client) populateBedrockTransactions(
 
 	for i, tx := range loadedTransactions {
 		if tx.From != nil && tx.Transaction != nil && tx.Transaction.To() != nil {
-			from, to := tx.From.Hex(), tx.Transaction.To().Hex()
+			// from, to := tx.From.Hex(), tx.Transaction.To().Hex()
 
 			// These are tx across L1 and L2. These cost zero gas as they're manufactured by the sequencer
-			if from == zeroAddr {
-				tx.FeeAmount.SetUint64(0)
-			} else if (to == gasPriceOracleAddr.Hex()) && (from == gasPriceOracleOwnerMainnet.Hex() || from == gasPriceOracleOwnerKovan.Hex() || from == gasPriceOracleOwnerGoerli.Hex()) {
-				// The sequencer doesn't charge the owner of the gpo.
-				// Set the fee mount to zero to not affect gpo owner balances
-				tx.FeeAmount.SetUint64(0)
-			}
+			// if from == zeroAddr {
+			// 	tx.FeeAmount.SetUint64(0)
+			// } else if (to == gasPriceOracleAddr.Hex()) && (from == gasPriceOracleOwnerMainnet.Hex() || from == gasPriceOracleOwnerKovan.Hex() || from == gasPriceOracleOwnerGoerli.Hex()) {
+			// 	// The sequencer doesn't charge the owner of the gpo.
+			// 	// Set the fee mount to zero to not affect gpo owner balances
+			// 	tx.FeeAmount.SetUint64(0)
+			// }
 		}
 
 		transaction, err := ec.populateBedrockTransaction(ctx, head, tx)
@@ -283,7 +281,7 @@ func (ec *Client) populateBedrockTransaction(
 		return nil, err
 	}
 
-	var traceList []map[string]interface{}
+	var traceList []interface{}
 	for _, trace := range tx.Trace {
 		traceBytes, _ := json.Marshal(trace)
 		var traceMap map[string]interface{}
@@ -342,7 +340,7 @@ func Erc20Ops(
 			},
 			Status:  RosettaTypes.String(SuccessStatus),
 			Type:    ERC20BurnOpType,
-			Amount:  Erc20Amount(transferLog.Data, contractAddress, *currency, false),
+			Amount:  Erc20Amount(transferLog.Data, contractAddress, *currency, true),
 			Account: Account(ConvertEVMTopicHashToAddress(&addressFrom)),
 		}
 		ops = append(ops, &burnOp)
@@ -354,7 +352,7 @@ func Erc20Ops(
 		},
 		Status:  RosettaTypes.String(SuccessStatus),
 		Type:    ERC20TransferOpType,
-		Amount:  Erc20Amount(transferLog.Data, contractAddress, *currency, false),
+		Amount:  Erc20Amount(transferLog.Data, contractAddress, *currency, true),
 		Account: Account(ConvertEVMTopicHashToAddress(&addressFrom)),
 	}
 	receiptOp := RosettaTypes.Operation{

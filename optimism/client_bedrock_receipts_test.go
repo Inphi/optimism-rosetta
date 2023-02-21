@@ -2,15 +2,19 @@ package optimism
 
 import (
 	"context"
+	"encoding/json"
 	"math/big"
+	"os"
 	"testing"
 
+	L2GethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/semaphore"
 )
 
 type ClientBedrockReceiptsTestSuite struct {
@@ -19,6 +23,7 @@ type ClientBedrockReceiptsTestSuite struct {
 	mockJSONRPC         *mocks.JSONRPC
 	mockGraphQL         *mocks.GraphQL
 	mockCurrencyFetcher *mocks.CurrencyFetcher
+	client              *Client
 }
 
 func TestClientBedrockReceipts(t *testing.T) {
@@ -29,10 +34,38 @@ func (testSuite *ClientBedrockReceiptsTestSuite) SetupTest() {
 	testSuite.mockJSONRPC = &mocks.JSONRPC{}
 	testSuite.mockGraphQL = &mocks.GraphQL{}
 	testSuite.mockCurrencyFetcher = &mocks.CurrencyFetcher{}
+	testSuite.client = &Client{
+		c:               testSuite.mockJSONRPC,
+		g:               testSuite.mockGraphQL,
+		currencyFetcher: testSuite.mockCurrencyFetcher,
+		traceSemaphore:  semaphore.NewWeighted(100),
+	}
+}
+
+// TestExtractL1Fee tests extracting the L1 fee from a transaction.
+func (testSuite *ClientBedrockReceiptsTestSuite) TestExtractL1Fee() {
+	// Read the L1 fee from the receipt
+	file, err := os.ReadFile("testdata/goerli_bedrock_tx_receipt_5003318_2.json")
+	testSuite.NoError(err)
+	readTxReceipt := json.RawMessage(file)
+	var receipt L2GethTypes.Receipt
+	err = json.Unmarshal(readTxReceipt, &receipt)
+	testSuite.Nil(err)
+
+	// Extract the fee and validate
+	l1Fee := ExtractL1Fee(&RosettaTxReceipt{
+		Type:           2,
+		GasPrice:       convertBigInt("0x4ee2f"),
+		GasUsed:        convertBigInt("0x4a853"),
+		TransactionFee: convertBigInt("0x1585ba2a8"),
+		Logs:           []*EthTypes.Log{},
+		RawMessage:     readTxReceipt,
+	})
+	testSuite.Equal(convertBigInt("0x1585ba2a8"), l1Fee)
 }
 
 // TestGetBlockReceipts tests fetching bedrock block receipts from the op client.
-func (testSuite *ClientBlocksTestSuite) TestGetBlockReceipts() {
+func (testSuite *ClientBedrockReceiptsTestSuite) TestGetBlockReceipts() {
 	// Construct arguments
 	ctx := context.Background()
 	hash := EthCommon.HexToHash("0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d")
@@ -111,9 +144,9 @@ func mockBedrockReceipt(mocker *mocks.JSONRPC) EthTypes.Receipt {
 	}
 	mocker.On("BatchCallContext", ctx, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
 		arg := args.Get(1).([]rpc.BatchElem)
-		receipt := arg[0].Result.(**EthTypes.Receipt)
-		*receipt = &ethReceipt
-		// arg[0].Result = ethReceipt
+		receipt := arg[0].Result.(*json.RawMessage)
+		rawReceipt, _ := ethReceipt.MarshalJSON()
+		*receipt = json.RawMessage(rawReceipt)
 		arg[0].Error = nil
 	})
 

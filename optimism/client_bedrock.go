@@ -34,9 +34,7 @@ func NewRpcBedrockBlock(hash EthCommon.Hash, txs []BedrockRPCTransaction, uncles
 	}
 }
 
-// EthTypes.Transaction contains TxData, which is DynamicFeeTx:
-// https://github.com/ethereum/go-ethereum/blob/980b7682b474db61ecbd78171e7cacfec8214048
-// /core/types/dynamic_fee_tx.go#L25
+// BedrockRPCTransaction is a post-bedrock transaction.
 type BedrockRPCTransaction struct {
 	Tx InnerBedrockTransaction `json:"tx"`
 	TxExtraInfo
