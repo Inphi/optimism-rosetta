@@ -291,28 +291,6 @@ func (testSuite *ClientBedrockTestSuite) TestTraceBlockByHash() {
 	testSuite.NotNil(m[tx1.Hex()])
 }
 
-//nolint:unused
-func mockDebugTraceBedrockBlock(ctx context.Context, testSuite *ClientBedrockTestSuite, txFileData string) {
-	testSuite.mockJSONRPC.On(
-		"CallContext",
-		ctx,
-		mock.Anything,
-		"debug_traceBlockByHash",
-		mock.Anything,
-		mock.Anything,
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).(*json.RawMessage)
-			file, err := os.ReadFile(txFileData)
-			testSuite.NoError(err)
-			rawMessage := json.RawMessage(file)
-			*r = rawMessage
-		},
-	).Once()
-}
-
 func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	c := &Client{
 		c:               testSuite.mockJSONRPC,
@@ -394,6 +372,8 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	)
 	testSuite.NoError(err)
 
+	// testSuite.Equal(correct.Block, resp)
+
 	// Check the block identifier
 	testSuite.Equal(correct.Block.BlockIdentifier, resp.BlockIdentifier)
 	testSuite.Equal(correct.Block.ParentBlockIdentifier, resp.ParentBlockIdentifier)
@@ -404,6 +384,31 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	testSuite.Equal(2, len(resp.Transactions))
 	testSuite.Equal(correct.Block.Transactions[0], resp.Transactions[0])
 	testSuite.Equal(correct.Block.Transactions[1].Operations, resp.Transactions[1].Operations)
+	// testSuite.Equal(correct.Block.Transactions[1].Metadata, resp.Transactions[1].Metadata)
+
+	// marshalled, _ := json.Marshal(resp)
+	// _ = os.WriteFile("incorrect_response.json", marshalled, 0644)
+}
+
+func mockDebugTraceBedrockBlock(ctx context.Context, testSuite *ClientBedrockTestSuite, txFileData string) {
+	testSuite.mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		"debug_traceBlockByHash",
+		mock.Anything,
+		mock.Anything,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+			file, err := os.ReadFile(txFileData)
+			testSuite.NoError(err)
+			rawMessage := json.RawMessage(file)
+			*r = rawMessage
+		},
+	).Once()
 }
 
 func mockGetBedrockTransactionReceipt(ctx context.Context, testSuite *ClientBedrockTestSuite, txhashes []EthCommon.Hash, txFileData []string) {
