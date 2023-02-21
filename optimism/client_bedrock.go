@@ -24,6 +24,8 @@ type rpcBedrockBlock struct {
 }
 
 // NewRpcBedrockBlock constructs a new [rpcBedrockBlock] with the given fields
+//
+//nolint:golint
 func NewRpcBedrockBlock(hash EthCommon.Hash, txs []BedrockRPCTransaction, uncles []EthCommon.Hash) *rpcBedrockBlock {
 	return &rpcBedrockBlock{
 		Hash:         hash,
@@ -134,6 +136,8 @@ func (bt *bedrockTransaction) IsDepositTx() bool {
 }
 
 // LoadTransaction constructs a [bedrockTransaction] from a [BedrockRPCTransaction].
+//
+//nolint:golint
 func (tx *BedrockRPCTransaction) LoadTransaction() *bedrockTransaction {
 	ethTx := &bedrockTransaction{
 		Transaction: tx.Tx,
@@ -146,6 +150,8 @@ func (tx *BedrockRPCTransaction) LoadTransaction() *bedrockTransaction {
 }
 
 // FromRPCTransaction constructs a [bedrockTransaction] from a [BedrockRPCTransaction].
+//
+//nolint:golint
 func (bt *bedrockTransaction) FromRPCTransaction(tx *BedrockRPCTransaction) *bedrockTransaction {
 	ethTx := &bedrockTransaction{
 		Transaction: tx.Tx,

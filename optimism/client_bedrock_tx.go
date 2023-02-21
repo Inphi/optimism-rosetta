@@ -39,6 +39,8 @@ type transaction struct {
 }
 
 // NewTransactionFromFields creates a new [transaction] from the fields
+//
+//nolint:golint
 func NewTransactionFromFields(ty uint64, nonce uint64, price *big.Int, maxPriorityFee *big.Int, maxFee *big.Int, gasLim uint64, value *big.Int, data []byte, v *big.Int, r *big.Int, s *big.Int, recipient EthCommon.Address, chain *big.Int, hash EthCommon.Hash) *transaction {
 	return &transaction{
 		Type:                 (EthHexutil.Uint64)(ty),
@@ -52,9 +54,9 @@ func NewTransactionFromFields(ty uint64, nonce uint64, price *big.Int, maxPriori
 		V:                    (*EthHexutil.Big)(v),
 		R:                    (*EthHexutil.Big)(r),
 		S:                    (*EthHexutil.Big)(s),
-		Recipient:            (*EthCommon.Address)(&recipient),
+		Recipient:            &recipient,
 		ChainID:              (*EthHexutil.Big)(chain),
-		HashValue:            (EthCommon.Hash)(hash),
+		HashValue:            hash,
 	}
 }
 
@@ -78,13 +80,13 @@ func NewBedrockTransaction(
 }
 
 // IsDepositTx returns true if the transaction is a deposit tx type.
-func (lt *transaction) IsDepositTx() bool {
+func (t *transaction) IsDepositTx() bool {
 	// TODO: how to determine if deposit tx for legacy transactions?
 	return false
 }
 
 // FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
-func (lt *transaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
+func (t *transaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
 	ethTx := &legacyTransaction{
 		Transaction: tx.tx,
 		From:        tx.txExtraInfo.From,
@@ -94,6 +96,9 @@ func (lt *transaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction
 	return ethTx
 }
 
+// GetValue returns the value of the transaction.
+//
+//nolint:golint
 func (t *transaction) GetValue() *big.Int {
 	return t.Value.ToInt()
 }
@@ -102,6 +107,9 @@ func (t *transaction) Hash() EthCommon.Hash {
 	return t.HashValue
 }
 
+// To returns the recipient of the transaction.
+//
+//nolint:golint
 func (t *transaction) To() *EthCommon.Address {
 	if t.Recipient == nil {
 		return nil
