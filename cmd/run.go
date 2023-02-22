@@ -89,15 +89,16 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 		}
 
 		opts := optimism.ClientOptions{
-			HTTPTimeout:         cfg.L2GethHTTPTimeout,
-			MaxTraceConcurrency: cfg.MaxConcurrentTraces,
-			EnableTraceCache:    cfg.EnableTraceCache,
-			EnableGethTracer:    cfg.EnableGethTracer,
-			FilterTokens:        cfg.TokenFilter,
-			SupportedTokens:     getSupportedTokens(cfg.Network.Network),
-			SuportsSyncing:      cfg.SupportsSyncing,
-			SkipAdminCalls:      false,
-			SupportsPeering:     false,
+			HTTPTimeout:               cfg.L2GethHTTPTimeout,
+			MaxTraceConcurrency:       cfg.MaxConcurrentTraces,
+			EnableTraceCache:          cfg.EnableTraceCache,
+			EnableGethTracer:          cfg.EnableGethTracer,
+			FilterTokens:              cfg.TokenFilter,
+			SupportedTokens:           getSupportedTokens(cfg.Network.Network),
+			SuportsSyncing:            cfg.SupportsSyncing,
+			SkipAdminCalls:            false,
+			SupportsPeering:           false,
+			EnableCustomBedrockTracer: cfg.EnableCustomBedrockTracer,
 		}
 		var err error
 		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, opts)

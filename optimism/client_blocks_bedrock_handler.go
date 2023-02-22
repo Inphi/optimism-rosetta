@@ -34,15 +34,19 @@ func (ec *Client) TraceBlockByHash(
 
 	var calls []*rpcCall
 	var raw json.RawMessage
-	// NOTE: We replace the TraceConfig here since l2geth and op-geth have different tracings
-	tracer := "callTracer"
-	customTracer := &L2Eth.TraceConfig{
-		LogConfig: ec.tc.LogConfig,
-		Tracer:    &tracer,
-		Timeout:   ec.tc.Timeout,
-		Reexec:    ec.tc.Reexec,
+
+	// NOTE: By default, we replace the TraceConfig here since l2geth and op-geth have different tracings
+	tracingConfig := ec.tc
+	if !ec.customBedrockTracer {
+		tracer := "callTracer"
+		tracingConfig = &L2Eth.TraceConfig{
+			LogConfig: ec.tc.LogConfig,
+			Tracer:    &tracer,
+			Timeout:   ec.tc.Timeout,
+			Reexec:    ec.tc.Reexec,
+		}
 	}
-	err := ec.c.CallContext(ctx, &raw, "debug_traceBlockByHash", blockHash, customTracer)
+	err := ec.c.CallContext(ctx, &raw, "debug_traceBlockByHash", blockHash, tracingConfig)
 	if err != nil {
 		return nil, err
 	}

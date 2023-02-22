@@ -111,27 +111,29 @@ type Client struct {
 	c JSONRPC
 	g GraphQL
 
-	currencyFetcher CurrencyFetcher
-	traceSemaphore  *semaphore.Weighted
-	filterTokens    bool
-	supportedTokens map[string]bool
-	supportsSyncing bool
-	skipAdminCalls  bool
-	supportsPeering bool
-	bedrockBlock    *big.Int
+	currencyFetcher     CurrencyFetcher
+	traceSemaphore      *semaphore.Weighted
+	filterTokens        bool
+	supportedTokens     map[string]bool
+	supportsSyncing     bool
+	skipAdminCalls      bool
+	supportsPeering     bool
+	bedrockBlock        *big.Int
+	customBedrockTracer bool
 }
 
 type ClientOptions struct {
-	HTTPTimeout         time.Duration
-	MaxTraceConcurrency int64
-	EnableTraceCache    bool
-	EnableGethTracer    bool
-	FilterTokens        bool
-	SupportedTokens     map[string]bool
-	BedrockBlock        *big.Int
-	SuportsSyncing      bool
-	SkipAdminCalls      bool
-	SupportsPeering     bool
+	HTTPTimeout               time.Duration
+	MaxTraceConcurrency       int64
+	EnableTraceCache          bool
+	EnableGethTracer          bool
+	FilterTokens              bool
+	SupportedTokens           map[string]bool
+	BedrockBlock              *big.Int
+	SuportsSyncing            bool
+	SkipAdminCalls            bool
+	SupportsPeering           bool
+	EnableCustomBedrockTracer bool
 }
 
 // NewClient creates a Client that from the provided url and params.
@@ -180,19 +182,20 @@ func NewClient(url string, params *params.ChainConfig, opts ClientOptions) (*Cli
 	}
 
 	return &Client{
-		p:               params,
-		tc:              tc,
-		c:               c,
-		g:               g,
-		currencyFetcher: currencyFetcher,
-		traceSemaphore:  semaphore.NewWeighted(opts.MaxTraceConcurrency),
-		traceCache:      traceCache,
-		filterTokens:    opts.FilterTokens,
-		supportedTokens: opts.SupportedTokens,
-		supportsSyncing: opts.SuportsSyncing,
-		skipAdminCalls:  opts.SkipAdminCalls,
-		supportsPeering: opts.SupportsPeering,
-		bedrockBlock:    opts.BedrockBlock,
+		p:                   params,
+		tc:                  tc,
+		c:                   c,
+		g:                   g,
+		currencyFetcher:     currencyFetcher,
+		traceSemaphore:      semaphore.NewWeighted(opts.MaxTraceConcurrency),
+		traceCache:          traceCache,
+		filterTokens:        opts.FilterTokens,
+		supportedTokens:     opts.SupportedTokens,
+		supportsSyncing:     opts.SuportsSyncing,
+		skipAdminCalls:      opts.SkipAdminCalls,
+		supportsPeering:     opts.SupportsPeering,
+		bedrockBlock:        opts.BedrockBlock,
+		customBedrockTracer: opts.EnableCustomBedrockTracer,
 	}, nil
 }
 
