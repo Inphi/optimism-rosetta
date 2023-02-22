@@ -195,9 +195,6 @@ func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 	}
 
 	feeRewarder := tx.Miner
-	if len(tx.Author) > 0 {
-		feeRewarder = tx.Author
-	}
 
 	opType := FeeOpType
 	opStatus := SuccessStatus

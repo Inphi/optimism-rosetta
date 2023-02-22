@@ -107,15 +107,13 @@ type bedrockTransaction struct {
 	FeeAmount   *big.Int
 	FeeBurned   *big.Int // nil if no fees were burned
 	Miner       string
-	Author      string
 	Status      bool
 
 	Trace    []*FlatCall
 	RawTrace json.RawMessage
 	Receipt  *RosettaTxReceipt
 
-	BaseFee      *big.Int
-	IsBridgedTxn bool
+	BaseFee *big.Int
 }
 
 // NewTransaction creates a new post-bedrock transaction.

@@ -41,7 +41,7 @@ func (testSuite *BedrockOpsTestSuite) TestInvalidDeposit() {
 		BlockHash:   &EthTypes.EmptyRootHash,
 		TxHash:      &txHash,
 		FeeAmount:   big.NewInt(0),
-		Author:      "095e7baea6a6c7c4c2dfeb977efac326af552d87",
+		Miner:       "095e7baea6a6c7c4c2dfeb977efac326af552d87",
 	}
 
 	// MintOps should return nil for non-min transactions.
@@ -81,7 +81,7 @@ func (testSuite *BedrockOpsTestSuite) TestValidMint() {
 		BlockHash:   &EthTypes.EmptyRootHash,
 		TxHash:      &txHash,
 		FeeAmount:   big.NewInt(0),
-		Author:      "095e7baea6a6c7c4c2dfeb977efac326af552d87",
+		Miner:       "095e7baea6a6c7c4c2dfeb977efac326af552d87",
 	}
 
 	// MintOps should successfully construct a Mint operation.
