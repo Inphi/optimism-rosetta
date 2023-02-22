@@ -60,7 +60,7 @@ func NewTransactionFromFields(ty uint64, nonce uint64, price *big.Int, maxPriori
 	}
 }
 
-// NewBedrockTransaction creates an unsigned legacy transaction.
+// NewBedrockTransaction creates an unsigned bedrock transaction.
 func NewBedrockTransaction(
 	nonce uint64,
 	to EthCommon.Address,
@@ -81,8 +81,7 @@ func NewBedrockTransaction(
 
 // IsDepositTx returns true if the transaction is a deposit tx type.
 func (t *transaction) IsDepositTx() bool {
-	// TODO: how to determine if deposit tx for legacy transactions?
-	return false
+	return t.Type == L1ToL2DepositType
 }
 
 // FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].

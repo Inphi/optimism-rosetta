@@ -237,7 +237,7 @@ func (ec *Client) populateBedrockTransaction(
 					return nil, err
 				}
 
-				if currency.Symbol == UnknownERC20Symbol {
+				if currency.Symbol == UnknownERC20Symbol || currency.Symbol == defaultERC20Symbol {
 					continue
 				}
 				erc20Ops := Erc20Ops(log, currency, int64(len(ops)))
@@ -253,15 +253,15 @@ func (ec *Client) populateBedrockTransaction(
 		return nil, err
 	}
 
-	var traceList []interface{}
-	for _, trace := range tx.Trace {
-		traceBytes, _ := json.Marshal(trace)
-		var traceMap map[string]interface{}
-		if err := json.Unmarshal(traceBytes, &traceMap); err != nil {
-			return nil, err
-		}
-		traceList = append(traceList, traceMap)
-	}
+	// var traceList []interface{}
+	// for _, trace := range tx.Trace {
+	// 	traceBytes, _ := json.Marshal(trace)
+	// 	var traceMap map[string]interface{}
+	// 	if err := json.Unmarshal(traceBytes, &traceMap); err != nil {
+	// 		return nil, err
+	// 	}
+	// 	traceList = append(traceList, traceMap)
+	// }
 
 	populatedTransaction := &RosettaTypes.Transaction{
 		TransactionIdentifier: &RosettaTypes.TransactionIdentifier{
@@ -272,7 +272,8 @@ func (ec *Client) populateBedrockTransaction(
 			"gas_limit": hexutil.EncodeUint64(tx.Transaction.Gas()),
 			"gas_price": hexutil.EncodeBig(tx.Transaction.GasPrice()),
 			"receipt":   receiptMap,
-			"trace":     traceList,
+			// Don't include the trace list in the metadata since it can be very large
+			// "trace":     traceList,
 		},
 	}
 
