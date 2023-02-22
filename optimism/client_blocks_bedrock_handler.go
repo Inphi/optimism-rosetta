@@ -175,60 +175,23 @@ func (ec *Client) getParsedBedrockBlock(
 		}
 	}
 
-	transactions, err := ec.populateBedrockTransactions(
-		ctx,
-		blockIdentifier,
-		head,
-		loadedTxs,
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf("%w: unable to populate transactions", err)
+	// Populate transactions
+	rosettaTxs := make([]*RosettaTypes.Transaction, len(loadedTxs))
+	for i, tx := range loadedTxs {
+		transaction, err := ec.populateBedrockTransaction(ctx, head, tx)
+		if err != nil {
+			return nil, fmt.Errorf("%w: cannot parse %s", err, tx.Transaction.Hash().Hex())
+		}
+		rosettaTxs[i] = transaction
 	}
 
 	return &RosettaTypes.Block{
 		BlockIdentifier:       blockIdentifier,
 		ParentBlockIdentifier: parentBlockIdentifier,
 		Timestamp:             convertTime(head.Time),
-		Transactions:          transactions,
+		Transactions:          rosettaTxs,
 		Metadata:              nil,
 	}, nil
-}
-
-//nolint:unparam
-func (ec *Client) populateBedrockTransactions(
-	ctx context.Context,
-	blockIdentifier *RosettaTypes.BlockIdentifier,
-	head *EthTypes.Header,
-	loadedTransactions []*bedrockTransaction,
-) ([]*RosettaTypes.Transaction, error) {
-	transactions := make(
-		[]*RosettaTypes.Transaction,
-		len(loadedTransactions),
-	)
-
-	for i, tx := range loadedTransactions {
-		if tx.From != nil && tx.Transaction != nil && tx.Transaction.To() != nil {
-			// from, to := tx.From.Hex(), tx.Transaction.To().Hex()
-
-			// These are tx across L1 and L2. These cost zero gas as they're manufactured by the sequencer
-			// if from == zeroAddr {
-			// 	tx.FeeAmount.SetUint64(0)
-			// } else if (to == gasPriceOracleAddr.Hex()) && (from == gasPriceOracleOwnerMainnet.Hex() || from == gasPriceOracleOwnerKovan.Hex() || from == gasPriceOracleOwnerGoerli.Hex()) {
-			// 	// The sequencer doesn't charge the owner of the gpo.
-			// 	// Set the fee mount to zero to not affect gpo owner balances
-			// 	tx.FeeAmount.SetUint64(0)
-			// }
-		}
-
-		transaction, err := ec.populateBedrockTransaction(ctx, head, tx)
-		if err != nil {
-			return nil, fmt.Errorf("%w: cannot parse %s", err, tx.Transaction.Hash().Hex())
-		}
-		transactions[i] = transaction
-	}
-
-	return transactions, nil
 }
 
 // populateBedrockTransaction populates a Rosetta transaction from a bedrock transaction.

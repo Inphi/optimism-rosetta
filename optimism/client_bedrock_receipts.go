@@ -26,7 +26,7 @@ func EffectiveGasPrice(tx InnerBedrockTransaction, baseFee *big.Int) (*big.Int, 
 		}
 		return gasPrice, nil
 	}
-	// For EIP-1559 the gas price is determined by the base fee & miner tip sinstead
+	// For EIP-1559 the gas price is determined by the base fee & miner tip instead
 	// of the tx-specified gas price.
 	tip, err := tx.EffectiveGasTip(baseFee)
 	if err != nil {

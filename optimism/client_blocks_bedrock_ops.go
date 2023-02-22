@@ -186,13 +186,8 @@ func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 	}
 
 	sequencerFeeAmount := new(big.Int).Set(tx.FeeAmount)
-	L1Fee := big.NewInt(0)
-	if tx.FeeBurned != nil {
-		sequencerFeeAmount.Sub(sequencerFeeAmount, tx.FeeBurned)
-	}
-	l1fee := ExtractL1Fee(tx.Receipt)
-	if l1fee != nil {
-		L1Fee = l1fee
+	L1Fee := ExtractL1Fee(tx.Receipt)
+	if L1Fee != nil {
 		sequencerFeeAmount.Sub(sequencerFeeAmount, L1Fee)
 	}
 	if sequencerFeeAmount == nil {
@@ -207,7 +202,11 @@ func FeeOps(tx *bedrockTransaction) ([]*RosettaTypes.Operation, error) {
 	opType := FeeOpType
 	opStatus := SuccessStatus
 	fromAddress := MustChecksum(tx.From.String())
-	fromAmount := Amount(new(big.Int).Neg(tx.Receipt.TransactionFee), Currency)
+	txFeeLessFees := new(big.Int).Neg(tx.Receipt.TransactionFee)
+	if tx.FeeBurned != nil {
+		txFeeLessFees.Sub(txFeeLessFees, tx.FeeBurned)
+	}
+	fromAmount := Amount(txFeeLessFees, Currency)
 	sequencerRelatedOps := []*RosettaTypes.OperationIdentifier{
 		{
 			Index: 0,

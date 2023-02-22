@@ -365,29 +365,13 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	var correct *RosettaTypes.BlockResponse
 	testSuite.NoError(json.Unmarshal(correctRaw, &correct))
 
-	// Fetch the latest block
+	// Fetch the latest block and validate
 	resp, err := c.Block(
 		ctx,
 		nil,
 	)
 	testSuite.NoError(err)
-
-	// testSuite.Equal(correct.Block, resp)
-
-	// Check the block identifier
-	testSuite.Equal(correct.Block.BlockIdentifier, resp.BlockIdentifier)
-	testSuite.Equal(correct.Block.ParentBlockIdentifier, resp.ParentBlockIdentifier)
-	testSuite.Equal(correct.Block.Metadata, resp.Metadata)
-	testSuite.Equal(correct.Block.Timestamp, resp.Timestamp)
-
-	// Transactions
-	testSuite.Equal(2, len(resp.Transactions))
-	testSuite.Equal(correct.Block.Transactions[0], resp.Transactions[0])
-	testSuite.Equal(correct.Block.Transactions[1].Operations, resp.Transactions[1].Operations)
-	// testSuite.Equal(correct.Block.Transactions[1].Metadata, resp.Transactions[1].Metadata)
-
-	// marshalled, _ := json.Marshal(resp)
-	// _ = os.WriteFile("incorrect_response.json", marshalled, 0644)
+	testSuite.Equal(correct.Block, resp)
 }
 
 func mockDebugTraceBedrockBlock(ctx context.Context, testSuite *ClientBedrockTestSuite, txFileData string) {
