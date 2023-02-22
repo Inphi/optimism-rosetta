@@ -21,11 +21,9 @@ import (
 	"log"
 	"math/big"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 
-	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
 	"github.com/ethereum-optimism/optimism/l2geth/common"
@@ -74,7 +72,7 @@ var (
 	gasPriceOracleOwnerGoerli  = common.HexToAddress("0xa693B8f8207FF043F6bbC2E2120bbE4C2251Efe9")
 
 	// The following mainnet block hashes have transaction (hashes) that are also present in succeeding blocks.
-	// This occured due to a bug in contract whitelisting. Unfortunately eth_getTransactionByX now returns the succeeding block rather than the original.
+	// This occurred due to a bug in contract whitelisting. Unfortunately eth_getTransactionByX now returns the succeeding block rather than the original.
 	// This is only an issue when reconciling account balances of the affected contracts.
 	// We fix this by hardcoding the original tx fees rather using the computed fees in the succeeding block (which had different block fee parameters at the time).
 	originalFeeAmountInDupTx = map[string]string{
@@ -113,19 +111,29 @@ type Client struct {
 	c JSONRPC
 	g GraphQL
 
-	currencyFetcher CurrencyFetcher
-	traceSemaphore  *semaphore.Weighted
-	filterTokens    bool
-	supportedTokens map[string]bool
+	currencyFetcher     CurrencyFetcher
+	traceSemaphore      *semaphore.Weighted
+	filterTokens        bool
+	supportedTokens     map[string]bool
+	supportsSyncing     bool
+	skipAdminCalls      bool
+	supportsPeering     bool
+	bedrockBlock        *big.Int
+	customBedrockTracer bool
 }
 
 type ClientOptions struct {
-	HTTPTimeout         time.Duration
-	MaxTraceConcurrency int64
-	EnableTraceCache    bool
-	EnableGethTracer    bool
-	FilterTokens        bool
-	SupportedTokens     map[string]bool
+	HTTPTimeout               time.Duration
+	MaxTraceConcurrency       int64
+	EnableTraceCache          bool
+	EnableGethTracer          bool
+	FilterTokens              bool
+	SupportedTokens           map[string]bool
+	BedrockBlock              *big.Int
+	SuportsSyncing            bool
+	SkipAdminCalls            bool
+	SupportsPeering           bool
+	EnableCustomBedrockTracer bool
 }
 
 // NewClient creates a Client that from the provided url and params.
@@ -174,63 +182,26 @@ func NewClient(url string, params *params.ChainConfig, opts ClientOptions) (*Cli
 	}
 
 	return &Client{
-		p:               params,
-		tc:              tc,
-		c:               c,
-		g:               g,
-		currencyFetcher: currencyFetcher,
-		traceSemaphore:  semaphore.NewWeighted(opts.MaxTraceConcurrency),
-		traceCache:      traceCache,
-		filterTokens:    opts.FilterTokens,
-		supportedTokens: opts.SupportedTokens,
+		p:                   params,
+		tc:                  tc,
+		c:                   c,
+		g:                   g,
+		currencyFetcher:     currencyFetcher,
+		traceSemaphore:      semaphore.NewWeighted(opts.MaxTraceConcurrency),
+		traceCache:          traceCache,
+		filterTokens:        opts.FilterTokens,
+		supportedTokens:     opts.SupportedTokens,
+		supportsSyncing:     opts.SuportsSyncing,
+		skipAdminCalls:      opts.SkipAdminCalls,
+		supportsPeering:     opts.SupportsPeering,
+		bedrockBlock:        opts.BedrockBlock,
+		customBedrockTracer: opts.EnableCustomBedrockTracer,
 	}, nil
 }
 
 // Close shuts down the RPC client connection.
 func (ec *Client) Close() {
 	ec.c.Close()
-}
-
-// Status returns geth status information
-// for determining node healthiness.
-func (ec *Client) Status(ctx context.Context) (
-	*RosettaTypes.BlockIdentifier,
-	int64,
-	*RosettaTypes.SyncStatus,
-	[]*RosettaTypes.Peer,
-	error,
-) {
-	// TODO: figure out if header corresponds to replica or sequencer
-	header, err := ec.blockHeader(ctx, nil)
-	if err != nil {
-		return nil, -1, nil, nil, err
-	}
-
-	// TODO: Redo sync status with comparison to sequencer here
-	// TODO: use rollup_getInfo instead
-	// https://community.optimism.io/docs/developers/l2/json-rpc.html#rollup-getinfo
-	// progress, err := ec.syncProgress(ctx)
-	// if err != nil {
-	// 	return nil, -1, nil, nil, err
-	// }
-
-	var syncStatus *RosettaTypes.SyncStatus
-	currentIndex := int64(header.Number.Uint64())
-	targetIndex := int64(header.Number.Uint64()) // TODO: use rollup_getInfo value
-
-	syncStatus = &RosettaTypes.SyncStatus{
-		CurrentIndex: &currentIndex,
-		TargetIndex:  &targetIndex,
-	}
-
-	return &RosettaTypes.BlockIdentifier{
-			Hash:  header.Hash().Hex(),
-			Index: header.Number.Int64(),
-		},
-		convertTime(header.Time),
-		syncStatus,
-		nil, // Replicas currently do not have peers
-		nil
 }
 
 // PendingNonceAt returns the account nonce of the given account in the pending state.
@@ -261,149 +232,6 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 		return err
 	}
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
-}
-
-func toBlockNumArg(number *big.Int) string {
-	if number == nil {
-		return "latest"
-	}
-	pending := big.NewInt(-1)
-	if number.Cmp(pending) == 0 {
-		return "pending"
-	}
-	return hexutil.EncodeBig(number)
-}
-
-// Block returns a populated block at the *RosettaTypes.PartialBlockIdentifier.
-// If neither the hash or index is populated in the *RosettaTypes.PartialBlockIdentifier,
-// the current block is returned.
-func (ec *Client) Block(
-	ctx context.Context,
-	blockIdentifier *RosettaTypes.PartialBlockIdentifier,
-) (*RosettaTypes.Block, error) {
-	if blockIdentifier != nil {
-		if blockIdentifier.Hash != nil {
-			return ec.getParsedBlock(ctx, "eth_getBlockByHash", *blockIdentifier.Hash, true)
-		}
-
-		if blockIdentifier.Index != nil {
-			return ec.getParsedBlock(
-				ctx,
-				"eth_getBlockByNumber",
-				toBlockNumArg(big.NewInt(*blockIdentifier.Index)),
-				true,
-			)
-		}
-	}
-
-	return ec.getParsedBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(nil), true)
-}
-
-// Header returns a block header from the current canonical chain. If number is
-// nil, the latest known header is returned.
-func (ec *Client) blockHeader(ctx context.Context, number *big.Int) (*types.Header, error) {
-	var head *types.Header
-	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", toBlockNumArg(number), false)
-	if err == nil && head == nil {
-		return nil, ethereum.NotFound
-	}
-
-	return head, err
-}
-
-type rpcBlock struct {
-	Hash         common.Hash      `json:"hash"`
-	Transactions []rpcTransaction `json:"transactions"`
-	UncleHashes  []common.Hash    `json:"uncles"`
-}
-
-func (ec *Client) getBlock(
-	ctx context.Context,
-	blockMethod string,
-	args ...interface{},
-) (
-	*types.Header,
-	[]Transaction,
-	[]*loadedTransaction,
-	error,
-) {
-	var raw json.RawMessage
-	err := ec.c.CallContext(ctx, &raw, blockMethod, args...)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("%w: block fetch failed", err)
-	} else if len(raw) == 0 {
-		return nil, nil, nil, ethereum.NotFound
-	}
-
-	// Decode header and transactions
-	var head types.Header
-	var body rpcBlock
-	if err := json.Unmarshal(raw, &head); err != nil {
-		return nil, nil, nil, err
-	}
-	if err := json.Unmarshal(raw, &body); err != nil {
-		return nil, nil, nil, err
-	}
-
-	// Get all transaction receipts
-	receipts, err := ec.getBlockReceipts(ctx, body.Hash, body.Transactions)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("%w: could not get receipts for %x", err, body.Hash[:])
-	}
-
-	// Get block traces (not possible to make idempotent block transaction trace requests)
-	//
-	// We fetch traces last because we want to avoid limiting the number of other
-	// block-related data fetches we perform concurrently (we limit the number of
-	// concurrent traces that are computed to 16 to avoid overwhelming geth).
-	var traces []*Call
-	var addTraces bool
-	if head.Number.Int64() != GenesisBlockIndex { // not possible to get traces at genesis
-		addTraces = true
-		traces, err = ec.getTransactionTraces(ctx, body.Transactions)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("%w: could not get traces for all txs in block %x", err, body.Hash[:])
-		}
-	}
-
-	// Convert all txs to loaded txs
-	txs := make([]Transaction, len(body.Transactions))
-	loadedTxs := make([]*loadedTransaction, len(body.Transactions))
-	for i, tx := range body.Transactions {
-		txs[i] = tx.tx
-		receipt := receipts[i]
-
-		var feeAmount *big.Int
-		if feeAmountInDupTx := originalFeeAmountInDupTx[string(body.Hash.Hex())]; feeAmountInDupTx == "" {
-			gasUsedBig := new(big.Int).SetUint64(receipt.GasUsed)
-			l2feeAmount := gasUsedBig.Mul(gasUsedBig, txs[i].GasPrice())
-			feeAmount = l2feeAmount.Add(l2feeAmount, receipts[i].L1Fee)
-		} else {
-			// The fees reported in the tx receipt refers to the succeeding duplicate tx rather thaan the original.
-			// We fix the feeAmount here to use the original so that balances are accounted for
-			// Note that these duplicate transactions all failed to complete, so there aren't any additional mint/burn operations to account for.
-			feeAmount = hexutil.MustDecodeBig(feeAmountInDupTx)
-		}
-
-		loadedTxs[i] = tx.LoadedTransaction()
-		loadedTxs[i].Transaction = txs[i]
-		loadedTxs[i].FeeAmount = feeAmount
-		// Miner is fixed on Optimism and block rewards are sent internally to the OVM_SEQUENCER_FEE_VAULT contract.
-		// However, the block.coinbase is set to 0x0, rather than the vault contract.
-		// It would be nice for l2geth to populate the appropriate coinbase so we're robust against changes to the vault addresss.
-		loadedTxs[i].Miner = sequencerFeeVaultAddr
-		loadedTxs[i].Receipt = receipt
-		loadedTxs[i].Status = receipt.Status == 1
-
-		// Continue if calls does not exist (occurs at genesis)
-		if !addTraces {
-			continue
-		}
-
-		loadedTxs[i].Trace = traces[i]
-	}
-
-	return &head, txs, loadedTxs, nil
 }
 
 func (ec *Client) getTransactionTraces(
@@ -466,7 +294,7 @@ func (ec *Client) getBlockReceipts(
 	reqs := make([]rpc.BatchElem, len(txs))
 	for i := range reqs {
 		reqs[i] = rpc.BatchElem{
-			Method: "eth_getTransactionReceipt",
+			Method: EthGetTransactionReceipt,
 			Args:   []interface{}{txs[i].tx.Hash().Hex()},
 			Result: &receipts[i],
 		}
@@ -494,10 +322,11 @@ func (ec *Client) getBlockReceipts(
 	return receipts, nil
 }
 
+//nolint:gocognit
 func (ec *Client) erc20TokenOps(
 	ctx context.Context,
-	head *types.Header,
-	tx *loadedTransaction,
+	block *types.Block,
+	tx *legacyTransaction,
 	startIndex int,
 ) ([]*RosettaTypes.Operation, error) {
 	receipt := tx.Receipt
@@ -522,7 +351,7 @@ func (ec *Client) erc20TokenOps(
 			if toAddress, amount, err := decodeAddressUint256(input[fnSelectorLen:]); err == nil {
 				contractAddress := tx.Trace.To.String()
 				fromAddress := tx.Trace.From.String()
-				currency, err := ec.currencyFetcher.FetchCurrency(ctx, head.Number.Uint64(), contractAddress)
+				currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.Number().Uint64(), contractAddress)
 				// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 				if err != nil {
 					log.Printf("error while fetching currency details for currency: %s: %v", contractAddress, err)
@@ -581,7 +410,7 @@ func (ec *Client) erc20TokenOps(
 			return nil, fmt.Errorf("%s is not a valid address", toAddress)
 		}
 
-		currency, err := ec.currencyFetcher.FetchCurrency(ctx, head.Number.Uint64(), contractAddress)
+		currency, err := ec.currencyFetcher.FetchCurrency(ctx, block.Number().Uint64(), contractAddress)
 		// If an error is encountered while fetching currency details, return a default value and let the client handle it.
 		if err != nil {
 			log.Printf("error while fetching currency details for currency: %s: %v", contractAddress, err)
@@ -691,107 +520,6 @@ func blockContainsDuplicateTransaction(blockHash common.Hash) bool {
 	return originalFeeAmountInDupTx[blockHash.Hex()] != ""
 }
 
-// Call is an Ethereum debug trace.
-type Call struct {
-	Type         string         `json:"type"`
-	From         common.Address `json:"from"`
-	To           common.Address `json:"to"`
-	Value        *big.Int       `json:"value"`
-	GasUsed      *big.Int       `json:"gasUsed"`
-	Input        string         `json:"input"`
-	Revert       bool
-	ErrorMessage string  `json:"error"`
-	Calls        []*Call `json:"calls"`
-}
-
-type flatCall struct {
-	Type         string         `json:"type"`
-	From         common.Address `json:"from"`
-	To           common.Address `json:"to"`
-	Value        *big.Int       `json:"value"`
-	GasUsed      *big.Int       `json:"gasUsed"`
-	Input        string         `json:"input"`
-	Revert       bool
-	ErrorMessage string `json:"error"`
-}
-
-func (t *Call) flatten() *flatCall {
-	return &flatCall{
-		Type:         t.Type,
-		From:         t.From,
-		To:           t.To,
-		Value:        t.Value,
-		GasUsed:      t.GasUsed,
-		Input:        t.Input,
-		Revert:       t.Revert,
-		ErrorMessage: t.ErrorMessage,
-	}
-}
-
-// UnmarshalJSON is a custom unmarshaler for Call.
-func (t *Call) UnmarshalJSON(input []byte) error {
-	type CustomTrace struct {
-		Type         string         `json:"type"`
-		From         common.Address `json:"from"`
-		To           common.Address `json:"to"`
-		Value        *hexutil.Big   `json:"value"`
-		GasUsed      *hexutil.Big   `json:"gasUsed"`
-		Input        string         `json:"input"`
-		Revert       bool
-		ErrorMessage string  `json:"error"`
-		Calls        []*Call `json:"calls"`
-	}
-	var dec CustomTrace
-	if err := json.Unmarshal(input, &dec); err != nil {
-		return err
-	}
-
-	t.Type = dec.Type
-	t.From = dec.From
-	t.To = dec.To
-	if dec.Value != nil {
-		t.Value = (*big.Int)(dec.Value)
-	} else {
-		t.Value = new(big.Int)
-	}
-	if dec.GasUsed != nil {
-		t.GasUsed = (*big.Int)(dec.Value)
-	} else {
-		t.GasUsed = new(big.Int)
-	}
-	t.Input = dec.Input
-	if dec.ErrorMessage != "" {
-		// Any error surfaced by the decoder means that the transaction
-		// has reverted.
-		t.Revert = true
-	}
-	t.ErrorMessage = dec.ErrorMessage
-	t.Calls = dec.Calls
-	return nil
-}
-
-// flattenTraces recursively flattens all traces.
-func flattenTraces(data *Call, flattened []*flatCall) []*flatCall {
-	results := append(flattened, data.flatten())
-	for _, child := range data.Calls {
-		// Ensure all children of a reverted call
-		// are also reverted!
-		if data.Revert {
-			child.Revert = true
-
-			// Copy error message from parent
-			// if child does not have one
-			if len(child.ErrorMessage) == 0 {
-				child.ErrorMessage = data.ErrorMessage
-			}
-		}
-
-		children := flattenTraces(child, flattened)
-		results = append(results, children...)
-	}
-	return results
-}
-
 func containsTopic(log *types.Log, topic string) bool {
 	for _, t := range log.Topics {
 		hex := t.Hex()
@@ -804,7 +532,9 @@ func containsTopic(log *types.Log, topic string) bool {
 
 // traceOps returns all *RosettaTypes.Operation for a given
 // array of flattened traces.
-func traceOps(blockTransactions []Transaction, calls []*flatCall, startIndex int) []*RosettaTypes.Operation { // nolint: gocognit
+//
+//nolint:gocyclo,gocognit
+func traceOps(block *types.Block, calls []*FlatCall, startIndex int) []*RosettaTypes.Operation {
 	var ops []*RosettaTypes.Operation
 	if len(calls) == 0 {
 		return ops
@@ -867,7 +597,7 @@ func traceOps(blockTransactions []Transaction, calls []*flatCall, startIndex int
 			value := new(big.Int).Neg(trace.Value).String()
 			// The OP bug here means that the ETH balance of the self-destructed contract remains unchanged
 			// TODO(inphi): Bedrock fixes this
-			if blockTransactions[0].Hash().String() == opBugAccidentalTriggerTx &&
+			if block.Transactions()[0].Hash().String() == opBugAccidentalTriggerTx &&
 				opStatus == SuccessStatus &&
 				trace.Type == SelfDestructOpType &&
 				from == opBugAccidentalTriggerContract.String() {
@@ -1081,102 +811,6 @@ func decodeAddressUint256(hex string) (common.Address, *big.Int, error) {
 	return addr, uint256, nil
 }
 
-type txExtraInfo struct {
-	BlockNumber *string         `json:"blockNumber,omitempty"`
-	BlockHash   *common.Hash    `json:"blockHash,omitempty"`
-	From        *common.Address `json:"from,omitempty"`
-}
-
-type rpcTransaction struct {
-	tx Transaction
-	txExtraInfo
-}
-
-func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
-	tximpl := new(transaction)
-	if err := json.Unmarshal(msg, tximpl); err != nil {
-		return err
-	}
-	tx.tx = tximpl
-	return json.Unmarshal(msg, &tx.txExtraInfo)
-}
-
-func (tx *rpcTransaction) LoadedTransaction() *loadedTransaction {
-	ethTx := &loadedTransaction{
-		Transaction: tx.tx,
-		From:        tx.txExtraInfo.From,
-		BlockNumber: tx.txExtraInfo.BlockNumber,
-		BlockHash:   tx.txExtraInfo.BlockHash,
-	}
-	return ethTx
-}
-
-type loadedTransaction struct {
-	Transaction Transaction
-	From        *common.Address
-	BlockNumber *string
-	BlockHash   *common.Hash
-	FeeAmount   *big.Int
-	Miner       string
-	Status      bool
-
-	Trace    *Call
-	RawTrace json.RawMessage
-	Receipt  *types.Receipt
-}
-
-func feeOps(tx *loadedTransaction) []*RosettaTypes.Operation {
-	return []*RosettaTypes.Operation{
-		{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 0,
-			},
-			Type:   FeeOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: MustChecksum(tx.From.String()),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    new(big.Int).Neg(tx.FeeAmount).String(),
-				Currency: Currency,
-			},
-		},
-		{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 1,
-			},
-			RelatedOperations: []*RosettaTypes.OperationIdentifier{
-				{
-					Index: 0,
-				},
-			},
-			Type:   FeeOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: MustChecksum(tx.Miner),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    tx.FeeAmount.String(),
-				Currency: Currency,
-			},
-		},
-	}
-}
-
-// Set the fees of applicable zero gas transactions to zero
-func patchFeeOps(chainID *big.Int, block *types.Header, tx Transaction, ops []*RosettaTypes.Operation) {
-	if chainID.Cmp(goerliChainID) != 0 {
-		return
-	}
-	if tx.GasPrice().Uint64() == 0 && block.Number.Uint64() < goerliRollupFeeEnforcementBlockHeight {
-		for _, op := range ops {
-			if op.Type == FeeOpType {
-				op.Amount.Value = "0"
-			}
-		}
-	}
-}
-
 // transactionReceipt returns the receipt of a transaction by transaction hash.
 // Note that the receipt is not available for pending transactions.
 func (ec *Client) transactionReceipt(
@@ -1184,30 +818,7 @@ func (ec *Client) transactionReceipt(
 	txHash common.Hash,
 ) (*types.Receipt, error) {
 	var r *types.Receipt
-	err := ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
-	if err == nil {
-		if r == nil {
-			return nil, ethereum.NotFound
-		}
-	}
-
-	return r, err
-}
-
-func (ec *Client) blockByNumber(
-	ctx context.Context,
-	index *int64,
-	showTxDetails bool,
-) (map[string]interface{}, error) {
-	var blockIndex string
-	if index == nil {
-		blockIndex = toBlockNumArg(nil)
-	} else {
-		blockIndex = toBlockNumArg(big.NewInt(*index))
-	}
-
-	r := make(map[string]interface{})
-	err := ec.c.CallContext(ctx, &r, "eth_getBlockByNumber", blockIndex, showTxDetails)
+	err := ec.c.CallContext(ctx, &r, EthGetTransactionReceipt, txHash)
 	if err == nil {
 		if r == nil {
 			return nil, ethereum.NotFound
@@ -1300,33 +911,6 @@ func (ec *Client) estimateGas(
 	}, nil
 }
 
-//  EstimateGas retrieves the currently gas limit
-func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error) {
-	arg := map[string]interface{}{
-		"from": msg.From,
-		"to":   msg.To,
-	}
-	if len(msg.Data) > 0 {
-		arg["data"] = hexutil.Bytes(msg.Data)
-	}
-	if msg.Value != nil {
-		arg["value"] = (*hexutil.Big)(msg.Value)
-	}
-	if msg.Gas != 0 {
-		arg["gas"] = hexutil.Uint64(msg.Gas)
-	}
-	if msg.GasPrice != nil {
-		arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
-	}
-
-	var hex hexutil.Uint64
-	err := ec.c.CallContext(ctx, &hex, "eth_estimateGas", arg)
-	if err != nil {
-		return 0, err
-	}
-	return uint64(hex), nil
-}
-
 func validateCallInput(params map[string]interface{}) (*GetCallInput, error) {
 	var input GetCallInput
 	if err := RosettaTypes.UnmarshalMap(params, &input); err != nil {
@@ -1344,142 +928,8 @@ func validateCallInput(params map[string]interface{}) (*GetCallInput, error) {
 	return &input, nil
 }
 
-func (ec *Client) getParsedBlock(
-	ctx context.Context,
-	blockMethod string,
-	args ...interface{},
-) (
-	*RosettaTypes.Block,
-	error,
-) {
-	head, blockTxs, loadedTransactions, err := ec.getBlock(ctx, blockMethod, args...)
-	if err != nil {
-		return nil, fmt.Errorf("%w: could not get block", err)
-	}
-
-	blockIdentifier := &RosettaTypes.BlockIdentifier{
-		Hash:  head.Hash().String(),
-		Index: head.Number.Int64(),
-	}
-
-	parentBlockIdentifier := blockIdentifier
-	if blockIdentifier.Index != GenesisBlockIndex {
-		parentBlockIdentifier = &RosettaTypes.BlockIdentifier{
-			Hash:  head.ParentHash.Hex(),
-			Index: blockIdentifier.Index - 1,
-		}
-	}
-
-	txs, err := ec.populateTransactions(ctx, blockIdentifier, head, blockTxs, loadedTransactions)
-	if err != nil {
-		return nil, err
-	}
-
-	return &RosettaTypes.Block{
-		BlockIdentifier:       blockIdentifier,
-		ParentBlockIdentifier: parentBlockIdentifier,
-		Timestamp:             convertTime(head.Time),
-		Transactions:          txs,
-	}, nil
-}
-
 func convertTime(time uint64) int64 {
 	return int64(time) * 1000
-}
-
-func (ec *Client) populateTransactions(
-	ctx context.Context,
-	blockIdentifier *RosettaTypes.BlockIdentifier,
-	head *types.Header,
-	blockTxs []Transaction,
-	loadedTransactions []*loadedTransaction,
-) ([]*RosettaTypes.Transaction, error) {
-	transactions := make(
-		[]*RosettaTypes.Transaction,
-		len(blockTxs),
-	)
-
-	for i, tx := range loadedTransactions {
-		if tx.From != nil && tx.Transaction != nil && tx.Transaction.To() != nil {
-			from, to := tx.From.Hex(), tx.Transaction.To().Hex()
-
-			// These are tx across L1 and L2. These cost zero gas as they're manufactured by the sequencer
-			if from == zeroAddr {
-				tx.FeeAmount.SetUint64(0)
-			} else if (to == gasPriceOracleAddr.Hex()) && (from == gasPriceOracleOwnerMainnet.Hex() || from == gasPriceOracleOwnerKovan.Hex() || from == gasPriceOracleOwnerGoerli.Hex()) {
-				// The sequencer doesn't charge the owner of the gpo.
-				// Set the fee mount to zero to not affect gpo owner balances
-				tx.FeeAmount.SetUint64(0)
-			}
-		}
-
-		transaction, err := ec.populateTransaction(ctx, head, blockTxs, tx)
-		if err != nil {
-			return nil, fmt.Errorf("%w: cannot parse %s", err, tx.Transaction.Hash().Hex())
-		}
-
-		transactions[i] = transaction
-	}
-
-	return transactions, nil
-}
-
-func (ec *Client) populateTransaction(
-	ctx context.Context,
-	header *types.Header,
-	blockTxs []Transaction,
-	tx *loadedTransaction,
-) (*RosettaTypes.Transaction, error) {
-	ops := []*RosettaTypes.Operation{}
-
-	// Compute fee operations
-	feeOps := feeOps(tx)
-	patchFeeOps(ec.p.ChainID, header, tx.Transaction, feeOps)
-	ops = append(ops, feeOps...)
-
-	erc20TokenOps, err := ec.erc20TokenOps(ctx, header, tx, len(ops))
-	if err != nil {
-		return nil, err
-	}
-	ops = append(ops, erc20TokenOps...)
-
-	traces := flattenTraces(tx.Trace, []*flatCall{})
-
-	traceOps := traceOps(blockTxs, traces, len(ops))
-	ops = append(ops, traceOps...)
-
-	// Marshal receipt and trace data
-	// TODO: replace with marshalJSONMap (used in `services`)
-	receiptBytes, err := tx.Receipt.MarshalJSON()
-	if err != nil {
-		return nil, fmt.Errorf("%w: cannot marshal receipt json", err)
-	}
-
-	var receiptMap map[string]interface{}
-	if err := json.Unmarshal(receiptBytes, &receiptMap); err != nil {
-		return nil, fmt.Errorf("%w: cannot unmarshal receipt bytes into map", err)
-	}
-
-	// TODO: Currently not saving raw trace
-	// var traceMap map[string]interface{}
-	// if err := json.Unmarshal(tx.RawTrace, &traceMap); err != nil {
-	// 	return nil, fmt.Errorf("%w: cannot unmarshal raw trace", err)
-	// }
-
-	populatedTransaction := &RosettaTypes.Transaction{
-		TransactionIdentifier: &RosettaTypes.TransactionIdentifier{
-			Hash: tx.Transaction.Hash().Hex(),
-		},
-		Operations: ops,
-		Metadata: map[string]interface{}{
-			"gas_limit": hexutil.EncodeUint64(tx.Transaction.Gas()),
-			"gas_price": hexutil.EncodeBig(tx.Transaction.GasPrice()),
-			"receipt":   receiptMap,
-			// "trace":     traceMap, // TODO: use non-raw trace
-		},
-	}
-
-	return populatedTransaction, nil
 }
 
 type rpcProgress struct {
@@ -1490,34 +940,7 @@ type rpcProgress struct {
 	KnownStates   hexutil.Uint64
 }
 
-// TODO: make this a sequencer height check instead
-// syncProgress retrieves the current progress of the sync algorithm. If there's
-// no sync currently running, it returns nil.
-func (ec *Client) syncProgress(ctx context.Context) (*ethereum.SyncProgress, error) {
-	var raw json.RawMessage
-	if err := ec.c.CallContext(ctx, &raw, "eth_syncing"); err != nil {
-		return nil, err
-	}
-
-	var syncing bool
-	if err := json.Unmarshal(raw, &syncing); err == nil {
-		return nil, nil // Not syncing (always false)
-	}
-
-	var progress rpcProgress
-	if err := json.Unmarshal(raw, &progress); err != nil {
-		return nil, err
-	}
-
-	return &ethereum.SyncProgress{
-		StartingBlock: uint64(progress.StartingBlock),
-		CurrentBlock:  uint64(progress.CurrentBlock),
-		HighestBlock:  uint64(progress.HighestBlock),
-		PulledStates:  uint64(progress.PulledStates),
-		KnownStates:   uint64(progress.KnownStates),
-	}, nil
-}
-
+//nolint:unused
 type graphqlBalance struct {
 	Errors []struct {
 		Message string   `json:"message"`
@@ -1543,143 +966,6 @@ func decodeHexData(data string) (*big.Int, error) {
 		return nil, fmt.Errorf("could not extract data from %s", data)
 	}
 	return decoded, nil
-}
-
-// Balance returns the balance of a *RosettaTypes.AccountIdentifier
-// at a *RosettaTypes.PartialBlockIdentifier.
-// The OP Token and ETH balances will be returned if currencies is unspecified
-func (ec *Client) Balance(
-	ctx context.Context,
-	account *RosettaTypes.AccountIdentifier,
-	block *RosettaTypes.PartialBlockIdentifier,
-	currencies []*RosettaTypes.Currency,
-) (*RosettaTypes.AccountBalanceResponse, error) {
-	var raw json.RawMessage
-	if block != nil {
-		if block.Hash != nil {
-			if err := ec.c.CallContext(ctx, &raw, "eth_getBlockByHash", block.Hash, false); err != nil {
-				return nil, err
-			}
-		}
-		if block.Hash == nil && block.Index != nil {
-			if err := ec.c.CallContext(
-				ctx,
-				&raw,
-				"eth_getBlockByNumber",
-				hexutil.EncodeUint64(uint64(*block.Index)),
-				false,
-			); err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		if err := ec.c.CallContext(ctx, &raw, "eth_getBlockByNumber", toBlockNumArg(nil), false); err != nil {
-			return nil, err
-		}
-	}
-	if len(raw) == 0 {
-		return nil, ethereum.NotFound
-	}
-
-	var head *types.Header
-	if err := json.Unmarshal(raw, &head); err != nil {
-		return nil, err
-	}
-
-	var (
-		balance hexutil.Big
-		nonce   hexutil.Uint64
-		code    string
-	)
-
-	blockNum := hexutil.EncodeUint64(head.Number.Uint64())
-	reqs := []rpc.BatchElem{
-		{Method: "eth_getBalance", Args: []interface{}{account.Address, blockNum}, Result: &balance},
-		{Method: "eth_getTransactionCount", Args: []interface{}{account.Address, blockNum}, Result: &nonce},
-		{Method: "eth_getCode", Args: []interface{}{account.Address, blockNum}, Result: &code},
-	}
-	if err := ec.c.BatchCallContext(ctx, reqs); err != nil {
-		return nil, err
-	}
-	for i := range reqs {
-		if reqs[i].Error != nil {
-			return nil, reqs[i].Error
-		}
-	}
-
-	nativeBalance := &RosettaTypes.Amount{
-		Value:    balance.ToInt().String(),
-		Currency: Currency,
-	}
-
-	var balances []*RosettaTypes.Amount
-	for _, curr := range currencies {
-		if reflect.DeepEqual(curr, Currency) {
-			balances = append(balances, nativeBalance)
-			continue
-		}
-
-		contractAddress := fmt.Sprintf("%s", curr.Metadata[ContractAddressKey])
-		_, ok := ChecksumAddress(contractAddress)
-		if !ok {
-			return nil, fmt.Errorf("invalid contract address %s", contractAddress)
-		}
-
-		balance, err := ec.getBalance(ctx, account.Address, blockNum, contractAddress)
-		if err != nil {
-			return nil, fmt.Errorf("err encountered for currency %s, token address %s; %v", curr.Symbol, contractAddress, err)
-		}
-		balances = append(balances, &RosettaTypes.Amount{
-			Value:    balance,
-			Currency: curr,
-		})
-	}
-
-	if len(currencies) == 0 {
-		opTokenBalance, err := ec.getBalance(ctx, account.Address, blockNum, opTokenContractAddress.String())
-		if err != nil {
-			return nil, fmt.Errorf("err getting OP token balance; %v", err)
-		}
-		balances = append(balances, nativeBalance, &RosettaTypes.Amount{
-			Value:    opTokenBalance,
-			Currency: OPTokenCurrency,
-		})
-	}
-
-	return &RosettaTypes.AccountBalanceResponse{
-		Balances: balances,
-		BlockIdentifier: &RosettaTypes.BlockIdentifier{
-			Hash:  head.Hash().Hex(),
-			Index: head.Number.Int64(),
-		},
-		Metadata: map[string]interface{}{
-			"nonce": int64(nonce),
-			"code":  code,
-		},
-	}, nil
-}
-
-func (ec *Client) getBalance(ctx context.Context, accountAddress string, blockNum string, contractAddress string) (string, error) {
-	erc20Data, err := artifacts.ERC20ABI.Pack("balanceOf", common.HexToAddress(accountAddress))
-	if err != nil {
-		return "", err
-	}
-	encodedERC20Data := hexutil.Encode(erc20Data)
-
-	callParams := map[string]string{
-		"to":   contractAddress,
-		"data": encodedERC20Data,
-	}
-	var resp string
-	if err := ec.c.CallContext(ctx, &resp, "eth_call", callParams, blockNum); err != nil {
-		return "", err
-	}
-	balance, err := decodeHexData(resp)
-	if err != nil {
-		return "", err
-	}
-
-	return balance.String(), nil
 }
 
 // GetBlockByNumberInput is the input to the call
@@ -1714,7 +1000,7 @@ func (ec *Client) Call(
 	request *RosettaTypes.CallRequest,
 ) (*RosettaTypes.CallResponse, error) {
 	switch request.Method { // nolint:gocritic
-	case "eth_getBlockByNumber":
+	case EthGetBlockByNumber:
 		var input GetBlockByNumberInput
 		if err := RosettaTypes.UnmarshalMap(request.Parameters, &input); err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrCallParametersInvalid, err.Error())
@@ -1728,7 +1014,7 @@ func (ec *Client) Call(
 		return &RosettaTypes.CallResponse{
 			Result: res,
 		}, nil
-	case "eth_getTransactionReceipt":
+	case EthGetTransactionReceipt:
 		var input GetTransactionReceiptInput
 		if err := RosettaTypes.UnmarshalMap(request.Parameters, &input); err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrCallParametersInvalid, err.Error())
@@ -1759,7 +1045,7 @@ func (ec *Client) Call(
 		return &RosettaTypes.CallResponse{
 			Result: receiptMap,
 		}, nil
-	case "eth_call":
+	case EthCall:
 		resp, err := ec.contractCall(ctx, request.Parameters)
 		if err != nil {
 			return nil, err
@@ -1768,7 +1054,7 @@ func (ec *Client) Call(
 		return &RosettaTypes.CallResponse{
 			Result: resp,
 		}, nil
-	case "eth_estimateGas":
+	case EthEstimateGas:
 		resp, err := ec.estimateGas(ctx, request.Parameters)
 		if err != nil {
 			return nil, err

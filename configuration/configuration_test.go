@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coinbase/rosetta-ethereum/optimism"
+	"github.com/inphi/optimism-rosetta/optimism"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
@@ -34,6 +34,7 @@ func TestLoadConfiguration(t *testing.T) {
 		Port              string
 		Geth              string
 		L2GethHTTPTimeout string
+		TokenFilter       string
 
 		cfg *Configuration
 		err error
@@ -44,11 +45,17 @@ func TestLoadConfiguration(t *testing.T) {
 		"only mode set": {
 			Mode: string(Online),
 			err:  errors.New("NETWORK must be populated"),
+			cfg: &Configuration{
+				TokenFilter: true,
+			},
 		},
 		"only mode and network set": {
 			Mode:    string(Online),
 			Network: Mainnet,
 			err:     errors.New("PORT must be populated"),
+			cfg: &Configuration{
+				TokenFilter: true,
+			},
 		},
 		"all set (mainnet)": {
 			Mode:              string(Online),
@@ -67,6 +74,7 @@ func TestLoadConfiguration(t *testing.T) {
 				GethURL:                DefaultGethURL,
 				GethArguments:          optimism.MainnetGethArguments,
 				L2GethHTTPTimeout:      time.Second * 100,
+				TokenFilter:            true,
 			},
 		},
 		"all set (mainnet) + geth": {
@@ -88,6 +96,7 @@ func TestLoadConfiguration(t *testing.T) {
 				RemoteGeth:             true,
 				GethArguments:          optimism.MainnetGethArguments,
 				L2GethHTTPTimeout:      time.Second * 100,
+				TokenFilter:            true,
 			},
 		},
 		"all set (goerli)": {
@@ -105,6 +114,7 @@ func TestLoadConfiguration(t *testing.T) {
 				Port:                   1000,
 				GethURL:                DefaultGethURL,
 				GethArguments:          optimism.GoerliGethArguments,
+				TokenFilter:            true,
 			},
 		},
 		"all set (testnet)": {
@@ -122,6 +132,7 @@ func TestLoadConfiguration(t *testing.T) {
 				Port:                   1000,
 				GethURL:                DefaultGethURL,
 				GethArguments:          optimism.TestnetGethArguments,
+				TokenFilter:            true,
 			},
 		},
 		"invalid mode": {

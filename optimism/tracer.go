@@ -17,7 +17,7 @@ package optimism
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sync"
 	"time"
 
@@ -26,11 +26,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 )
 
-// convert raw eth data from client to rosetta
-
-const (
-	defaultTracerPath = "optimism/call_tracer.js"
-)
+const defaultTracerPath = "optimism/call_tracer.js"
 
 type tracerSpec struct {
 	TracerPath    string
@@ -42,7 +38,7 @@ func loadTraceConfig(opt tracerSpec, timeout time.Duration) (*eth.TraceConfig, e
 	if opt.UseGethTracer {
 		loadedTracer = "rosetta"
 	} else {
-		loadedFile, err := ioutil.ReadFile(opt.TracerPath)
+		loadedFile, err := os.ReadFile(opt.TracerPath)
 		if err != nil {
 			return nil, fmt.Errorf("%w: could not load tracer file", err)
 		}

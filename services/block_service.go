@@ -18,8 +18,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/coinbase/rosetta-ethereum/configuration"
-	"github.com/coinbase/rosetta-ethereum/optimism"
+	"github.com/inphi/optimism-rosetta/configuration"
+	"github.com/inphi/optimism-rosetta/optimism"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )

@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"github.com/coinbase/rosetta-ethereum/optimism"
+	"github.com/inphi/optimism-rosetta/optimism"
 
 	"github.com/spf13/cobra"
 )

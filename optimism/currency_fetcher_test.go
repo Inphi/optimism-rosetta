@@ -18,10 +18,10 @@ import (
 	"context"
 	"testing"
 
-	mocks "github.com/coinbase/rosetta-ethereum/mocks/optimism"
-	"github.com/coinbase/rosetta-ethereum/optimism/utilities/artifacts"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
+	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
+	"github.com/inphi/optimism-rosetta/optimism/utilities/artifacts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -33,19 +33,9 @@ const (
 	OPSymbol          = "symbol"
 	OPDecimals        = 18
 
-	emptySymbolDecimals = 0
-
-	blankSymbol                = ""
-	blankSymbolContractAddress = "0x6bd4e69abe087be7c09f094087d5c7f75b010abc"
-	blankSymbolDecimals        = 18
-
 	invalidWETHContractAddress = "0x00dD3599Ae4813F3528C0d532851B937Cee1B489"
 	invalidWETHSymbol          = "WETH"
 	invalidWETHDecimals        = 0 // raw payload overflow
-
-	invalidContractAddressNonHex        = "0xdeadbeefdeadbeefdeadbeefdeadbeefzzzzzzzz"
-	invalidContractAddressTooShort      = "0xdeadbeef"
-	invalidContractAddressMissingPrefix = "deadbeef"
 
 	unknownContractAddress = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 )
@@ -55,14 +45,6 @@ var OPCurrency = &RosettaTypes.Currency{
 	Decimals: int32(OPDecimals),
 	Metadata: map[string]interface{}{
 		ContractAddressKey: OPContractAddress,
-	},
-}
-
-var blankSymbolCurrency = &RosettaTypes.Currency{
-	Symbol:   defaultERC20Symbol,
-	Decimals: int32(blankSymbolDecimals),
-	Metadata: map[string]interface{}{
-		ContractAddressKey: blankSymbolContractAddress,
 	},
 }
 
@@ -121,7 +103,7 @@ func mockCalls(
 			assert.Equal(t, r[1].Args[0], map[string]string{"to": contractAddress, "data": encodedSymbolData})
 			assert.Equal(t, r[1].Args[1], blockNumHex)
 
-			//encodedDecimals, _ := rlp.EncodeToBytes(decimals)
+			// encodedDecimals, _ := rlp.EncodeToBytes(decimals)
 			*(r[0].Result.(*string)) = decimals
 			*(r[1].Result.(*string)) = symbol
 		},

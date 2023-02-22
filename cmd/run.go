@@ -19,14 +19,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/coinbase/rosetta-ethereum/configuration"
-	"github.com/coinbase/rosetta-ethereum/optimism"
-	"github.com/coinbase/rosetta-ethereum/services"
+	"github.com/inphi/optimism-rosetta/configuration"
+	"github.com/inphi/optimism-rosetta/optimism"
+	"github.com/inphi/optimism-rosetta/services"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/server"
@@ -89,12 +89,16 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 		}
 
 		opts := optimism.ClientOptions{
-			HTTPTimeout:         cfg.L2GethHTTPTimeout,
-			MaxTraceConcurrency: cfg.MaxConcurrentTraces,
-			EnableTraceCache:    cfg.EnableTraceCache,
-			EnableGethTracer:    cfg.EnableGethTracer,
-			FilterTokens:        cfg.TokenFilter,
-			SupportedTokens:     getSupportedTokens(cfg.Network.Network),
+			HTTPTimeout:               cfg.L2GethHTTPTimeout,
+			MaxTraceConcurrency:       cfg.MaxConcurrentTraces,
+			EnableTraceCache:          cfg.EnableTraceCache,
+			EnableGethTracer:          cfg.EnableGethTracer,
+			FilterTokens:              cfg.TokenFilter,
+			SupportedTokens:           getSupportedTokens(cfg.Network.Network),
+			SuportsSyncing:            cfg.SupportsSyncing,
+			SkipAdminCalls:            false,
+			SupportsPeering:           false,
+			EnableCustomBedrockTracer: cfg.EnableCustomBedrockTracer,
 		}
 		var err error
 		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, opts)
@@ -139,7 +143,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 }
 
 func getSupportedTokens(network string) map[string]bool {
-	content, err := ioutil.ReadFile("tokenList.json")
+	content, err := os.ReadFile("tokenList.json")
 	if err != nil {
 		log.Fatal("Error when opening file: ", err)
 	}
@@ -152,9 +156,9 @@ func getSupportedTokens(network string) map[string]bool {
 
 	if val, ok := payload[network]; ok {
 		return val
-	} else {
-		return map[string]bool{
-			"0x4200000000000000000000000000000000000042": true, // OP
-		}
+	}
+
+	return map[string]bool{
+		"0x4200000000000000000000000000000000000042": true, // OP
 	}
 }

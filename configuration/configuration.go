@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/coinbase/rosetta-ethereum/optimism"
+	"github.com/inphi/optimism-rosetta/optimism"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
@@ -94,6 +94,9 @@ const (
 	// Experimental: Use newly added built-in geth tracer
 	EnableGethTracer = "ENABLE_GETH_TRACER"
 
+	// Experimental: Custom Bedrock op-geth Tracer
+	EnableCustomBedrockTracer = "ENABLE_CUSTOM_BEDROCK_TRACER"
+
 	// TokenFilterEnv is the environment variable
 	// read to determine if we will filter tokens
 	// using our token white list
@@ -102,18 +105,20 @@ const (
 
 // Configuration determines how
 type Configuration struct {
-	Mode                   Mode
-	Network                *types.NetworkIdentifier
-	GenesisBlockIdentifier *types.BlockIdentifier
-	GethURL                string
-	RemoteGeth             bool
-	Port                   int
-	GethArguments          string
-	L2GethHTTPTimeout      time.Duration
-	MaxConcurrentTraces    int64
-	EnableTraceCache       bool
-	EnableGethTracer       bool
-	TokenFilter            bool
+	Mode                      Mode
+	Network                   *types.NetworkIdentifier
+	GenesisBlockIdentifier    *types.BlockIdentifier
+	GethURL                   string
+	RemoteGeth                bool
+	Port                      int
+	GethArguments             string
+	L2GethHTTPTimeout         time.Duration
+	MaxConcurrentTraces       int64
+	EnableTraceCache          bool
+	EnableGethTracer          bool
+	TokenFilter               bool
+	SupportsSyncing           bool
+	EnableCustomBedrockTracer bool
 
 	// Block Reward Data
 	Params *params.ChainConfig
@@ -222,6 +227,17 @@ func LoadConfiguration() (*Configuration, error) {
 			return nil, fmt.Errorf("%w: unable to parse %s %s", err, EnableGethTracer, envEnableGethTracer)
 		}
 		config.EnableGethTracer = val
+	}
+
+	// Custom bedrock tracing is disabled by default.
+	// Since op-geth does not have builtin tracing like l2geth, we use the `callTracer` by default.
+	envCustomBedrockTracer := os.Getenv(EnableCustomBedrockTracer)
+	if len(envCustomBedrockTracer) > 0 {
+		val, err := strconv.ParseBool(envCustomBedrockTracer)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse %s %s", err, EnableCustomBedrockTracer, envCustomBedrockTracer)
+		}
+		config.EnableCustomBedrockTracer = val
 	}
 
 	config.TokenFilter = true

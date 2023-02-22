@@ -20,6 +20,63 @@ import (
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
+
+	EthCommon "github.com/ethereum/go-ethereum/common"
+)
+
+// Op Types
+const (
+	// MintOpType is a [RosettaTypes.Operation] type for an Optimism Deposit or "mint" transaction.
+	MintOpType = "MINT"
+	// BurnOpType is a [RosettaTypes.Operation] type for an Optimism Withdrawal or "burn" transaction.
+	BurnOpType = "BURN"
+	// An erroneous STOP Type not defined in rosetta-geth-sdk
+	StopOpType = "STOP"
+)
+
+// ERC20 Log Consts
+const (
+	NumTopicsERC20Transfer = 3
+	UnknownERC20Symbol     = "ERC20_UNKNOWN"
+	UnknownERC20Decimals   = 0
+
+	UnknownERC721Symbol   = "ERC721_UNKNOWN"
+	UnknownERC721Decimals = 0
+)
+
+const (
+	zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000"
+)
+
+// Event Topics
+const (
+	// TransferEvent is emitted when an ERC20 token is transferred.
+	//
+	// TransferEvent is emitted in two bridging scenarios:
+	// 1. When a native token is being sent to a non-native chain, from the sender to the bridge contract.
+	//    Think: Transferring USDC on Ethereum Mainnet to the Optimism bridge contract,
+	//    you will see a Transfer event from the sender (you) to the bridge contract.
+	// 2. When a non-native token is being sent to a native chain, from the bridge to the sender contract.
+	// 	  Think: "Withdrawing" USDC from Optimism to Ethereum Mainnet. You will see a Transfer event
+	// 	  from the bridge contract to you (the sender) once the withdrawal is finalized on Mainnet.
+	TransferEvent = "Transfer(address,address,uint256)"
+)
+
+// Optimism Predeploy Addresses (represented as 0x-prefixed hex string)
+// See [PredeployedContracts] for more information.
+//
+// [PredeployedContracts]: https://github.com/ethereum-optimism/optimism/blob/d8e328ae936c6a5f3987c04cbde7bd94403a96a0/specs/predeploys.md
+var (
+	// The BaseFeeVault predeploy receives the basefees on L2.
+	// The basefee is not burnt on L2 like it is on L1.
+	// Once the contract has received a certain amount of fees,
+	// the ETH can be permissionlessly withdrawn to an immutable address on L1.
+	BaseFeeVault = EthCommon.HexToAddress("0x4200000000000000000000000000000000000019")
+
+	// The L1FeeVault predeploy receives the L1 portion of the transaction fees.
+	// Once the contract has received a certain amount of fees,
+	// the ETH can be permissionlessly withdrawn to an immutable address on L1.
+	L1FeeVault = EthCommon.HexToAddress("0x420000000000000000000000000000000000001a")
 )
 
 const (
@@ -64,6 +121,9 @@ const (
 
 	// ERC20BurnOpType is used to represent token burn operations
 	ERC20BurnOpType = "ERC20_BURN"
+
+	// ERC20TransferOpType is used to represent token transfer operations
+	ERC20TransferOpType = "ERC20_TRANSFER"
 
 	// CallOpType is used to represent CALL trace operations.
 	CallOpType = "CALL"
@@ -123,6 +183,21 @@ const (
 	// ContractAddressKey is the key used to denote the contract address
 	// for a token, provided via Currency metadata.
 	ContractAddressKey string = "token_address"
+)
+
+// RPC Methods
+const (
+	// EthGetTransactionReceipt is the RPC method used to fetch a transaction receipt.
+	EthGetTransactionReceipt = "eth_getTransactionReceipt"
+
+	// EthGetBlockByNumber is the RPC method used to fetch a block by number.
+	EthGetBlockByNumber = "eth_getBlockByNumber"
+
+	// EthCall is the RPC method used to call a contract.
+	EthCall = "eth_call"
+
+	// EthEstimateGas is the RPC method used to estimate gas.
+	EthEstimateGas = "eth_estimateGas"
 )
 
 var (
@@ -199,10 +274,10 @@ var (
 
 	// CallMethods are all supported call methods.
 	CallMethods = []string{
-		"eth_getBlockByNumber",
-		"eth_getTransactionReceipt",
-		"eth_call",
-		"eth_estimateGas",
+		EthGetBlockByNumber,
+		EthGetTransactionReceipt,
+		EthCall,
+		EthEstimateGas,
 	}
 )
 

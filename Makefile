@@ -1,25 +1,39 @@
 .PHONY: deps build run lint run-mainnet-online run-mainnet-offline run-testnet-online \
 	run-testnet-offline check-comments add-license check-license shorten-lines \
 	spellcheck salus build-local format check-format update-tracer test coverage coverage-local \
-	update-bootstrap-balances mocks
+	update-bootstrap-balances mocks test tests format lint tidy
 
 ADDLICENSE_INSTALL=go install github.com/google/addlicense@latest
 ADDLICENSE_CMD=addlicense
 ADDLICENCE_SCRIPT=${ADDLICENSE_CMD} -c "Coinbase, Inc." -l "apache" -v
 SPELLCHECK_CMD=go run github.com/client9/misspell/cmd/misspell
+SPELLCHECK_INSTALL=go mod download github.com/client9/misspell
 GOLINES_INSTALL=go install github.com/segmentio/golines@latest
 GOLINES_CMD=golines
-GOLINT_INSTALL=go get golang.org/x/lint/golint
-GOLINT_CMD=golint
 GOVERALLS_INSTALL=go install github.com/mattn/goveralls@latest
 GOVERALLS_CMD=goveralls
+GOIMPORTS_INSTALL=go get golang.org/x/tools/cmd/goimports
 GOIMPORTS_CMD=go run golang.org/x/tools/cmd/goimports
 GO_PACKAGES=./services/... ./cmd/... ./configuration/... ./optimism/...
 GO_FOLDERS=$(shell echo ${GO_PACKAGES} | sed -e "s/\.\///g" | sed -e "s/\/\.\.\.//g")
-TEST_SCRIPT=go test ${GO_PACKAGES}
-LINT_SETTINGS=golint,misspell,gocyclo,gocritic,whitespace,goconst,gocognit,bodyclose,unconvert,lll,unparam
 PWD=$(shell pwd)
 NOFILE=100000
+
+# Linting
+LINT_INSTALL=go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
+LINT_CMD=golangci-lint run
+LINT_SETTINGS=golint,misspell,gocyclo,gocritic,whitespace,gocognit,bodyclose,unconvert,unparam
+
+# Test Scripts
+TEST_SCRIPT=go test ${GO_PACKAGES}
+
+all: clean deps tidy format test spellcheck lint
+
+clean:
+	go clean
+
+tidy:
+	go mod tidy
 
 deps:
 	go get ./...
@@ -27,8 +41,49 @@ deps:
 test:
 	${TEST_SCRIPT}
 
+lint:
+	${LINT_INSTALL}
+	golangci-lint run --timeout 2m0s -v -E ${LINT_SETTINGS}
+
+##################################################################################
+## GOERLI GOERLI GOERLI GOERLI GOERLI GOERLI GOERLI GOERLI GOERLI GOERLI GOERLI ##
+##################################################################################
+
+# Runs rosetta-cli configuration:validate against the optimism goerli configuration
+run-optimism-goerli-validate-config:
+	ROSETTA_CONFIGURATION_FILE=configs/optimism/goerli.json rosetta-cli configuration:validate configs/optimism/goerli.json
+
+# Runs the rosetta-cli check:data command with the optimism goerli configuration
+run-optimism-goerli-data-check:
+	ROSETTA_CONFIGURATION_FILE=configs/optimism/goerli.json rosetta-cli check:data configs/optimism/goerli.json
+
+# Runs the rosetta-cli check:construction command with the optimism goerli configuration
+run-optimism-goerli-construction-check:
+	ROSETTA_CONFIGURATION_FILE=configs/optimism/goerli.json rosetta-cli check:construction configs/optimism/goerli.json
+
+# Runs an instance of `op-rosetta` configured for Optimism Goerli
+# For the transition (aka "genesis") block hash, see:
+# https://github.com/ethereum-optimism/optimism/blob/5e8bc3d5b4f36f0192b22b032e25b09f23cd0985/op-node/chaincfg/chains.go#L49
+run-optimism-goerli:
+	CHAIN_CONFIG='{ "chainId": 10, "terminalTotalDifficultyPassed": true }'	\
+	MODE=ONLINE \
+	PORT=8080 \
+	BLOCKCHAIN=Optimism \
+	NETWORK=Goerli \
+	GETH=${OPTIMISM_GOERLI_NODE} \
+	ENABLE_TRACE_CACHE=true \
+    ENABLE_GETH_TRACER=true \
+	TRANSITION_BLOCK_HASH=${OPTIMISM_GOERLI_TRANSITION_BLOCK_HASH} \
+	bin/op-rosetta
+
+##################################################################################
+##################################################################################
+
 build:
-	docker build -t rosetta-ethereum:latest https://github.com/coinbase/rosetta-ethereum.git
+	go build -v -o rosetta-ethereum ./cmd/...
+
+build-docker:
+	docker build -t rosetta-ethereum:latest https://github.com/inphi/optimism-rosetta.git
 
 build-local:
 	docker build -t rosetta-ethereum:latest .
@@ -63,14 +118,6 @@ run-mainnet-remote:
 run-testnet-remote:
 	docker run -d --rm --ulimit "nofile=${NOFILE}:${NOFILE}" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "GETH=$(geth)" -p 8080:8080 -p 30303:30303 rosetta-ethereum:latest
 
-check-comments:
-	${GOLINT_INSTALL}
-	${GOLINT_CMD} -set_exit_status ${GO_FOLDERS} .
-	go mod tidy
-
-lint: | check-comments
-	golangci-lint run --timeout 2m0s -v -E ${LINT_SETTINGS},gomnd
-
 add-license:
 	${ADDLICENSE_INSTALL}
 	${ADDLICENCE_SCRIPT} .
@@ -84,6 +131,7 @@ shorten-lines:
 	${GOLINES_CMD} -w --shorten-comments ${GO_FOLDERS} .
 
 format:
+	${GOIMPORTS_INSTALL}
 	gofmt -s -w -l .
 	${GOIMPORTS_CMD} -w .
 
@@ -94,7 +142,8 @@ check-format:
 salus:
 	docker run --rm -t -v ${PWD}:/home/repo coinbase/salus
 
-spellcheck:
+spellcheck: |
+	${SPELLCHECK_INSTALL}
 	${SPELLCHECK_CMD} -error .
 
 coverage:
