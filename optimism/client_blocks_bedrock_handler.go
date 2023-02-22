@@ -8,6 +8,7 @@ import (
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
+	L2Eth "github.com/ethereum-optimism/optimism/l2geth/eth"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -33,7 +34,15 @@ func (ec *Client) TraceBlockByHash(
 
 	var calls []*rpcCall
 	var raw json.RawMessage
-	err := ec.c.CallContext(ctx, &raw, "debug_traceBlockByHash", blockHash, ec.tc)
+	// NOTE: We replace the TraceConfig here since l2geth and op-geth have different tracings
+	tracer := "callTracer"
+	customTracer := &L2Eth.TraceConfig{
+		LogConfig: ec.tc.LogConfig,
+		Tracer:    &tracer,
+		Timeout:   ec.tc.Timeout,
+		Reexec:    ec.tc.Reexec,
+	}
+	err := ec.c.CallContext(ctx, &raw, "debug_traceBlockByHash", blockHash, customTracer)
 	if err != nil {
 		return nil, err
 	}

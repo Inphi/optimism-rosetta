@@ -88,5 +88,5 @@ func (ec *Client) disptachBlockRequest(
 	}
 
 	// Revert to bedrock otherwise
-	return ec.getParsedBedrockBlock(ctx, blockMethod, args)
+	return ec.getParsedBedrockBlock(ctx, blockMethod, args...)
 }

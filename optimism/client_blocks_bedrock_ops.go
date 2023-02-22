@@ -83,7 +83,7 @@ func TraceOps(calls []*FlatCall, startIndex int) []*RosettaTypes.Operation {
 		// Checksum addresses
 		fromAddress := MustChecksum(call.From.String())
 		toAddress := MustChecksum(call.To.String())
-		if strings.Contains(fromAddress, ProxyContractFilter) && isIdenticalContractAddress(fromAddress, toAddress) {
+		if isIdenticalContractAddress(fromAddress, toAddress) {
 			toAddress = fromAddress
 		}
 
