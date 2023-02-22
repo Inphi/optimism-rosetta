@@ -91,16 +91,15 @@ func FlattenTraces(data *Call, flattened []*FlatCall) []*FlatCall {
 	return results
 }
 
-// getParsedBedrockBlock constructs a [RosettaTypes.Block] from the
+// getParsedBedrockBlock constructs a [RosettaTypes.Block] from a raw block response.
 func (ec *Client) getParsedBedrockBlock(
 	ctx context.Context,
-	blockMethod string,
-	args ...interface{},
+	raw *json.RawMessage,
 ) (
 	*RosettaTypes.Block,
 	error,
 ) {
-	head, body, err := ec.getBedrockBlock(ctx, blockMethod, args...)
+	head, body, err := ec.parseBedrockBlock(raw)
 	if err != nil {
 		return nil, err
 	}

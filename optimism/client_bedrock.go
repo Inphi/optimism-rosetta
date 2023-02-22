@@ -1,12 +1,9 @@
 package optimism
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"math/big"
 
-	ethereum "github.com/ethereum-optimism/optimism/l2geth"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 )
@@ -57,31 +54,19 @@ type TxExtraInfo struct {
 	TxHash      *EthCommon.Hash    `json:"hash,omitempty"`
 }
 
-// getBedrockBlock returns a [EthTypes.Header] and [rpcBedrockBlock] for a given block or a respective error.
-func (c *Client) getBedrockBlock(
-	ctx context.Context,
-	blockMethod string,
-	args ...interface{},
-) (
+// parseBedrockBlock returns a [EthTypes.Header] and [rpcBedrockBlock] for a given block or a respective error.
+func (c *Client) parseBedrockBlock(raw *json.RawMessage) (
 	*EthTypes.Header,
 	*rpcBedrockBlock,
 	error,
 ) {
-	var raw json.RawMessage
-	err := c.c.CallContext(ctx, &raw, blockMethod, args...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("%w: block fetch failed", err)
-	} else if len(raw) == 0 {
-		return nil, nil, ethereum.NotFound
-	}
-
 	// Decode bedrock header and transactions
 	var head EthTypes.Header
 	var body rpcBedrockBlock
-	if err := json.Unmarshal(raw, &head); err != nil {
+	if err := json.Unmarshal(*raw, &head); err != nil {
 		return nil, nil, err
 	}
-	if err := json.Unmarshal(raw, &body); err != nil {
+	if err := json.Unmarshal(*raw, &body); err != nil {
 		return nil, nil, err
 	}
 	return &head, &body, nil

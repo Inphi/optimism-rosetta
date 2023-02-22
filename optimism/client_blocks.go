@@ -79,14 +79,18 @@ func (ec *Client) disptachBlockRequest(
 	args ...interface{},
 ) (*RosettaTypes.Block, error) {
 	// Attempt pre-bedrock block + header fetch
-	header, block, err := ec.getBlock(ctx, blockMethod, args...)
+	header, block, raw, err := ec.getBlock(ctx, blockMethod, args...)
 	if err == nil {
 		preBedrock := ec.IsPreBedrock(header.Number)
 		if preBedrock {
 			return ec.getParsedBlock(ctx, header, block)
 		}
 	}
+	// Block fetch errors should short-circuit
+	if err.IsBlockFetchError() {
+		return nil, err.Err
+	}
 
 	// Revert to bedrock otherwise
-	return ec.getParsedBedrockBlock(ctx, blockMethod, args...)
+	return ec.getParsedBedrockBlock(ctx, raw)
 }

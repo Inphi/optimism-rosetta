@@ -86,7 +86,7 @@ func (testSuite *ClientBedrockTestSuite) TestIsPreBedrockNil() {
 	testSuite.True(c.IsPreBedrock(big.NewInt(5_003_318)))
 }
 
-func (testSuite *ClientBedrockTestSuite) TestGetBedrockBlock() {
+func (testSuite *ClientBedrockTestSuite) TestParseBedrockBlock() {
 	c := &Client{
 		c:               testSuite.mockJSONRPC,
 		g:               testSuite.mockGraphQL,
@@ -100,23 +100,9 @@ func (testSuite *ClientBedrockTestSuite) TestGetBedrockBlock() {
 
 	file, err := os.ReadFile("testdata/goerli_bedrock_block_5003318.json")
 	testSuite.NoError(err)
+	raw := json.RawMessage(file)
 
 	ctx := context.Background()
-	testSuite.mockJSONRPC.On(
-		"CallContext",
-		ctx,
-		mock.Anything,
-		"eth_getBlockByNumber",
-		"latest",
-		true,
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).(*json.RawMessage)
-			*r = json.RawMessage(file)
-		},
-	).Once()
 	testSuite.mockCurrencyFetcher.On(
 		"FetchCurrency",
 		ctx,
@@ -217,12 +203,7 @@ func (testSuite *ClientBedrockTestSuite) TestGetBedrockBlock() {
 	)
 
 	// Fetch the latest block
-	header, block, err := c.getBedrockBlock(
-		ctx,
-		"eth_getBlockByNumber",
-		"latest",
-		true,
-	)
+	header, block, err := c.parseBedrockBlock(&raw)
 	testSuite.Equal(expectedBlock.Hash, block.Hash)
 	testSuite.Equal(expectedBlock.UncleHashes, block.UncleHashes)
 	testSuite.Equal(len(expectedBlock.Transactions), len(block.Transactions))

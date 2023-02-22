@@ -19,6 +19,24 @@ type rpcBlock struct {
 	UncleHashes  []common.Hash    `json:"uncles"`
 }
 
+var ErrBlockNotFound = fmt.Errorf("block not found")
+var ErrBlockFetch = fmt.Errorf("failed to fetch block")
+var ErrHeaderUnmarshal = fmt.Errorf("failed to unmarshal header")
+var ErrBlockUnmarshal = fmt.Errorf("failed to unmarshal block")
+
+type BlockError struct {
+	Ty  error
+	Err error
+}
+
+func (e *BlockError) IsBlockFetchError() bool {
+	return e.Ty == ErrBlockFetch
+}
+
+func NewBlockError(ty error, err error) *BlockError {
+	return &BlockError{Ty: ty, Err: err}
+}
+
 // getBlock returns a [types.Header] and [rpcBlock] for a given block or a respective error.
 func (ec *Client) getBlock(
 	ctx context.Context,
@@ -27,26 +45,27 @@ func (ec *Client) getBlock(
 ) (
 	*types.Header,
 	*rpcBlock,
-	error,
+	*json.RawMessage,
+	*BlockError,
 ) {
 	var raw json.RawMessage
 	err := ec.c.CallContext(ctx, &raw, blockMethod, args...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: block fetch failed", err)
+		return nil, nil, &raw, NewBlockError(ErrBlockFetch, err)
 	} else if len(raw) == 0 {
-		return nil, nil, ethereum.NotFound
+		return nil, nil, &raw, NewBlockError(ErrBlockNotFound, ethereum.NotFound)
 	}
 
 	// Decode header and transactions
 	var head types.Header
 	var body rpcBlock
 	if err := json.Unmarshal(raw, &head); err != nil {
-		return nil, nil, err
+		return nil, nil, &raw, NewBlockError(ErrHeaderUnmarshal, err)
 	}
 	if err := json.Unmarshal(raw, &body); err != nil {
-		return nil, nil, err
+		return nil, nil, &raw, NewBlockError(ErrBlockUnmarshal, err)
 	}
-	return &head, &body, nil
+	return &head, &body, &raw, nil
 }
 
 func (ec *Client) getParsedBlock(
