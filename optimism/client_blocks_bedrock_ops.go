@@ -47,18 +47,6 @@ func MintOps(tx *bedrockTransaction, startIndex int) []*RosettaTypes.Operation {
 	}
 }
 
-func isIdenticalContractAddress(from string, to string) bool {
-	from = strings.ToLower(from)
-	to = strings.ToLower(to)
-	proxyContractIndex := from[len(ProxyContractFilter):]
-	implementationContractIndex := to[len(ImplementationContractFilter):]
-	if strings.Contains(from, ProxyContractFilter) && strings.Contains(to, ImplementationContractFilter) && proxyContractIndex == implementationContractIndex {
-		return true
-	}
-
-	return false
-}
-
 // TraceOps constructs [RosettaTypes.Operation]s from a list of [FlatCall]s.
 //
 //nolint:gocognit
@@ -83,9 +71,6 @@ func TraceOps(calls []*FlatCall, startIndex int) []*RosettaTypes.Operation {
 		// Checksum addresses
 		fromAddress := MustChecksum(call.From.String())
 		toAddress := MustChecksum(call.To.String())
-		if isIdenticalContractAddress(fromAddress, toAddress) {
-			toAddress = fromAddress
-		}
 
 		// Parse value
 		var zeroValue bool
