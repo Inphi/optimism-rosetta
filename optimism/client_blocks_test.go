@@ -181,20 +181,16 @@ func (testSuite *ClientBlocksTestSuite) TestBlockWithFetchErrors() {
 
 // TestBlockEmptyJsonRpcResponse tests the top-level client [Block] method.
 func (testSuite *ClientBlocksTestSuite) TestBlockEmptyJsonRpcResponse() {
-	testSuite.T().Skip("Skipping test until we can figure out why it fails on CI")
-
 	// Test Pre-bedrock block request
 	testSuite.True(testSuite.client.IsPreBedrock(testSuite.client.bedrockBlock))
 
-	// Test dispatching with a nil block identifier
-	// This should result in the client calling for the latest block
-	// Returning an error should then result in the dispatch function bubbling up the block fetch error
-	expectedError := errors.New("test error")
+	// Test dispatching with an empty json rpc block response
+	expectedError := "unexpected end of JSON input"
 	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByNumber", "latest", true).Return(
-		expectedError,
+		nil,
 	).Once()
 	_, err := testSuite.client.Block(nil, nil)
-	testSuite.Equal(expectedError, err)
+	testSuite.Equal(expectedError, err.Error())
 
 	// Test dispatching with a block identifier containing a hash
 	hash := "0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774"
@@ -203,10 +199,10 @@ func (testSuite *ClientBlocksTestSuite) TestBlockEmptyJsonRpcResponse() {
 		Hash:  &hash,
 	}
 	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByHash", "0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774", true).Return(
-		expectedError,
+		nil,
 	).Once()
 	_, err = testSuite.client.Block(nil, &identifier)
-	testSuite.Equal(expectedError, err)
+	testSuite.Equal(expectedError, err.Error())
 
 	// Test dispatching with a block identifier containing an index
 	index := int64(5003318)
@@ -215,8 +211,43 @@ func (testSuite *ClientBlocksTestSuite) TestBlockEmptyJsonRpcResponse() {
 		Hash:  nil,
 	}
 	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByNumber", "0x4c5836", true).Return(
-		expectedError,
+		nil,
 	).Once()
 	_, err = testSuite.client.Block(nil, &identifier)
-	testSuite.Equal(expectedError, err)
+	testSuite.Equal(expectedError, err.Error())
+
+	// Now switch to bedrock
+	testSuite.client.bedrockBlock = big.NewInt(5003318)
+	testSuite.False(testSuite.client.IsPreBedrock(testSuite.client.bedrockBlock))
+
+	// Post bedrock tests with empty json rpc response should also error
+	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByNumber", "latest", true).Return(
+		nil,
+	).Once()
+	_, err = testSuite.client.Block(nil, nil)
+	testSuite.Equal(expectedError, err.Error())
+
+	// Test dispatching with a block identifier containing a hash
+	hash = "0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774"
+	identifier = RosettaTypes.PartialBlockIdentifier{
+		Index: nil,
+		Hash:  &hash,
+	}
+	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByHash", "0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774", true).Return(
+		nil,
+	).Once()
+	_, err = testSuite.client.Block(nil, &identifier)
+	testSuite.Equal(expectedError, err.Error())
+
+	// Test dispatching with a block identifier containing an index
+	index = int64(5003318)
+	identifier = RosettaTypes.PartialBlockIdentifier{
+		Index: &index,
+		Hash:  nil,
+	}
+	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByNumber", "0x4c5836", true).Return(
+		nil,
+	).Once()
+	_, err = testSuite.client.Block(nil, &identifier)
+	testSuite.Equal(expectedError, err.Error())
 }
