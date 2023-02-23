@@ -6,7 +6,9 @@ import (
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	EthCommon "github.com/ethereum/go-ethereum/common"
+	EthHexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/stretchr/testify/suite"
 )
 
@@ -25,15 +27,16 @@ func (testSuite *BedrockOpsTestSuite) TestInvalidDeposit() {
 	// Construct a random transaction (non-DepositTx)
 	txHash := EthCommon.HexToHash("0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d")
 	gasPrice := big.NewInt(10000)
-
-	innerTx := NewBedrockTransaction(
-		0,
-		EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
-		big.NewInt(0),
-		0,
-		gasPrice,
-		nil,
-	)
+	nonce := uint64(0)
+	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	innerTx := &transaction{
+		Nonce:     (*EthHexutil.Uint64)(&nonce),
+		Recipient: &to,
+		Value:     (*EthHexutil.Big)(big.NewInt(0)),
+		GasLimit:  (EthHexutil.Uint64)(0),
+		Price:     (*EthHexutil.Big)(gasPrice),
+		Data:      (*EthHexutil.Bytes)(nil),
+	}
 	from := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
 	bedrockTx := bedrockTransaction{
 		Transaction: innerTx,
@@ -59,22 +62,23 @@ func (testSuite *BedrockOpsTestSuite) TestValidMint() {
 	index := 1
 	from := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
 	recipient := EthCommon.HexToAddress("0x4200000000000000000000000000000000000015")
-	innerTx := NewTransactionFromFields(
-		convertBigInt("0x7e").Uint64(),      // type
-		0,                                   // nonce
-		gasPrice,                            // gasPrice
-		nil,                                 // maxPriorityFee
-		nil,                                 // maxFee
-		convertBigInt("0x8f0d180").Uint64(), // gasLim
-		amount,                              // value
-		[]byte{},                            // data
-		nil,                                 // v
-		nil,                                 // r
-		nil,                                 // s
-		recipient,                           // to
-		nil,                                 // chain
-		txHash,                              // hash
-	)
+	nonce := uint64(0)
+	innerTx := &transaction{
+		Type:                 (EthHexutil.Uint64)(convertBigInt("0x7e").Uint64()),
+		Nonce:                (*EthHexutil.Uint64)(&nonce),
+		Price:                (*EthHexutil.Big)(gasPrice),
+		MaxPriorityFeePerGas: (*EthHexutil.Big)(nil),
+		MaxFeePerGas:         (*EthHexutil.Big)(nil),
+		GasLimit:             (EthHexutil.Uint64)(convertBigInt("0x8f0d180").Uint64()),
+		Value:                (*EthHexutil.Big)(amount),
+		Data:                 (*EthHexutil.Bytes)(&[]byte{}),
+		V:                    (*EthHexutil.Big)(nil),
+		R:                    (*EthHexutil.Big)(nil),
+		S:                    (*EthHexutil.Big)(nil),
+		Recipient:            &recipient,
+		ChainID:              (*EthHexutil.Big)(nil),
+		HashValue:            txHash,
+	}
 	bedrockTx := bedrockTransaction{
 		Transaction: innerTx,
 		From:        &from,

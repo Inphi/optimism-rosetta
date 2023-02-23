@@ -19,7 +19,7 @@ type rpcTransaction struct {
 	txExtraInfo
 }
 
-// LoadedTransaction converts an [rpcTransaction] to a [LoadedTransaction].
+// LoadedTransaction converts an [rpcTransaction] to a [legacyTransaction].
 func (tx *rpcTransaction) LoadedTransaction() *legacyTransaction {
 	ethTx := legacyTransaction{
 		Transaction: tx.tx,
@@ -38,12 +38,6 @@ func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
 	return json.Unmarshal(msg, &tx.txExtraInfo)
 }
 
-// LoadedTransaction is an interface for a parsed transaction type.
-type LoadedTransaction interface {
-	IsDepositTx() bool
-	FromRPCTransaction(*rpcTransaction) LoadedTransaction
-}
-
 // legacyTransaction is a pre-bedrock transaction type.
 type legacyTransaction struct {
 	Transaction *OptimismTypes.Transaction
@@ -53,32 +47,7 @@ type legacyTransaction struct {
 	FeeAmount   *big.Int
 	Miner       string
 	Status      bool
-
-	Trace    *Call
-	RawTrace json.RawMessage
-	Receipt  *OptimismTypes.Receipt
-}
-
-// NewLegacyTransaction creates a new bedrock transaction.
-//
-//nolint:golint
-func NewLegacyTransaction() *legacyTransaction {
-	return &legacyTransaction{}
-}
-
-// IsDepositTx returns true if the transaction is a deposit tx type.
-func (lt *legacyTransaction) IsDepositTx() bool {
-	// TODO: how to determine if deposit tx for legacy transactions?
-	return false
-}
-
-// FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
-func (lt *legacyTransaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
-	ethTx := &legacyTransaction{
-		Transaction: tx.tx,
-		From:        tx.txExtraInfo.From,
-		BlockNumber: tx.txExtraInfo.BlockNumber,
-		BlockHash:   tx.txExtraInfo.BlockHash,
-	}
-	return ethTx
+	Trace       *Call
+	RawTrace    json.RawMessage
+	Receipt     *OptimismTypes.Receipt
 }
