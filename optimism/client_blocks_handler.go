@@ -236,12 +236,6 @@ func (ec *Client) populateTransaction(
 		return nil, fmt.Errorf("%w: cannot unmarshal receipt bytes into map", err)
 	}
 
-	// TODO: Currently not saving raw trace
-	// var traceMap map[string]interface{}
-	// if err := json.Unmarshal(tx.RawTrace, &traceMap); err != nil {
-	// 	return nil, fmt.Errorf("%w: cannot unmarshal raw trace", err)
-	// }
-
 	populatedTransaction := &RosettaTypes.Transaction{
 		TransactionIdentifier: &RosettaTypes.TransactionIdentifier{
 			Hash: tx.Transaction.Hash().Hex(),
@@ -251,7 +245,6 @@ func (ec *Client) populateTransaction(
 			"gas_limit": hexutil.EncodeUint64(tx.Transaction.Gas()),
 			"gas_price": hexutil.EncodeBig(tx.Transaction.GasPrice()),
 			"receipt":   receiptMap,
-			// "trace":     traceMap, // TODO: use non-raw trace
 		},
 	}
 

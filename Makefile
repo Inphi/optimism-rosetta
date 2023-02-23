@@ -19,6 +19,9 @@ GO_FOLDERS=$(shell echo ${GO_PACKAGES} | sed -e "s/\.\///g" | sed -e "s/\/\.\.\.
 PWD=$(shell pwd)
 NOFILE=100000
 
+# This is left as rosetta-ethereum for backwards compatibility
+OUTPUT_BIN=rosetta-ethereum
+
 # Linting
 LINT_INSTALL=go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
 LINT_CMD=golangci-lint run
@@ -74,7 +77,7 @@ run-optimism-goerli:
 	ENABLE_TRACE_CACHE=true \
     ENABLE_GETH_TRACER=true \
 	TRANSITION_BLOCK_HASH=${OPTIMISM_GOERLI_TRANSITION_BLOCK_HASH} \
-	bin/op-rosetta
+	${OUTPUT_BIN}
 
 ##################################################################################
 ##################################################################################
