@@ -176,7 +176,7 @@ func (ec *Client) getParsedBedrockBlock(
 
 	parentIndex := head.Number.Int64()
 	if parentIndex != GenesisBlockIndex {
-		parentIndex = parentIndex - 1
+		parentIndex--
 	}
 
 	rosettaTxs := make([]*RosettaTypes.Transaction, len(loadedTxs))
