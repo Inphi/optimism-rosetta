@@ -79,7 +79,7 @@ func (ec *Client) getParsedBlock(
 	// Get all transaction receipts
 	receipts, err := ec.getBlockReceipts(ctx, body.Hash, body.Transactions)
 	if err != nil {
-		return nil, fmt.Errorf("%w: could not get receipts for %x", err, body.Hash[:])
+		return nil, fmt.Errorf("%w: could not get pre-bedrock receipts for %x", err, body.Hash[:])
 	}
 
 	// Get block traces (not possible to make idempotent block transaction trace requests)
