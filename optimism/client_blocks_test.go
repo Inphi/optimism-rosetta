@@ -1,9 +1,11 @@
 package optimism
 
 import (
+	"errors"
 	"math/big"
 	"testing"
 
+	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	OldEth "github.com/ethereum-optimism/optimism/l2geth"
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
 
@@ -97,4 +99,44 @@ func (testSuite *ClientBlocksTestSuite) TestBlockByNumber() {
 	testSuite.Equal(map[string]interface{}{
 		"number": "0x4c5836",
 	}, fetchedBlock)
+}
+
+// TestBlockWithFetchErrors tests the top-level client [Block] method.
+func (testSuite *ClientBlocksTestSuite) TestBlockWithFetchErrors() {
+	// Test Pre-bedrock block request
+	testSuite.True(testSuite.client.IsPreBedrock(testSuite.client.bedrockBlock))
+
+	// Test dispatching with a nil block identifier
+	// This should result in the client calling for the latest block
+	// Returning an error should then result in the dispatch function bubbling up the block fetch error
+	expectedError := errors.New("test error")
+	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByNumber", "latest", true).Return(
+		expectedError,
+	).Once()
+	_, err := testSuite.client.Block(nil, nil)
+	testSuite.Equal(expectedError, err)
+
+	// Test dispatching with a block identifier containing a hash
+	hash := "0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774"
+	identifier := RosettaTypes.PartialBlockIdentifier{
+		Index: nil,
+		Hash:  &hash,
+	}
+	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByHash", "0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774", true).Return(
+		expectedError,
+	).Once()
+	_, err = testSuite.client.Block(nil, &identifier)
+	testSuite.Equal(expectedError, err)
+
+	// Test dispatching with a block identifier containing an index
+	index := int64(5003318)
+	identifier = RosettaTypes.PartialBlockIdentifier{
+		Index: &index,
+		Hash:  nil,
+	}
+	testSuite.mockJSONRPC.On("CallContext", nil, mock.Anything, "eth_getBlockByNumber", "0x4c5836", true).Return(
+		expectedError,
+	).Once()
+	_, err = testSuite.client.Block(nil, &identifier)
+	testSuite.Equal(expectedError, err)
 }
