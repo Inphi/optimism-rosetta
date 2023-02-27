@@ -2,6 +2,7 @@ package optimism
 
 import (
 	"encoding/json"
+	"math/big"
 	"testing"
 
 	EthCommon "github.com/ethereum/go-ethereum/common"
@@ -134,4 +135,58 @@ func (testSuite *ClientBedrockTxTestSuite) TestTransactionDeserializationStrippe
 
 	// Compare the expected transaction with the unmarshalled one
 	testSuite.Equal(expectedTransaction, expectedTransactionUnmarshalled)
+}
+
+// Test transaction methods
+func (testSuite *ClientBedrockTxTestSuite) TestTransactionMethods() {
+	// Construct the expected transactions
+	expectedTxHash := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
+	data := EthCommon.Hex2Bytes("015d8eb900000000000000000000000000000000000000000000000000000000008097790000000000000000000000000000000000000000000000000000000063dd1a98000000000000000000000000000000000000000000000000000000000004ee2f1ed96835176d084c845bd2c09456d60401d74861b690bdabac97f6724f4b4bdf00000000000000000000000000000000000000000000000000000000000000020000000000000000000000007431310e026b69bfc676c0013e12a1a11411eec9000000000000000000000000000000000000000000000000000000000000083400000000000000000000000000000000000000000000000000000000000f4240")
+	recipient := EthCommon.HexToAddress("0x4200000000000000000000000000000000000015")
+	nonce := uint64(0)
+	expectedType := convertBigInt("0x7e").Uint64()
+	expectedValue := convertBigInt("0x69")
+	expectedMaxFeePerGas := convertBigInt("0x420")
+	expectedMaxPriorityFeePerGas := convertBigInt("0x422")
+	expectedGasPrice := convertBigInt("0x421")
+	expectedGasLimit := convertBigInt("0x8f0d180").Uint64()
+	tx := &transaction{
+		Type:                 (EthHexutil.Uint64)(expectedType),
+		Nonce:                (*EthHexutil.Uint64)(&nonce),
+		Price:                (*EthHexutil.Big)(expectedGasPrice),
+		MaxPriorityFeePerGas: (*EthHexutil.Big)(expectedMaxPriorityFeePerGas),
+		MaxFeePerGas:         (*EthHexutil.Big)(expectedMaxFeePerGas),
+		GasLimit:             (EthHexutil.Uint64)(expectedGasLimit),
+		Value:                (*EthHexutil.Big)(expectedValue),
+		Data:                 (*EthHexutil.Bytes)(&data),
+		V:                    (*EthHexutil.Big)(nil),
+		R:                    (*EthHexutil.Big)(nil),
+		S:                    (*EthHexutil.Big)(nil),
+		Recipient:            &recipient,
+		ChainID:              (*EthHexutil.Big)(nil),
+		HashValue:            expectedTxHash,
+	}
+
+	// Check method calls
+	testSuite.True(tx.IsDepositTx())
+	testSuite.Equal(expectedType, tx.GetType())
+	testSuite.Equal(expectedValue, tx.GetValue())
+	testSuite.Equal(expectedTxHash, tx.Hash())
+	testSuite.Equal(&recipient, tx.To())
+	testSuite.Equal(expectedGasLimit, tx.Gas())
+	testSuite.Equal(expectedGasPrice, tx.GasPrice())
+	testSuite.Equal(expectedMaxPriorityFeePerGas, tx.GasTipCap())
+	testSuite.Equal(expectedMaxPriorityFeePerGas, tx.GasFeeCap())
+}
+
+// TestTransactionNilMethodReturns ensures transaction methods return nil when the transaction is gas price is nil
+func (testSuite *ClientBedrockTxTestSuite) TestTransactionNilMethodReturns() {
+	// Construct an empty transaction
+	tx := &transaction{}
+	var nilRecipient *EthCommon.Address
+
+	// Check gas price is not nil
+	testSuite.Equal(big.NewInt(0), tx.GasPrice())
+	testSuite.Equal(nilRecipient, tx.To())
+	testSuite.False(tx.IsDepositTx())
 }

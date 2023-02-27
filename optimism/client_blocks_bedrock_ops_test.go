@@ -22,6 +22,36 @@ func TestBedrockOps(t *testing.T) {
 	suite.Run(t, new(BedrockOpsTestSuite))
 }
 
+// TestNoFeeOpsForDepositTx tests that no fee operations are constructed for deposit transactions.
+func (testSuite *BedrockOpsTestSuite) TestNoFeeOpsForDepositTx() {
+	// Deposit Transactions should have no fee operations.
+	txHash := EthCommon.HexToHash("0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d")
+	gasPrice := big.NewInt(10000)
+	nonce := uint64(0)
+	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	from := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	innerTx := &transaction{
+		Type:      L1ToL2DepositType,
+		Nonce:     (*EthHexutil.Uint64)(&nonce),
+		Recipient: &to,
+		Value:     (*EthHexutil.Big)(big.NewInt(0)),
+		GasLimit:  (EthHexutil.Uint64)(0),
+		Price:     (*EthHexutil.Big)(gasPrice),
+		Data:      (*EthHexutil.Bytes)(nil),
+	}
+	bedrockTransaction := bedrockTransaction{
+		Transaction: innerTx,
+		From:        &from,
+		BlockHash:   &EthTypes.EmptyRootHash,
+		TxHash:      &txHash,
+		FeeAmount:   big.NewInt(0),
+		Miner:       "095e7baea6a6c7c4c2dfeb977efac326af552d87",
+	}
+	operations, err := FeeOps(&bedrockTransaction)
+	testSuite.NoError(err)
+	testSuite.Len(operations, 0)
+}
+
 // TestInvalidDeposit tests that a non-deposit tx is not handled by MintOps.
 func (testSuite *BedrockOpsTestSuite) TestInvalidDeposit() {
 	// Construct a random transaction (non-DepositTx)
@@ -29,6 +59,7 @@ func (testSuite *BedrockOpsTestSuite) TestInvalidDeposit() {
 	gasPrice := big.NewInt(10000)
 	nonce := uint64(0)
 	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	from := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
 	innerTx := &transaction{
 		Nonce:     (*EthHexutil.Uint64)(&nonce),
 		Recipient: &to,
@@ -37,7 +68,6 @@ func (testSuite *BedrockOpsTestSuite) TestInvalidDeposit() {
 		Price:     (*EthHexutil.Big)(gasPrice),
 		Data:      (*EthHexutil.Bytes)(nil),
 	}
-	from := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
 	bedrockTx := bedrockTransaction{
 		Transaction: innerTx,
 		From:        &from,
