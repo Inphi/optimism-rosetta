@@ -8,7 +8,6 @@ import (
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
-	L2Eth "github.com/ethereum-optimism/optimism/l2geth/eth"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -16,86 +15,9 @@ import (
 
 const TopicsInErc20Transfer = 3
 
-// geth traces types
-type rpcCall struct {
-	Result *Call `json:"result"`
-}
-
-// TraceBlockByHash returns the Transaction traces of all transactions in the block
-func (ec *Client) TraceBlockByHash(
-	ctx context.Context,
-	blockHash EthCommon.Hash,
-	txs []BedrockRPCTransaction,
-) (map[string][]*FlatCall, error) {
-	if err := ec.traceSemaphore.Acquire(ctx, semaphoreTraceWeight); err != nil {
-		return nil, err
-	}
-	defer ec.traceSemaphore.Release(semaphoreTraceWeight)
-
-	var calls []*rpcCall
-	var raw json.RawMessage
-
-	// NOTE: By default, we replace the TraceConfig here since l2geth and op-geth have different tracings
-	tracingConfig := ec.tc
-	if !ec.customBedrockTracer {
-		tracer := "callTracer"
-		tracingConfig = &L2Eth.TraceConfig{
-			LogConfig: ec.tc.LogConfig,
-			Tracer:    &tracer,
-			Timeout:   ec.tc.Timeout,
-			Reexec:    ec.tc.Reexec,
-		}
-	}
-	err := ec.c.CallContext(ctx, &raw, "debug_traceBlockByHash", blockHash, tracingConfig)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(raw, &calls); err != nil {
-		return nil, err
-	}
-	m := make(map[string][]*FlatCall)
-	for i, tx := range calls {
-		if tx.Result.Type == "" {
-			// ignore calls with an empty type
-			continue
-		}
-		flatCalls := FlattenTraces(tx.Result, []*FlatCall{})
-		// Ethereum native traces are guaranteed to return all transactions
-		txHash := txs[i].TxExtraInfo.TxHash.Hex()
-		if txHash == "" {
-			return nil, fmt.Errorf("could not get %dth tx hash for block %s", i, blockHash.Hex())
-		}
-		m[txHash] = flatCalls
-	}
-	return m, nil
-}
-
-// flattenTraces recursively flattens all traces.
-func FlattenTraces(data *Call, flattened []*FlatCall) []*FlatCall {
-	if data == nil {
-		return flattened
-	}
-	results := append(flattened, data.flatten()) //nolint
-	for _, child := range data.Calls {
-		// Ensure all children of a reverted call
-		// are also reverted!
-		if data.Revert {
-			child.Revert = true
-
-			// Copy error message from parent
-			// if child does not have one
-			if len(child.ErrorMessage) == 0 {
-				child.ErrorMessage = data.ErrorMessage
-			}
-		}
-
-		children := FlattenTraces(child, flattened)
-		results = append(results, children...)
-	}
-	return results
-}
-
 // getParsedBedrockBlock constructs a [RosettaTypes.Block] from a raw block response.
+//
+//nolint:gocognit
 func (ec *Client) getParsedBedrockBlock(
 	ctx context.Context,
 	raw *json.RawMessage,
@@ -108,17 +30,21 @@ func (ec *Client) getParsedBedrockBlock(
 		return nil, err
 	}
 
+	// Use a client option here to fetch traces from either debug_traceBlockByHash or debug_traceTransaction
 	var m map[string][]*FlatCall
-	var addTraces bool
-	if head.Number.Int64() != GenesisBlockIndex {
-		addTraces = true
-		m, err = ec.TraceBlockByHash(ctx, body.Hash, body.Transactions)
-		if err != nil {
-			return nil, err
+	addTraces := head.Number.Int64() != GenesisBlockIndex
+	if addTraces {
+		if ec.traceByBlock {
+			m, err = ec.TraceBlockByHash(ctx, body.Hash, body.Transactions)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			m, err = ec.TraceTransactions(ctx, body.Hash, body.Transactions)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
-	if err != nil {
-		return nil, fmt.Errorf("%w: could not get receipts for %x", err, body.Hash[:])
 	}
 
 	// Convert all txs to loaded txs

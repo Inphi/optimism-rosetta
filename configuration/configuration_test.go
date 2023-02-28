@@ -35,6 +35,7 @@ func TestLoadConfiguration(t *testing.T) {
 		Geth              string
 		L2GethHTTPTimeout string
 		TokenFilter       string
+		// TraceByBlock      bool
 
 		cfg *Configuration
 		err error
@@ -75,6 +76,7 @@ func TestLoadConfiguration(t *testing.T) {
 				GethArguments:          optimism.MainnetGethArguments,
 				L2GethHTTPTimeout:      time.Second * 100,
 				TokenFilter:            true,
+				TraceByBlock:           false,
 			},
 		},
 		"all set (mainnet) + geth": {
@@ -97,6 +99,7 @@ func TestLoadConfiguration(t *testing.T) {
 				GethArguments:          optimism.MainnetGethArguments,
 				L2GethHTTPTimeout:      time.Second * 100,
 				TokenFilter:            true,
+				TraceByBlock:           false,
 			},
 		},
 		"all set (goerli)": {
@@ -115,6 +118,7 @@ func TestLoadConfiguration(t *testing.T) {
 				GethURL:                DefaultGethURL,
 				GethArguments:          optimism.GoerliGethArguments,
 				TokenFilter:            true,
+				TraceByBlock:           false,
 			},
 		},
 		"all set (testnet)": {
@@ -133,6 +137,7 @@ func TestLoadConfiguration(t *testing.T) {
 				GethURL:                DefaultGethURL,
 				GethArguments:          optimism.TestnetGethArguments,
 				TokenFilter:            true,
+				TraceByBlock:           false,
 			},
 		},
 		"invalid mode": {

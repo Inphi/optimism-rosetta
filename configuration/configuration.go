@@ -101,6 +101,11 @@ const (
 	// read to determine if we will filter tokens
 	// using our token white list
 	TokenFilterEnv = "FILTER_TOKEN"
+
+	// Whether to construct traces using debug_traceBlockByHash or debug_traceTransaction
+	// By default, optimism-rosetta batches calls to debug_traceTransaction to lighten the load on downstream geth clients
+	// DEFAULT: `false`
+	TraceByBlock = "TRACE_BY_BLOCK"
 )
 
 // Configuration determines how
@@ -119,6 +124,7 @@ type Configuration struct {
 	TokenFilter               bool
 	SupportsSyncing           bool
 	EnableCustomBedrockTracer bool
+	TraceByBlock              bool
 
 	// Block Reward Data
 	Params *params.ChainConfig
@@ -126,6 +132,8 @@ type Configuration struct {
 
 // LoadConfiguration attempts to create a new Configuration
 // using the ENVs in the environment.
+//
+//nolint:gocognit
 func LoadConfiguration() (*Configuration, error) {
 	config := &Configuration{}
 
@@ -248,6 +256,16 @@ func LoadConfiguration() (*Configuration, error) {
 			return nil, fmt.Errorf("%w: unable to parse %s %s", err, TokenFilterEnv, envTokenFilter)
 		}
 		config.TokenFilter = val
+	}
+
+	config.TraceByBlock = false
+	envTraceByBlock := os.Getenv(TraceByBlock)
+	if len(envTraceByBlock) > 0 {
+		val, err := strconv.ParseBool(envTraceByBlock)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse %s %s", err, TraceByBlock, envTraceByBlock)
+		}
+		config.TraceByBlock = val
 	}
 
 	return config, nil
