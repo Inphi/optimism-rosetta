@@ -100,35 +100,31 @@ func (ec *Client) getParsedBedrockBlock(
 		}
 	}
 
-	blockIdentifier := &RosettaTypes.BlockIdentifier{
-		Index: head.Number.Int64(),
-		Hash:  head.Hash().String(),
+	parentIndex := head.Number.Int64()
+	if parentIndex != GenesisBlockIndex {
+		parentIndex--
 	}
 
-	parentBlockIdentifier := blockIdentifier
-	if blockIdentifier.Index != GenesisBlockIndex {
-		parentBlockIdentifier = &RosettaTypes.BlockIdentifier{
-			Hash:  head.ParentHash.Hex(),
-			Index: blockIdentifier.Index - 1,
-		}
-	}
-
-	// Populate transactions
 	rosettaTxs := make([]*RosettaTypes.Transaction, len(loadedTxs))
 	for i, tx := range loadedTxs {
-		transaction, err := ec.populateBedrockTransaction(ctx, head, tx)
+		rosettaTxs[i], err = ec.populateBedrockTransaction(ctx, head, tx)
 		if err != nil {
 			return nil, fmt.Errorf("%w: cannot parse %s", err, tx.Transaction.Hash().Hex())
 		}
-		rosettaTxs[i] = transaction
 	}
 
 	return &RosettaTypes.Block{
-		BlockIdentifier:       blockIdentifier,
-		ParentBlockIdentifier: parentBlockIdentifier,
-		Timestamp:             convertTime(head.Time),
-		Transactions:          rosettaTxs,
-		Metadata:              nil,
+		BlockIdentifier: &RosettaTypes.BlockIdentifier{
+			Index: head.Number.Int64(),
+			Hash:  head.Hash().String(),
+		},
+		ParentBlockIdentifier: &RosettaTypes.BlockIdentifier{
+			Hash:  head.ParentHash.Hex(),
+			Index: parentIndex,
+		},
+		Timestamp:    convertTime(head.Time),
+		Transactions: rosettaTxs,
+		Metadata:     nil,
 	}, nil
 }
 
@@ -165,7 +161,6 @@ func (ec *Client) populateBedrockTransaction(
 				if err != nil {
 					return nil, err
 				}
-
 				if currency.Symbol == UnknownERC20Symbol || currency.Symbol == defaultERC20Symbol {
 					continue
 				}
@@ -182,16 +177,6 @@ func (ec *Client) populateBedrockTransaction(
 		return nil, err
 	}
 
-	// var traceList []interface{}
-	// for _, trace := range tx.Trace {
-	// 	traceBytes, _ := json.Marshal(trace)
-	// 	var traceMap map[string]interface{}
-	// 	if err := json.Unmarshal(traceBytes, &traceMap); err != nil {
-	// 		return nil, err
-	// 	}
-	// 	traceList = append(traceList, traceMap)
-	// }
-
 	populatedTransaction := &RosettaTypes.Transaction{
 		TransactionIdentifier: &RosettaTypes.TransactionIdentifier{
 			Hash: tx.TxHash.String(),
@@ -201,8 +186,6 @@ func (ec *Client) populateBedrockTransaction(
 			"gas_limit": hexutil.EncodeUint64(tx.Transaction.Gas()),
 			"gas_price": hexutil.EncodeBig(tx.Transaction.GasPrice()),
 			"receipt":   receiptMap,
-			// Don't include the trace list in the metadata since it can be very large
-			// "trace":     traceList,
 		},
 	}
 
@@ -337,14 +320,4 @@ func MarshalJSONMap(i interface{}) (map[string]interface{}, error) {
 	}
 
 	return m, nil
-}
-
-// UnmarshalJSONMap converts map[string]interface{} into a interface{}.
-func UnmarshalJSONMap(m map[string]interface{}, i interface{}) error {
-	b, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal(b, i)
 }

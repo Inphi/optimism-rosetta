@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
+	EthHexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -67,7 +68,7 @@ func (testSuite *BedrockTracersTestSuite) TestTraceBlockByHash() {
 	blockNumber := big.NewInt(1)
 	blockNumberString := blockNumber.String()
 	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
-	myTx := NewBedrockTransaction(
+	myTx := newBedrockTx(
 		0,
 		to,
 		big.NewInt(0),
@@ -126,6 +127,25 @@ func mockTraceBlock(ctx context.Context, testSuite *BedrockTracersTestSuite, txF
 	).Once()
 }
 
+//nolint:unparam
+func newBedrockTx(
+	nonce uint64,
+	to EthCommon.Address,
+	amount *big.Int,
+	gasLimit uint64,
+	gasPrice *big.Int,
+	data []byte,
+) InnerBedrockTransaction {
+	return &transaction{
+		Nonce:     (*EthHexutil.Uint64)(&nonce),
+		Recipient: &to,
+		Value:     (*EthHexutil.Big)(amount),
+		GasLimit:  (EthHexutil.Uint64)(gasLimit),
+		Price:     (*EthHexutil.Big)(gasPrice),
+		Data:      (*EthHexutil.Bytes)(&data),
+	}
+}
+
 // TestTracedCachedTransaction tests that the trace cache can be used correctly to fetch transaction traces.
 func (testSuite *BedrockTracersTestSuite) TestTracedCachedTransaction() {
 	ctx := context.Background()
@@ -155,7 +175,7 @@ func (testSuite *BedrockTracersTestSuite) TestTracedCachedTransaction() {
 
 	// Trace the first transaction
 	txOneHash := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
-	txOneBedrockTransaction := NewBedrockTransaction(
+	txOneBedrockTransaction := newBedrockTx(
 		0,
 		to,
 		big.NewInt(0),
@@ -235,7 +255,7 @@ func (testSuite *BedrockTracersTestSuite) TestErrTracedCachedTransaction() {
 
 	// Trace the first transaction
 	txOneHash := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
-	txOneBedrockTransaction := NewBedrockTransaction(
+	txOneBedrockTransaction := newBedrockTx(
 		0,
 		to,
 		big.NewInt(0),
@@ -292,7 +312,7 @@ func (testSuite *BedrockTracersTestSuite) TestTraceTransactions() {
 
 	// Trace the first transaction
 	txOneHash := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
-	txOneBedrockTransaction := NewBedrockTransaction(
+	txOneBedrockTransaction := newBedrockTx(
 		0,
 		to,
 		big.NewInt(0),
@@ -322,7 +342,7 @@ func (testSuite *BedrockTracersTestSuite) TestTraceTransactions() {
 
 	// Trace the second transaction
 	txTwoHash := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
-	txTwoBedrockTransaction := NewBedrockTransaction(
+	txTwoBedrockTransaction := newBedrockTx(
 		0,
 		to,
 		big.NewInt(0),

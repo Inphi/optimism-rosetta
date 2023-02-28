@@ -38,61 +38,9 @@ type transaction struct {
 	HashValue            EthCommon.Hash     `json:"hash"`
 }
 
-// NewTransactionFromFields creates a new [transaction] from the fields
-//
-//nolint:golint
-func NewTransactionFromFields(ty uint64, nonce uint64, price *big.Int, maxPriorityFee *big.Int, maxFee *big.Int, gasLim uint64, value *big.Int, data []byte, v *big.Int, r *big.Int, s *big.Int, recipient EthCommon.Address, chain *big.Int, hash EthCommon.Hash) *transaction {
-	return &transaction{
-		Type:                 (EthHexutil.Uint64)(ty),
-		Nonce:                (*EthHexutil.Uint64)(&nonce),
-		Price:                (*EthHexutil.Big)(price),
-		MaxPriorityFeePerGas: (*EthHexutil.Big)(maxPriorityFee),
-		MaxFeePerGas:         (*EthHexutil.Big)(maxFee),
-		GasLimit:             (EthHexutil.Uint64)(gasLim),
-		Value:                (*EthHexutil.Big)(value),
-		Data:                 (*EthHexutil.Bytes)(&data),
-		V:                    (*EthHexutil.Big)(v),
-		R:                    (*EthHexutil.Big)(r),
-		S:                    (*EthHexutil.Big)(s),
-		Recipient:            &recipient,
-		ChainID:              (*EthHexutil.Big)(chain),
-		HashValue:            hash,
-	}
-}
-
-// NewBedrockTransaction creates an unsigned bedrock transaction.
-func NewBedrockTransaction(
-	nonce uint64,
-	to EthCommon.Address,
-	amount *big.Int,
-	gasLimit uint64,
-	gasPrice *big.Int,
-	data []byte,
-) InnerBedrockTransaction {
-	return &transaction{
-		Nonce:     (*EthHexutil.Uint64)(&nonce),
-		Recipient: &to,
-		Value:     (*EthHexutil.Big)(amount),
-		GasLimit:  (EthHexutil.Uint64)(gasLimit),
-		Price:     (*EthHexutil.Big)(gasPrice),
-		Data:      (*EthHexutil.Bytes)(&data),
-	}
-}
-
 // IsDepositTx returns true if the transaction is a deposit tx type.
 func (t *transaction) IsDepositTx() bool {
 	return t.Type == L1ToL2DepositType
-}
-
-// FromRPCTransaction constructs a [legacyTransaction] from an [rpcTransaction].
-func (t *transaction) FromRPCTransaction(tx *rpcTransaction) *legacyTransaction {
-	ethTx := &legacyTransaction{
-		Transaction: tx.tx,
-		From:        tx.txExtraInfo.From,
-		BlockNumber: tx.txExtraInfo.BlockNumber,
-		BlockHash:   tx.txExtraInfo.BlockHash,
-	}
-	return ethTx
 }
 
 // GetValue returns the value of the transaction.
@@ -102,6 +50,7 @@ func (t *transaction) GetValue() *big.Int {
 	return t.Value.ToInt()
 }
 
+// Hash returns the hash of the transaction.
 func (t *transaction) Hash() EthCommon.Hash {
 	return t.HashValue
 }
@@ -116,14 +65,17 @@ func (t *transaction) To() *EthCommon.Address {
 	return t.Recipient
 }
 
+// Gas returns the gas limit of the transaction.
 func (t *transaction) Gas() uint64 {
 	return uint64(t.GasLimit)
 }
 
+// GetType returns the type of the transaction.
 func (t *transaction) GetType() uint64 {
 	return uint64(t.Type)
 }
 
+// GasPrice returns the gas price of the transaction.
 func (t *transaction) GasPrice() *big.Int {
 	if t.Price == nil {
 		return big.NewInt(0)
@@ -131,6 +83,7 @@ func (t *transaction) GasPrice() *big.Int {
 	return (*big.Int)(t.Price)
 }
 
+// GasTipCap returns the gas tip cap of the transaction.
 func (t *transaction) GasTipCap() *big.Int { return t.MaxPriorityFeePerGas.ToInt() }
 
 func (t *transaction) GasFeeCap() *big.Int { return t.MaxPriorityFeePerGas.ToInt() }
@@ -149,7 +102,6 @@ func (t *transaction) EffectiveGasTip(baseFee *big.Int) (*big.Int, error) {
 	gasFeeCap := t.GasFeeCap()
 	if gasFeeCap.Cmp(baseFee) == -1 {
 		err = EthTypes.ErrGasFeeCapTooLow
-		// return big.NewInt(0), nil
 	}
 	return EthMath.BigMin(t.GasTipCap(), gasFeeCap.Sub(gasFeeCap, baseFee)), err
 }

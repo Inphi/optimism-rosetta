@@ -10,6 +10,7 @@ import (
 	L2GethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
+	EthHexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
 	"github.com/stretchr/testify/mock"
@@ -73,14 +74,15 @@ func (testSuite *ClientBedrockReceiptsTestSuite) TestGetBlockReceipts() {
 	blockNumber := big.NewInt(1)
 	blockNumberString := blockNumber.String()
 	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
-	myTx := NewBedrockTransaction(
-		0,
-		to,
-		big.NewInt(0),
-		0,
-		gasPrice,
-		nil,
-	)
+	nonce := uint64(0)
+	myTx := &transaction{
+		Nonce:     (*EthHexutil.Uint64)(&nonce),
+		Recipient: &to,
+		Value:     (*EthHexutil.Big)(big.NewInt(0)),
+		GasLimit:  (EthHexutil.Uint64)(0),
+		Price:     (*EthHexutil.Big)(gasPrice),
+		Data:      (*EthHexutil.Bytes)(nil),
+	}
 	txs := []BedrockRPCTransaction{
 		{
 			Tx: myTx,

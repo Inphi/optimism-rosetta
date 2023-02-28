@@ -20,17 +20,6 @@ type rpcBedrockBlock struct {
 	UncleHashes  []EthCommon.Hash        `json:"uncles"`
 }
 
-// NewRpcBedrockBlock constructs a new [rpcBedrockBlock] with the given fields
-//
-//nolint:golint
-func NewRpcBedrockBlock(hash EthCommon.Hash, txs []BedrockRPCTransaction, uncles []EthCommon.Hash) *rpcBedrockBlock {
-	return &rpcBedrockBlock{
-		Hash:         hash,
-		Transactions: txs,
-		UncleHashes:  uncles,
-	}
-}
-
 // BedrockRPCTransaction is a post-bedrock transaction.
 type BedrockRPCTransaction struct {
 	Tx InnerBedrockTransaction `json:"tx"`
@@ -101,13 +90,6 @@ type bedrockTransaction struct {
 	BaseFee *big.Int
 }
 
-// NewTransaction creates a new post-bedrock transaction.
-//
-//nolint:golint
-func NewTransaction() bedrockTransaction {
-	return bedrockTransaction{}
-}
-
 // L1ToL2DepositType is the transaction type for L1ToL2 deposits.
 const L1ToL2DepositType = 126 // (126)
 
@@ -124,19 +106,6 @@ func (tx *BedrockRPCTransaction) LoadTransaction() *bedrockTransaction {
 		Transaction: tx.Tx,
 		From:        tx.TxExtraInfo.From,
 		TxHash:      tx.TxHash,
-		BlockNumber: tx.TxExtraInfo.BlockNumber,
-		BlockHash:   tx.TxExtraInfo.BlockHash,
-	}
-	return ethTx
-}
-
-// FromRPCTransaction constructs a [bedrockTransaction] from a [BedrockRPCTransaction].
-//
-//nolint:golint
-func (bt *bedrockTransaction) FromRPCTransaction(tx *BedrockRPCTransaction) *bedrockTransaction {
-	ethTx := &bedrockTransaction{
-		Transaction: tx.Tx,
-		From:        tx.TxExtraInfo.From,
 		BlockNumber: tx.TxExtraInfo.BlockNumber,
 		BlockHash:   tx.TxExtraInfo.BlockHash,
 	}
