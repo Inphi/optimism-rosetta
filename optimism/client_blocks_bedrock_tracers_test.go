@@ -3,9 +3,11 @@ package optimism
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
@@ -122,6 +124,149 @@ func mockTraceBlock(ctx context.Context, testSuite *BedrockTracersTestSuite, txF
 			*r = rawMessage
 		},
 	).Once()
+}
+
+// TestTracedCachedTransaction tests that the trace cache can be used correctly to fetch transaction traces.
+func (testSuite *BedrockTracersTestSuite) TestTracedCachedTransaction() {
+	ctx := context.Background()
+
+	tspec := tracerSpec{TracerPath: "call_tracer.js", UseGethTracer: true}
+	traceCache, err := NewTraceCache(testSuite.mockJSONRPC, tspec, time.Second*120, 10)
+	testSuite.NoError(err)
+
+	c := &Client{
+		c:               testSuite.mockJSONRPC,
+		g:               testSuite.mockGraphQL,
+		currencyFetcher: testSuite.mockCurrencyFetcher,
+		tc:              testBedrockTraceConfig,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
+		filterTokens:    false,
+		bedrockBlock:    big.NewInt(5_003_318),
+		traceCache:      traceCache,
+	}
+
+	// Common tx variables
+	blockNumber := big.NewInt(1)
+	gasPrice := big.NewInt(10000)
+	blockNumberString := blockNumber.String()
+	blockHash := EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774")
+	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+
+	// Trace the first transaction
+	txOneHash := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
+	txOneBedrockTransaction := NewBedrockTransaction(
+		0,
+		to,
+		big.NewInt(0),
+		0,
+		gasPrice,
+		nil,
+	)
+	txOneBedrockRPCTransaction := BedrockRPCTransaction{
+		Tx: txOneBedrockTransaction,
+		TxExtraInfo: TxExtraInfo{
+			BlockNumber: &blockNumberString,
+			BlockHash:   &blockHash,
+			From:        &to,
+			TxHash:      &txOneHash,
+		},
+	}
+
+	// Execute the transaction trace
+	mockCachedTraceTransaction(testSuite, txOneHash.Hex(), "testdata/goerli_bedrock_tx_trace_5003318_1.json")
+	m, err := c.TraceTransactions(ctx, blockHash, []BedrockRPCTransaction{txOneBedrockRPCTransaction})
+
+	// Expect the result
+	expectedCalls := constructTxOneExpectedCalls(m, txOneHash)
+	testSuite.NoError(err)
+	testSuite.Equal(len(m), 1)
+	testSuite.Equal(expectedCalls, m[txOneHash.Hex()])
+}
+
+func mockCachedTraceTransaction(testSuite *BedrockTracersTestSuite, txHash string, txFileData string) {
+	testSuite.mockJSONRPC.On(
+		"CallContext",
+		mock.Anything,
+		mock.Anything,
+		"debug_traceTransaction",
+		txHash,
+		mock.Anything,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*Call)
+			file, err := os.ReadFile(txFileData)
+			testSuite.NoError(err)
+			call := new(Call)
+			testSuite.NoError(call.UnmarshalJSON(file))
+			*r = *call
+		},
+	).Once()
+}
+
+// TestErrTracedCachedTransaction tests that a trace cache returning an error should error out.
+func (testSuite *BedrockTracersTestSuite) TestErrTracedCachedTransaction() {
+	ctx := context.Background()
+
+	tspec := tracerSpec{TracerPath: "call_tracer.js", UseGethTracer: true}
+	traceCache, err := NewTraceCache(testSuite.mockJSONRPC, tspec, time.Second*120, 10)
+	testSuite.NoError(err)
+
+	c := &Client{
+		c:               testSuite.mockJSONRPC,
+		g:               testSuite.mockGraphQL,
+		currencyFetcher: testSuite.mockCurrencyFetcher,
+		tc:              testBedrockTraceConfig,
+		p:               params.GoerliChainConfig,
+		traceSemaphore:  semaphore.NewWeighted(100),
+		filterTokens:    false,
+		bedrockBlock:    big.NewInt(5_003_318),
+		traceCache:      traceCache,
+	}
+
+	// Common tx variables
+	blockNumber := big.NewInt(1)
+	gasPrice := big.NewInt(10000)
+	blockNumberString := blockNumber.String()
+	blockHash := EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774")
+	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+
+	// Trace the first transaction
+	txOneHash := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
+	txOneBedrockTransaction := NewBedrockTransaction(
+		0,
+		to,
+		big.NewInt(0),
+		0,
+		gasPrice,
+		nil,
+	)
+	txOneBedrockRPCTransaction := BedrockRPCTransaction{
+		Tx: txOneBedrockTransaction,
+		TxExtraInfo: TxExtraInfo{
+			BlockNumber: &blockNumberString,
+			BlockHash:   &blockHash,
+			From:        &to,
+			TxHash:      &txOneHash,
+		},
+	}
+
+	// Execute the transaction trace
+	testSuite.mockJSONRPC.On(
+		"CallContext",
+		mock.Anything,
+		mock.Anything,
+		"debug_traceTransaction",
+		txOneHash.Hex(),
+		mock.Anything,
+	).Return(
+		errors.New("failed to get tx trace"),
+	).Once()
+	m, err := c.TraceTransactions(ctx, blockHash, []BedrockRPCTransaction{txOneBedrockRPCTransaction})
+	testSuite.Error(err)
+	testSuite.Nil(m)
 }
 
 func (testSuite *BedrockTracersTestSuite) TestTraceTransactions() {

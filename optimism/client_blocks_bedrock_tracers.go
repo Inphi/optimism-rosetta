@@ -42,6 +42,12 @@ func (ec *Client) TraceTransactions(
 				return nil, err
 			}
 			traces[i] = result
+			flatCalls := FlattenTraces(traces[i], []*FlatCall{})
+			txHash := common.Hash(*txs[i].TxHash).Hex()
+			if txHash == "" {
+				return nil, fmt.Errorf("could not get %dth tx hash for block %s", i, blockHash.Hex())
+			}
+			m[txHash] = flatCalls
 		}
 		return m, nil
 	}
