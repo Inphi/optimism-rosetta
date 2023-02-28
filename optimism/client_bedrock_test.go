@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
@@ -20,16 +19,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sync/semaphore"
-)
-
-var (
-	tracerTimeout = "120s"
-	loadedTracer  = "callTracer"
-	//nolint:unused
-	testBedrockTraceConfig = &eth.TraceConfig{
-		Timeout: &tracerTimeout,
-		Tracer:  &loadedTracer,
-	}
 )
 
 var convertBigInt = func(s string) *big.Int {
@@ -220,68 +209,6 @@ func (testSuite *ClientBedrockTestSuite) TestParseBedrockBlock() {
 	testSuite.NoError(err)
 }
 
-func (testSuite *ClientBedrockTestSuite) TestTraceBlockByHash() {
-	ctx := context.Background()
-
-	c := &Client{
-		c:               testSuite.mockJSONRPC,
-		g:               testSuite.mockGraphQL,
-		currencyFetcher: testSuite.mockCurrencyFetcher,
-		tc:              testBedrockTraceConfig,
-		p:               params.GoerliChainConfig,
-		traceSemaphore:  semaphore.NewWeighted(100),
-		filterTokens:    false,
-		bedrockBlock:    big.NewInt(5_003_318),
-	}
-
-	tx1 := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
-	tx2 := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
-	gasPrice := big.NewInt(10000)
-	blockNumber := big.NewInt(1)
-	blockNumberString := blockNumber.String()
-	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
-	nonce := uint64(0)
-	myTx := &transaction{
-		Nonce:     (*EthHexutil.Uint64)(&nonce),
-		Recipient: &to,
-		Value:     (*EthHexutil.Big)(big.NewInt(0)),
-		GasLimit:  (EthHexutil.Uint64)(0),
-		Price:     (*EthHexutil.Big)(gasPrice),
-		Data:      (*EthHexutil.Bytes)(nil),
-	}
-	txs := []BedrockRPCTransaction{
-		{
-			Tx: myTx,
-			TxExtraInfo: TxExtraInfo{
-				BlockNumber: &blockNumberString,
-				BlockHash:   &tx1,
-				From:        &to,
-				TxHash:      &tx1,
-			},
-		},
-		{
-			Tx: myTx,
-			TxExtraInfo: TxExtraInfo{
-				BlockNumber: &blockNumberString,
-				BlockHash:   &tx2,
-				From:        &to,
-				TxHash:      &tx2,
-			},
-		},
-	}
-
-	// Mock the block trace
-	mockDebugTraceBedrockBlock(ctx, testSuite, "testdata/goerli_bedrock_block_trace_5003318.json")
-
-	// Call
-	blkHash := EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774")
-	m, err := c.TraceBlockByHash(ctx, blkHash, txs)
-	testSuite.NoError(err)
-
-	testSuite.Equal(len(m), 2)
-	testSuite.NotNil(m[tx1.Hex()])
-}
-
 func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	c := &Client{
 		c:               testSuite.mockJSONRPC,
@@ -348,7 +275,10 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	tx1 := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
 	tx2 := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
 
-	mockDebugTraceBedrockBlock(ctx, testSuite, "testdata/goerli_bedrock_block_trace_5003318.json")
+	// Execute the transaction trace
+	mockBedrockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_1.json")
+	mockBedrockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_2.json")
+	// mockDebugTraceBedrockBlock(ctx, testSuite, "testdata/goerli_bedrock_block_trace_5003318.json")
 	mockGetBedrockTransactionReceipt(ctx, testSuite, []EthCommon.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
 
 	correctRaw, err := os.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")
@@ -365,6 +295,29 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	testSuite.Equal(correct.Block, resp)
 }
 
+func mockBedrockTraceTransaction(ctx context.Context, testSuite *ClientBedrockTestSuite, txFileData string) {
+	testSuite.mockJSONRPC.On(
+		"BatchCallContext",
+		ctx,
+		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
+			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
+		}),
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).([]rpc.BatchElem)
+			file, err := os.ReadFile(txFileData)
+			testSuite.NoError(err)
+
+			call := new(Call)
+			testSuite.NoError(call.UnmarshalJSON(file))
+			*(r[0].Result.(**Call)) = call
+		},
+	).Once()
+}
+
+//nolint:unused
 func mockDebugTraceBedrockBlock(ctx context.Context, testSuite *ClientBedrockTestSuite, txFileData string) {
 	testSuite.mockJSONRPC.On(
 		"CallContext",

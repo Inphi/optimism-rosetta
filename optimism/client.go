@@ -120,6 +120,7 @@ type Client struct {
 	supportsPeering     bool
 	bedrockBlock        *big.Int
 	customBedrockTracer bool
+	traceByBlock        bool
 }
 
 type ClientOptions struct {
@@ -134,6 +135,7 @@ type ClientOptions struct {
 	SkipAdminCalls            bool
 	SupportsPeering           bool
 	EnableCustomBedrockTracer bool
+	TraceByBlock              bool
 }
 
 // NewClient creates a Client that from the provided url and params.
@@ -196,6 +198,7 @@ func NewClient(url string, params *params.ChainConfig, opts ClientOptions) (*Cli
 		supportsPeering:     opts.SupportsPeering,
 		bedrockBlock:        opts.BedrockBlock,
 		customBedrockTracer: opts.EnableCustomBedrockTracer,
+		traceByBlock:        opts.TraceByBlock,
 	}, nil
 }
 
