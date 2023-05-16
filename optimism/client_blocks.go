@@ -87,7 +87,7 @@ func (ec *Client) disptachBlockRequest(
 		}
 	}
 	// Block fetch errors should short-circuit
-	if err.IsBlockFetchError() {
+	if err != nil && err.IsBlockFetchError() {
 		return nil, err.Err
 	}
 

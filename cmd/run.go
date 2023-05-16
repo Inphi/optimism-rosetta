@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
 	"time"
@@ -99,6 +100,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 			SkipAdminCalls:            false,
 			SupportsPeering:           false,
 			EnableCustomBedrockTracer: cfg.EnableCustomBedrockTracer,
+			BedrockBlock:              getBedrockBlock(cfg.Network.Network),
 		}
 		var err error
 		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, opts)
@@ -160,5 +162,17 @@ func getSupportedTokens(network string) map[string]bool {
 
 	return map[string]bool{
 		"0x4200000000000000000000000000000000000042": true, // OP
+	}
+}
+
+func getBedrockBlock(network string) *big.Int {
+	switch network {
+	case optimism.TestnetNetwork:
+		return big.NewInt(4061224)
+	case optimism.MainnetNetwork:
+		// TODO: Set this once it is known
+		return big.NewInt(0)
+	default:
+		return big.NewInt(0)
 	}
 }
