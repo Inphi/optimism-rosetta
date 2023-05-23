@@ -57,7 +57,7 @@ func (ec *Client) TraceTransactions(
 		txHash := common.Hash(*txs[i].TxHash).Hex()
 		req := rpc.BatchElem{
 			Method: "debug_traceTransaction",
-			Args:   []interface{}{txHash, ec.tc},
+			Args:   []interface{}{txHash},
 			Result: &traces[i],
 		}
 		if err := ec.c.BatchCallContext(ctx, []rpc.BatchElem{req}); err != nil {
