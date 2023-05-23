@@ -146,6 +146,10 @@ func (ec *Client) getBalance(ctx context.Context, accountAddress string, blockNu
 	if err := ec.c.CallContext(ctx, &resp, "eth_call", callParams, blockNum); err != nil {
 		return "", err
 	}
+	// "0x" may be returned when retrieving balances of historical state that have been pruned by non-archival nodes
+	if resp == "0x" {
+		return "0", nil
+	}
 	balance, err := decodeHexData(resp)
 	if err != nil {
 		return "", err
