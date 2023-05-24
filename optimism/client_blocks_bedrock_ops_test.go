@@ -125,7 +125,7 @@ func (testSuite *BedrockOpsTestSuite) TestValidMint() {
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
 				Index: int64(index),
 			},
-			Type:   MintOpType,
+			Type:   CallOpType,
 			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
 				Address: from.String(),
