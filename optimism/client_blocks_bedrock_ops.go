@@ -37,7 +37,8 @@ func MintOps(tx *bedrockTransaction, startIndex int) []*RosettaTypes.Operation {
 	}
 
 	opIndex := int64(startIndex)
-	opType := MintOpType
+	// "CALL" is used here to remain backwards-compatible with pre-bedrock Rosetta behavior
+	opType := CallOpType
 	opStatus := SuccessStatus
 	fromAddress := MustChecksum(tx.From.String())
 	amount := Amount(tx.Transaction.GetValue(), Currency)

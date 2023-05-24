@@ -28,8 +28,6 @@ import (
 const (
 	// MintOpType is a [RosettaTypes.Operation] type for an Optimism Deposit or "mint" transaction.
 	MintOpType = "MINT"
-	// BurnOpType is a [RosettaTypes.Operation] type for an Optimism Withdrawal or "burn" transaction.
-	BurnOpType = "BURN"
 	// An erroneous STOP Type not defined in rosetta-geth-sdk
 	StopOpType = "STOP"
 )
