@@ -55,7 +55,15 @@ func (ec *Client) Block(
 	ctx context.Context,
 	blockIdentifier *RosettaTypes.PartialBlockIdentifier,
 ) (*RosettaTypes.Block, error) {
-	log.Printf("received block request. blockIdentifier: %+v", blockIdentifier)
+	var index int64
+	var hash string
+	if blockIdentifier != nil && blockIdentifier.Hash != nil {
+		hash = *blockIdentifier.Hash
+	}
+	if blockIdentifier != nil && blockIdentifier.Index != nil {
+		index = *blockIdentifier.Index
+	}
+	log.Printf("received block request. block_hash=%x block_index=%v", hash, index)
 	// Derive block method and id
 	derivedBlockMethod := "eth_getBlockByNumber"
 	derivedBlockID := toBlockNumArg(nil)
