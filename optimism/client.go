@@ -277,7 +277,8 @@ func (ec *Client) getTransactionTraces(
 			return nil, req.Error
 		}
 		if traces[i] == nil {
-			return nil, fmt.Errorf("got empty trace for %x", txs[i].tx.Hash().Hex())
+			log.Printf("got empty trace. tx=%s", txs[i].tx.Hash().Hex())
+			return nil, fmt.Errorf("got empty trace for %s", txs[i].tx.Hash().Hex())
 		}
 	}
 

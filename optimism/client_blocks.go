@@ -2,6 +2,7 @@ package optimism
 
 import (
 	"context"
+	"log"
 	"math/big"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -54,6 +55,7 @@ func (ec *Client) Block(
 	ctx context.Context,
 	blockIdentifier *RosettaTypes.PartialBlockIdentifier,
 ) (*RosettaTypes.Block, error) {
+	log.Printf("received block request. blockIdentifier: %+v", blockIdentifier)
 	// Derive block method and id
 	derivedBlockMethod := "eth_getBlockByNumber"
 	derivedBlockID := toBlockNumArg(nil)
