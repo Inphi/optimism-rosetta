@@ -268,7 +268,7 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 		&RosettaTypes.Currency{
 			Symbol:   "LINK",
 			Decimals: 18,
-			Metadata: map[string]interface{}{"contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"}},
+			Metadata: map[string]interface{}{ContractAddressKey: "0xdc2CC710e42857672E7907CF474a69B63B93089f"}},
 		nil,
 	)
 

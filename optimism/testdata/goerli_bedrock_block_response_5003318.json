@@ -45,13 +45,13 @@
               "blockNumber": "0x4c5836",
               "contractAddress": null,
               "cumulativeGasUsed": "0x0",
-              "effectiveGasPrice": "0x31",
+              "effectiveGasPrice": "0x0",
               "from": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001",
               "gasUsed": "0x0",
               "logs": [],
               "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-              "to": "0x4200000000000000000000000000000000000015",
               "status": "0x1",
+              "to": "0x4200000000000000000000000000000000000015",
               "transactionHash": "0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611",
               "transactionIndex": "0x0",
               "type": "0x7e"
@@ -76,7 +76,7 @@
               "address": "0xE261E28d9FCCd3742629fEF031E63327585B40f0"
             },
             "amount": {
-              "value": "-915710806975515",
+              "value": "-915710821932030",
               "currency": {
                 "symbol": "ETH",
                 "decimals": 18
@@ -98,7 +98,7 @@
               "address": "0x4200000000000000000000000000000000000011"
             },
             "amount": {
-              "value": "915705014651280",
+              "value": "915705029607795",
               "currency": {
                 "symbol": "ETH",
                 "decimals": 18
@@ -164,7 +164,7 @@
                 "symbol": "LINK",
                 "decimals": 18,
                 "metadata": {
-                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                  "token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
                 }
               }
             }
@@ -189,7 +189,7 @@
                 "symbol": "LINK",
                 "decimals": 18,
                 "metadata": {
-                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                  "token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
                 }
               }
             }
@@ -209,7 +209,7 @@
                 "symbol": "LINK",
                 "decimals": 18,
                 "metadata": {
-                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                  "token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
                 }
               }
             }
@@ -234,7 +234,7 @@
                 "symbol": "LINK",
                 "decimals": 18,
                 "metadata": {
-                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                  "token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
                 }
               }
             }
@@ -254,7 +254,7 @@
                 "symbol": "LINK",
                 "decimals": 18,
                 "metadata": {
-                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                  "token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
                 }
               }
             }
@@ -279,7 +279,7 @@
                 "symbol": "LINK",
                 "decimals": 18,
                 "metadata": {
-                  "contractAddress": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+                  "token_address": "0xdc2CC710e42857672E7907CF474a69B63B93089f"
                 }
               }
             }
@@ -289,7 +289,7 @@
           "gas_limit": "0x5b8d80",
           "gas_price": "0xb2d05e61",
           "receipt": {
-            "GasPrice": 3000000048,
+            "GasPrice": 3000000097,
             "GasUsed": 305235,
             "Logs": [
               {
@@ -440,15 +440,15 @@
             "RawMessage": {
               "blockHash": "0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774",
               "blockNumber": "0x4c5836",
-              "cumulativeGasUsed": "0x4a853",
               "contractAddress": null,
+              "cumulativeGasUsed": "0x4a853",
               "effectiveGasPrice": "0xb2d05e61",
               "from": "0xe261e28d9fccd3742629fef031e63327585b40f0",
               "gasUsed": "0x4a853",
               "l1Fee": "0x1585ba2a8",
               "l1FeeScalar": "1",
               "l1GasPrice": "0x4ee2f",
-              "l1GasUsed": "0x3da4",
+              "l1GasUsed": "0x45d8",
               "logs": [
                 {
                   "address": "0x0af29c7539f767427aae2a1e212ae07d562f8f51",
@@ -596,13 +596,13 @@
                 }
               ],
               "logsBloom": "0x000000000000000000000003001000000001100000002000000002000000001002108040000000000000020000000000000000000204000400000000002000080040210000000000000080084000000000000040000100000008000000000000100020000000002000000000200009000000000000000000000000100000002000204000080000000000000008000008000100000000a2000800020000000000020000000000000000000000000000000400000000000000408000000000000004000002000000000000000000024800000000000000004010010001000000000010200000005000008000040000000000000000000000000000000800800000",
-              "to": "0x794c23bb0a718f4a79ee96531d40c54a67f7f037",
               "status": "0x1",
+              "to": "0x794c23bb0a718f4a79ee96531d40c54a67f7f037",
               "transactionHash": "0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88",
               "transactionIndex": "0x1",
               "type": "0x2"
             },
-            "TransactionFee": 915710792019000,
+            "TransactionFee": 915710806975515,
             "type": 2
           }
         }
