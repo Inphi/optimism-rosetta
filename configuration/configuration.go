@@ -100,6 +100,7 @@ const (
 	// TokenFilterEnv is the environment variable
 	// read to determine if we will filter tokens
 	// using our token white list
+	// NOTE: this is enabled by default
 	TokenFilterEnv = "FILTER_TOKEN"
 
 	// Whether to construct traces using debug_traceBlockByHash or debug_traceTransaction

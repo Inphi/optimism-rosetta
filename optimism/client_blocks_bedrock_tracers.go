@@ -57,7 +57,7 @@ func (ec *Client) TraceTransactions(
 		txHash := common.Hash(*txs[i].TxHash).Hex()
 		req := rpc.BatchElem{
 			Method: "debug_traceTransaction",
-			Args:   []interface{}{txHash},
+			Args:   []interface{}{txHash, ec.getBedrockTraceConfig()},
 			Result: &traces[i],
 		}
 		if err := ec.c.BatchCallContext(ctx, []rpc.BatchElem{req}); err != nil {
@@ -94,17 +94,7 @@ func (ec *Client) TraceBlockByHash(
 	var calls []*rpcCall
 	var raw json.RawMessage
 
-	// NOTE: By default, we replace the TraceConfig here since l2geth and op-geth have different tracings
-	tracingConfig := ec.tc
-	if !ec.customBedrockTracer {
-		tracer := "callTracer"
-		tracingConfig = &L2Eth.TraceConfig{
-			LogConfig: ec.tc.LogConfig,
-			Tracer:    &tracer,
-			Timeout:   ec.tc.Timeout,
-			Reexec:    ec.tc.Reexec,
-		}
-	}
+	tracingConfig := ec.getBedrockTraceConfig()
 	err := ec.c.CallContext(ctx, &raw, "debug_traceBlockByHash", blockHash, tracingConfig)
 	if err != nil {
 		return nil, err
@@ -127,6 +117,21 @@ func (ec *Client) TraceBlockByHash(
 		m[txHash] = flatCalls
 	}
 	return m, nil
+}
+
+func (ec *Client) getBedrockTraceConfig() *L2Eth.TraceConfig {
+	// NOTE: By default, we replace the TraceConfig here since l2geth and op-geth have different tracings
+	tracingConfig := ec.tc
+	if !ec.customBedrockTracer {
+		tracer := "callTracer"
+		tracingConfig = &L2Eth.TraceConfig{
+			LogConfig: ec.tc.LogConfig,
+			Tracer:    &tracer,
+			Timeout:   ec.tc.Timeout,
+			Reexec:    ec.tc.Reexec,
+		}
+	}
+	return tracingConfig
 }
 
 // FlattenTraces recursively flattens all traces.

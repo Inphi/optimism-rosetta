@@ -68,6 +68,9 @@ func TraceOps(calls []*FlatCall, startIndex int) []*RosettaTypes.Operation {
 		}
 
 		opType := strings.ToUpper(call.Type)
+		if opType == "" {
+			opType = CallOpType
+		}
 
 		// Checksum addresses
 		fromAddress := MustChecksum(call.From.String())

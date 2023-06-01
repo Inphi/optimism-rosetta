@@ -86,7 +86,7 @@ func (t *transaction) GasPrice() *big.Int {
 // GasTipCap returns the gas tip cap of the transaction.
 func (t *transaction) GasTipCap() *big.Int { return t.MaxPriorityFeePerGas.ToInt() }
 
-func (t *transaction) GasFeeCap() *big.Int { return t.MaxPriorityFeePerGas.ToInt() }
+func (t *transaction) GasFeeCap() *big.Int { return t.MaxFeePerGas.ToInt() }
 
 // EffectiveGasTip returns the effective miner gasTipCap for the given base fee.
 // Note: if the effective gasTipCap is negative, this method returns both error

@@ -176,7 +176,7 @@ func (testSuite *ClientBedrockTxTestSuite) TestTransactionMethods() {
 	testSuite.Equal(expectedGasLimit, tx.Gas())
 	testSuite.Equal(expectedGasPrice, tx.GasPrice())
 	testSuite.Equal(expectedMaxPriorityFeePerGas, tx.GasTipCap())
-	testSuite.Equal(expectedMaxPriorityFeePerGas, tx.GasFeeCap())
+	testSuite.Equal(expectedMaxFeePerGas, tx.GasFeeCap())
 }
 
 // TestTransactionNilMethodReturns ensures transaction methods return nil when the transaction is gas price is nil
