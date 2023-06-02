@@ -101,6 +101,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 			SupportsPeering:           false,
 			EnableCustomBedrockTracer: cfg.EnableCustomBedrockTracer,
 			BedrockBlock:              getBedrockBlock(cfg.Network.Network),
+			TraceCacheSize:            cfg.TraceCacheSize,
 		}
 		var err error
 		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, opts)
