@@ -256,6 +256,7 @@ var (
 		StaticCallOpType,
 		DestructOpType,
 		DelegateVotesOpType,
+		ERC20TransferOpType,
 	}
 
 	// OperationStatuses are all supported operation statuses.
