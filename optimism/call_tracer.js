@@ -214,6 +214,25 @@
 			to = toHex(to);
 		}
 
+        var input;
+        var output;
+        if (typeof ctx.type !== 'undefined') {
+            input = toHex(ctx.input)
+            output = toHex(ctx.output)
+        }
+        // There's a weird bug in the JS engine here where ctx.input doesn't work for (I think only pre-Regolith) deposit
+        // transactions like 0x6c0eea6c38c283c687a0e2abf906056c81baf12257d0d26f2db84e4609765691 on Optimism Goerli. One workaround
+        // is the above where we check if `typeof ctx.type !== 'defined'`. Don't ask me why this works, but it does.
+        // Hopefully this generalizes to all other weird transactions.
+        // TODO: This is a dirty, filthy, hack and it should be revised!
+        /*
+        if (typeof ctx.input !== 'undefined' || ctx.input !== null) {
+            input = toHex(ctx.input)
+        }
+        if (ctx.output !== undefined || ctx.output !== null) {
+            output = toHex(ctx.output)
+        }
+        */
 		var result = {
 			type:    ctx.type,
 			from:    from,
@@ -221,8 +240,8 @@
 			value:   value,
 			gas:     '0x' + bigInt(ctx.gas).toString(16),
 			gasUsed: '0x' + bigInt(ctx.gasUsed).toString(16),
-			input:   toHex(ctx.input),
-			output:  toHex(ctx.output),
+			input:   input,
+			output:  output,
 			time:    ctx.time,
 		};
 		if (this.callstack[0].calls !== undefined) {
