@@ -40,7 +40,7 @@ import (
 
 const (
 	defaultHTTPTimeout    = 240 * time.Second
-	defaultTraceCacheSize = 20
+	defaultTraceCacheSize = 100
 
 	defaultMaxTraceConcurrency = int64(1) // nolint:gomnd
 	semaphoreTraceWeight       = int64(1) // nolint:gomnd
@@ -49,7 +49,7 @@ const (
 	mintSelector          = "0x40c10f19" // keccak(mint(address,uint256))
 	erc20TransferSelector = "0xa9059cbb" // keccak(transfer(address,uint256))
 	fnSelectorLen         = 10
-	j
+
 	sequencerFeeVaultAddr = "0x4200000000000000000000000000000000000011"
 	zeroAddr              = "0x0000000000000000000000000000000000000000"
 
@@ -136,6 +136,7 @@ type ClientOptions struct {
 	SupportsPeering           bool
 	EnableCustomBedrockTracer bool
 	TraceByBlock              bool
+	TraceCacheSize            int
 }
 
 // NewClient creates a Client that from the provided url and params.
@@ -177,8 +178,12 @@ func NewClient(url string, params *params.ChainConfig, opts ClientOptions) (*Cli
 
 	var traceCache TraceCache
 	if opts.EnableTraceCache {
-		log.Println("using trace cache")
-		if traceCache, err = NewTraceCache(c, tspec, opts.HTTPTimeout, defaultTraceCacheSize); err != nil {
+		traceCacheSize := opts.TraceCacheSize
+		if traceCacheSize == 0 {
+			traceCacheSize = defaultCacheSize
+		}
+		log.Printf("using trace cache. cache_size=%d", traceCacheSize)
+		if traceCache, err = NewTraceCache(c, tspec, opts.HTTPTimeout, traceCacheSize); err != nil {
 			return nil, fmt.Errorf("%w: unable to create trace cache", err)
 		}
 	}

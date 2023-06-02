@@ -91,11 +91,14 @@ const (
 	// Experimental: Maintain a cache of debug traces
 	EnableTraceCacheEnv = "ENABLE_TRACE_CACHE"
 
+	// Configures the size of the trace cache
+	TraceCacheSizeEnv = "TRACE_CACHE_SIZE"
+
 	// Experimental: Use newly added built-in geth tracer
 	EnableGethTracer = "ENABLE_GETH_TRACER"
 
 	// Experimental: Custom Bedrock op-geth Tracer
-	EnableCustomBedrockTracer = "ENABLE_CUSTOM_BEDROCK_TRACER"
+	EnableCustomBedrockTracerEnv = "ENABLE_CUSTOM_BEDROCK_TRACER"
 
 	// TokenFilterEnv is the environment variable
 	// read to determine if we will filter tokens
@@ -106,7 +109,7 @@ const (
 	// Whether to construct traces using debug_traceBlockByHash or debug_traceTransaction
 	// By default, optimism-rosetta batches calls to debug_traceTransaction to lighten the load on downstream geth clients
 	// DEFAULT: `false`
-	TraceByBlock = "TRACE_BY_BLOCK"
+	TraceByBlockEnv = "TRACE_BY_BLOCK"
 )
 
 // Configuration determines how
@@ -121,6 +124,7 @@ type Configuration struct {
 	L2GethHTTPTimeout         time.Duration
 	MaxConcurrentTraces       int64
 	EnableTraceCache          bool
+	TraceCacheSize            int
 	EnableGethTracer          bool
 	TokenFilter               bool
 	SupportsSyncing           bool
@@ -229,6 +233,15 @@ func LoadConfiguration() (*Configuration, error) {
 		config.EnableTraceCache = val
 	}
 
+	envTraceCacheSize := os.Getenv(TraceCacheSizeEnv)
+	if len(envTraceCacheSize) > 0 {
+		val, err := strconv.Atoi(envTraceCacheSize)
+		if err != nil {
+			return nil, fmt.Errorf("%w: unable to parse %s %s", err, TraceCacheSizeEnv, envTraceCacheSize)
+		}
+		config.TraceCacheSize = val
+	}
+
 	envEnableGethTracer := os.Getenv(EnableGethTracer)
 	if len(envEnableGethTracer) > 0 {
 		val, err := strconv.ParseBool(envEnableGethTracer)
@@ -240,11 +253,11 @@ func LoadConfiguration() (*Configuration, error) {
 
 	// Custom bedrock tracing is disabled by default.
 	// Since op-geth does not have builtin tracing like l2geth, we use the `callTracer` by default.
-	envCustomBedrockTracer := os.Getenv(EnableCustomBedrockTracer)
+	envCustomBedrockTracer := os.Getenv(EnableCustomBedrockTracerEnv)
 	if len(envCustomBedrockTracer) > 0 {
 		val, err := strconv.ParseBool(envCustomBedrockTracer)
 		if err != nil {
-			return nil, fmt.Errorf("%w: unable to parse %s %s", err, EnableCustomBedrockTracer, envCustomBedrockTracer)
+			return nil, fmt.Errorf("%w: unable to parse %s %s", err, EnableCustomBedrockTracerEnv, envCustomBedrockTracer)
 		}
 		config.EnableCustomBedrockTracer = val
 	}
@@ -260,11 +273,11 @@ func LoadConfiguration() (*Configuration, error) {
 	}
 
 	config.TraceByBlock = false
-	envTraceByBlock := os.Getenv(TraceByBlock)
+	envTraceByBlock := os.Getenv(TraceByBlockEnv)
 	if len(envTraceByBlock) > 0 {
 		val, err := strconv.ParseBool(envTraceByBlock)
 		if err != nil {
-			return nil, fmt.Errorf("%w: unable to parse %s %s", err, TraceByBlock, envTraceByBlock)
+			return nil, fmt.Errorf("%w: unable to parse %s %s", err, TraceByBlockEnv, envTraceByBlock)
 		}
 		config.TraceByBlock = val
 	}
