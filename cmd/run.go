@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/inphi/optimism-rosetta/configuration"
@@ -158,7 +159,11 @@ func getSupportedTokens(network string) map[string]bool {
 	}
 
 	if val, ok := payload[network]; ok {
-		return val
+		lowerCased := make(map[string]bool, len(val))
+		for k, v := range val {
+			lowerCased[strings.ToLower(k)] = v
+		}
+		return lowerCased
 	}
 
 	return map[string]bool{
