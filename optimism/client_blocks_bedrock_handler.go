@@ -154,7 +154,7 @@ func (ec *Client) populateBedrockTransaction(
 		if !BedrockContainsTopic(log, encodedTransferMethod) {
 			continue
 		}
-		if !ec.filterTokens || (ec.filterTokens && ec.supportedTokens[log.Address.String()]) {
+		if ec.supportsToken(log.Address.String()) {
 			switch len(log.Topics) {
 			case TopicsInErc20Transfer:
 				currency, err := ec.currencyFetcher.FetchCurrency(ctx, head.Number.Uint64(), log.Address.Hex())

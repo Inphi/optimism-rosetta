@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -210,7 +211,85 @@ func (testSuite *ClientBedrockTestSuite) TestParseBedrockBlock() {
 }
 
 func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
-	c := &Client{
+	// We use mixed-case token address to assert that the token filter is case-insensitive
+	tokenAddress := "0xdc2CC710e42857672E7907CF474a69B63B93089f"
+
+	runTest := func(c *Client) {
+		ctx := context.Background()
+		testSuite.mockJSONRPC.On(
+			"CallContext",
+			ctx,
+			mock.Anything,
+			"eth_getBlockByNumber",
+			"latest",
+			true,
+		).Return(
+			nil,
+		).Run(
+			func(args mock.Arguments) {
+				r := args.Get(1).(*json.RawMessage)
+
+				file, err := os.ReadFile("testdata/goerli_bedrock_block_5003318.json")
+				testSuite.NoError(err)
+
+				*r = json.RawMessage(file)
+			},
+		).Once()
+		testSuite.mockJSONRPC.On(
+			"CallContext",
+			ctx,
+			mock.Anything,
+			"eth_getBlockByNumber",
+			[]interface{}{"latest", true},
+		).Return(
+			nil,
+		).Run(
+			func(args mock.Arguments) {
+				r := args.Get(1).(*json.RawMessage)
+
+				file, err := os.ReadFile("testdata/goerli_bedrock_block_5003318.json")
+				testSuite.NoError(err)
+
+				*r = json.RawMessage(file)
+			},
+		).Once()
+		testSuite.mockCurrencyFetcher.On(
+			"FetchCurrency",
+			ctx,
+			uint64(5003318),
+			mock.Anything,
+		).Return(
+			&RosettaTypes.Currency{
+				Symbol:   "LINK",
+				Decimals: 18,
+				Metadata: map[string]interface{}{ContractAddressKey: "0xdc2CC710e42857672E7907CF474a69B63B93089f"}},
+			nil,
+		)
+
+		tx1 := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
+		tx2 := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
+
+		// Execute the transaction trace
+		mockBedrockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_1.json")
+		mockBedrockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_2.json")
+		// mockDebugTraceBedrockBlock(ctx, testSuite, "testdata/goerli_bedrock_block_trace_5003318.json")
+		mockGetBedrockTransactionReceipt(ctx, testSuite, []EthCommon.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
+
+		correctRaw, err := os.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")
+		testSuite.NoError(err)
+		var correct *RosettaTypes.BlockResponse
+		testSuite.NoError(json.Unmarshal(correctRaw, &correct))
+
+		// Fetch the latest block and validate
+		resp, err := c.Block(
+			ctx,
+			nil,
+		)
+		testSuite.NoError(err)
+		testSuite.Equal(correct.Block, resp)
+	}
+
+	client := &Client{
 		c:               testSuite.mockJSONRPC,
 		g:               testSuite.mockGraphQL,
 		currencyFetcher: testSuite.mockCurrencyFetcher,
@@ -220,79 +299,10 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 		filterTokens:    false,
 		bedrockBlock:    big.NewInt(5_003_318),
 	}
-
-	ctx := context.Background()
-	testSuite.mockJSONRPC.On(
-		"CallContext",
-		ctx,
-		mock.Anything,
-		"eth_getBlockByNumber",
-		"latest",
-		true,
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).(*json.RawMessage)
-
-			file, err := os.ReadFile("testdata/goerli_bedrock_block_5003318.json")
-			testSuite.NoError(err)
-
-			*r = json.RawMessage(file)
-		},
-	).Once()
-	testSuite.mockJSONRPC.On(
-		"CallContext",
-		ctx,
-		mock.Anything,
-		"eth_getBlockByNumber",
-		[]interface{}{"latest", true},
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).(*json.RawMessage)
-
-			file, err := os.ReadFile("testdata/goerli_bedrock_block_5003318.json")
-			testSuite.NoError(err)
-
-			*r = json.RawMessage(file)
-		},
-	).Once()
-	testSuite.mockCurrencyFetcher.On(
-		"FetchCurrency",
-		ctx,
-		uint64(5003318),
-		mock.Anything,
-	).Return(
-		&RosettaTypes.Currency{
-			Symbol:   "LINK",
-			Decimals: 18,
-			Metadata: map[string]interface{}{ContractAddressKey: "0xdc2CC710e42857672E7907CF474a69B63B93089f"}},
-		nil,
-	)
-
-	tx1 := EthCommon.HexToHash("0x035437471437d2e61be662be806ea7a3603e37230e13f1c04e36e8ca891e9611")
-	tx2 := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
-
-	// Execute the transaction trace
-	mockBedrockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_1.json")
-	mockBedrockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_2.json")
-	// mockDebugTraceBedrockBlock(ctx, testSuite, "testdata/goerli_bedrock_block_trace_5003318.json")
-	mockGetBedrockTransactionReceipt(ctx, testSuite, []EthCommon.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
-
-	correctRaw, err := os.ReadFile("testdata/goerli_bedrock_block_response_5003318.json")
-	testSuite.NoError(err)
-	var correct *RosettaTypes.BlockResponse
-	testSuite.NoError(json.Unmarshal(correctRaw, &correct))
-
-	// Fetch the latest block and validate
-	resp, err := c.Block(
-		ctx,
-		nil,
-	)
-	testSuite.NoError(err)
-	testSuite.Equal(correct.Block, resp)
+	runTest(client)
+	client.filterTokens = true
+	client.supportedTokens = map[string]bool{strings.ToLower(tokenAddress): true}
+	runTest(client)
 }
 
 func mockBedrockTraceTransaction(ctx context.Context, testSuite *ClientBedrockTestSuite, txFileData string) {

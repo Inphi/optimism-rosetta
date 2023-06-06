@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,6 +55,9 @@ func (testSuite *ClientBlocksHandlerTestSuite) TestBlock_ERC20Mint() {
 	supportedTokens := map[string]bool{
 		token: true,
 	}
+
+	// Used to assert that the token filter is case insensitive
+	upperCaseToken := "0x" + strings.ToUpper(token[2:])
 
 	tc, err := testTraceConfig()
 	testSuite.NoError(err)
@@ -155,7 +159,7 @@ func (testSuite *ClientBlocksHandlerTestSuite) TestBlock_ERC20Mint() {
 		&RosettaTypes.Currency{
 			Symbol:   TokenSymbol,
 			Decimals: TokenDecimals,
-			Metadata: map[string]interface{}{"token_address": token}},
+			Metadata: map[string]interface{}{"token_address": upperCaseToken}},
 		nil,
 	).Once()
 

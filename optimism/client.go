@@ -401,8 +401,7 @@ func (ec *Client) erc20TokenOps(
 			continue
 		}
 
-		_, ok = ec.supportedTokens[strings.ToLower(contractAddress)]
-		if ec.filterTokens && !ok {
+		if !ec.supportsToken(contractAddress) {
 			continue
 		}
 
@@ -1074,4 +1073,12 @@ func (ec *Client) Call(
 	}
 
 	return nil, fmt.Errorf("%w: %s", ErrCallMethodInvalid, request.Method)
+}
+
+func (ec *Client) supportsToken(contractAddress string) bool {
+	if !ec.filterTokens {
+		return true
+	}
+	_, ok := ec.supportedTokens[strings.ToLower(contractAddress)]
+	return ok
 }
