@@ -8,9 +8,10 @@ import (
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
-	"github.com/ethereum-optimism/optimism/l2geth/common"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	"github.com/ethereum-optimism/optimism/l2geth/core/types"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type rpcBlock struct {

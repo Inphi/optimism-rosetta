@@ -26,14 +26,16 @@ import (
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
-	"github.com/ethereum-optimism/optimism/l2geth/common"
-	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
+
 	"github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
-	"github.com/ethereum-optimism/optimism/l2geth/rlp"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 
+	types2 "github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/sync/semaphore"
 )
@@ -234,8 +236,8 @@ func (ec *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 //
 // If the transaction was a contract creation use the TransactionReceipt method to get the
 // contract address after the transaction has been mined.
-func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	data, err := rlp.EncodeToBytes(tx)
+func (ec *Client) SendTransaction(ctx context.Context, tx *types2.Transaction) error {
+	data, err := tx.MarshalBinary()
 	if err != nil {
 		return err
 	}

@@ -17,14 +17,14 @@ package optimism
 import (
 	"log"
 
-	OptimismCommon "github.com/ethereum-optimism/optimism/l2geth/common"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // ChecksumAddress ensures an Ethereum hex address
 // is in Checksum Format. If the address cannot be converted,
 // it returns !ok.
 func ChecksumAddress(address string) (string, bool) {
-	addr, err := OptimismCommon.NewMixedcaseAddressFromString(address)
+	addr, err := common.NewMixedcaseAddressFromString(address)
 	if err != nil {
 		return "", false
 	}

@@ -20,10 +20,10 @@ import (
 	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
-	ethereum "github.com/ethereum-optimism/optimism/l2geth"
-	"github.com/ethereum-optimism/optimism/l2geth/common"
-	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
-	ethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
+	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 // Client is used by the servicers to get block
@@ -55,6 +55,10 @@ type Client interface {
 
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 
+	SuggestGasTipCap(ctx context.Context) (*big.Int, error)
+
+	BaseFee(ctx context.Context) (*big.Int, error)
+
 	SendTransaction(ctx context.Context, tx *ethTypes.Transaction) error
 
 	Call(
@@ -78,6 +82,8 @@ type options struct {
 	ContractAddress string      `json:"contract_address,omitempty"`
 	Value           *big.Int    `json:"value,omitempty"`
 	GasPrice        *big.Int    `json:"gas_price,omitempty"`
+	GasTipCap       *big.Int    `json:"gas_tip_cap,omitempty"`
+	GasFeeCap       *big.Int    `json:"gas_fee_cap,omitempty"`
 	GasLimit        *big.Int    `json:"gas_limit,omitempty"`
 	MethodSignature string      `json:"method_signature,omitempty"`
 	MethodArgs      interface{} `json:"method_args,omitempty"`
@@ -92,6 +98,8 @@ type optionsWire struct {
 	ContractAddress string      `json:"contract_address,omitempty"`
 	Value           string      `json:"value,omitempty"`
 	GasPrice        string      `json:"gas_price,omitempty"`
+	GasTipCap       string      `json:"gas_tip_cap,omitempty"`
+	GasFeeCap       string      `json:"gas_fee_cap,omitempty"`
 	GasLimit        string      `json:"gas_limit,omitempty"`
 	MethodSignature string      `json:"method_signature,omitempty"`
 	MethodArgs      interface{} `json:"method_args,omitempty"`
@@ -121,6 +129,14 @@ func (o *options) MarshalJSON() ([]byte, error) {
 
 	if o.GasPrice != nil {
 		ow.GasPrice = hexutil.EncodeBig(o.GasPrice)
+	}
+
+	if o.GasTipCap != nil {
+		ow.GasTipCap = hexutil.EncodeBig(o.GasTipCap)
+	}
+
+	if o.GasFeeCap != nil {
+		ow.GasFeeCap = hexutil.EncodeBig(o.GasFeeCap)
 	}
 
 	if o.GasLimit != nil {
@@ -174,6 +190,22 @@ func (o *options) UnmarshalJSON(data []byte) error {
 		o.GasPrice = gasPrice
 	}
 
+	if len(ow.GasTipCap) > 0 {
+		gasTipCap, err := hexutil.DecodeBig(ow.GasTipCap)
+		if err != nil {
+			return err
+		}
+		o.GasTipCap = gasTipCap
+	}
+
+	if len(ow.GasFeeCap) > 0 {
+		gasFeeCap, err := hexutil.DecodeBig(ow.GasFeeCap)
+		if err != nil {
+			return err
+		}
+		o.GasFeeCap = gasFeeCap
+	}
+
 	if len(ow.GasLimit) > 0 {
 		gasLimit, err := hexutil.DecodeBig(ow.GasLimit)
 		if err != nil {
@@ -188,6 +220,8 @@ func (o *options) UnmarshalJSON(data []byte) error {
 type metadata struct {
 	Nonce           uint64      `json:"nonce"`
 	GasPrice        *big.Int    `json:"gas_price"`
+	GasTipCap       *big.Int    `json:"gas_tip_cap,omitempty"`
+	GasFeeCap       *big.Int    `json:"gas_fee_cap,omitempty"`
 	GasLimit        uint64      `json:"gas_limit,omitempty"`
 	Data            []byte      `json:"data,omitempty"`
 	To              string      `json:"to,omitempty"`
@@ -199,6 +233,8 @@ type metadata struct {
 type metadataWire struct {
 	Nonce           string      `json:"nonce"`
 	GasPrice        string      `json:"gas_price"`
+	GasFeeCap       string      `json:"gas_fee_cap,omitempty"`
+	GasTipCap       string      `json:"gas_tip_cap,omitempty"`
 	GasLimit        string      `json:"gas_limit,omitempty"`
 	Data            string      `json:"data,omitempty"`
 	To              string      `json:"to,omitempty"`
@@ -223,6 +259,12 @@ func (m *metadata) MarshalJSON() ([]byte, error) {
 	}
 	if m.Value != nil {
 		mw.Value = hexutil.EncodeBig(m.Value)
+	}
+	if m.GasFeeCap != nil {
+		mw.GasFeeCap = hexutil.EncodeBig(m.GasFeeCap)
+	}
+	if m.GasTipCap != nil {
+		mw.GasTipCap = hexutil.EncodeBig(m.GasTipCap)
 	}
 
 	return json.Marshal(mw)
@@ -274,21 +316,41 @@ func (m *metadata) UnmarshalJSON(data []byte) error {
 		m.Value = value
 	}
 
+	if len(mw.GasFeeCap) > 0 {
+		gasFeeCap, err := hexutil.DecodeBig(mw.GasFeeCap)
+		if err != nil {
+			return err
+		}
+		m.GasFeeCap = gasFeeCap
+	}
+
+	if len(mw.GasFeeCap) > 0 {
+		gasTipCap, err := hexutil.DecodeBig(mw.GasTipCap)
+		if err != nil {
+			return err
+		}
+		m.GasTipCap = gasTipCap
+	}
+
 	return nil
 }
 
 type parseMetadata struct {
-	Nonce    uint64   `json:"nonce"`
-	GasPrice *big.Int `json:"gas_price"`
-	GasLimit uint64   `json:"gas_limit"`
-	ChainID  *big.Int `json:"chain_id"`
+	Nonce     uint64   `json:"nonce"`
+	GasPrice  *big.Int `json:"gas_price"`
+	GasTipCap *big.Int `json:"gas_tip_cap,omitempty"`
+	GasFeeCap *big.Int `json:"gas_fee_cap,omitempty"`
+	GasLimit  uint64   `json:"gas_limit"`
+	ChainID   *big.Int `json:"chain_id"`
 }
 
 type parseMetadataWire struct {
-	Nonce    string `json:"nonce"`
-	GasPrice string `json:"gas_price"`
-	GasLimit string `json:"gas_limit"`
-	ChainID  string `json:"chain_id"`
+	Nonce     string `json:"nonce"`
+	GasPrice  string `json:"gas_price"`
+	GasTipCap string `json:"gas_tip_cap,omitempty"`
+	GasFeeCap string `json:"gas_fee_cap,omitempty"`
+	GasLimit  string `json:"gas_limit"`
+	ChainID   string `json:"chain_id"`
 }
 
 func (p *parseMetadata) MarshalJSON() ([]byte, error) {
@@ -298,30 +360,40 @@ func (p *parseMetadata) MarshalJSON() ([]byte, error) {
 		GasLimit: hexutil.Uint64(p.GasLimit).String(),
 		ChainID:  hexutil.EncodeBig(p.ChainID),
 	}
+	if p.GasTipCap != nil {
+		pmw.GasTipCap = hexutil.EncodeBig(p.GasTipCap)
+	}
+	if p.GasFeeCap != nil {
+		pmw.GasFeeCap = hexutil.EncodeBig(p.GasFeeCap)
+	}
 
 	return json.Marshal(pmw)
 }
 
 type transaction struct {
-	From     string   `json:"from"`
-	To       string   `json:"to"`
-	Value    *big.Int `json:"value"`
-	Data     []byte   `json:"data"`
-	Nonce    uint64   `json:"nonce"`
-	GasPrice *big.Int `json:"gas_price"`
-	GasLimit uint64   `json:"gas"`
-	ChainID  *big.Int `json:"chain_id"`
+	From      string   `json:"from"`
+	To        string   `json:"to"`
+	Value     *big.Int `json:"value"`
+	Data      []byte   `json:"data"`
+	Nonce     uint64   `json:"nonce"`
+	GasPrice  *big.Int `json:"gas_price"`
+	GasTipCap *big.Int `json:"gas_tip_cap,omitempty"`
+	GasFeeCap *big.Int `json:"gas_fee_cap,omitempty"`
+	GasLimit  uint64   `json:"gas"`
+	ChainID   *big.Int `json:"chain_id"`
 }
 
 type transactionWire struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Value    string `json:"value"`
-	Data     string `json:"data"`
-	Nonce    string `json:"nonce"`
-	GasPrice string `json:"gas_price"`
-	GasLimit string `json:"gas"`
-	ChainID  string `json:"chain_id"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Value     string `json:"value"`
+	Data      string `json:"data"`
+	Nonce     string `json:"nonce"`
+	GasPrice  string `json:"gas_price"`
+	GasTipCap string `json:"gas_tip_cap,omitempty"`
+	GasFeeCap string `json:"gas_fee_cap,omitempty"`
+	GasLimit  string `json:"gas"`
+	ChainID   string `json:"chain_id"`
 }
 
 func (t *transaction) MarshalJSON() ([]byte, error) {
@@ -334,6 +406,12 @@ func (t *transaction) MarshalJSON() ([]byte, error) {
 		GasPrice: hexutil.EncodeBig(t.GasPrice),
 		GasLimit: hexutil.EncodeUint64(t.GasLimit),
 		ChainID:  hexutil.EncodeBig(t.ChainID),
+	}
+	if t.GasFeeCap != nil {
+		tw.GasFeeCap = hexutil.EncodeBig(t.GasFeeCap)
+	}
+	if t.GasTipCap != nil {
+		tw.GasTipCap = hexutil.EncodeBig(t.GasTipCap)
 	}
 
 	return json.Marshal(tw)
@@ -365,6 +443,20 @@ func (t *transaction) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	var gasFeeCap, gasTipCap *big.Int
+	if tw.GasFeeCap != "" {
+		gasFeeCap, err = hexutil.DecodeBig(tw.GasFeeCap)
+		if err != nil {
+			return err
+		}
+	}
+	if tw.GasTipCap != "" {
+		gasTipCap, err = hexutil.DecodeBig(tw.GasTipCap)
+		if err != nil {
+			return err
+		}
+	}
+
 	gasLimit, err := hexutil.DecodeUint64(tw.GasLimit)
 	if err != nil {
 		return err
@@ -381,6 +473,8 @@ func (t *transaction) UnmarshalJSON(data []byte) error {
 	t.Data = twData
 	t.Nonce = nonce
 	t.GasPrice = gasPrice
+	t.GasFeeCap = gasFeeCap
+	t.GasTipCap = gasTipCap
 	t.GasLimit = gasLimit
 	t.ChainID = chainID
 	return nil
