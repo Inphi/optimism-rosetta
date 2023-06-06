@@ -1,9 +1,12 @@
 package optimism
 
 import (
+	"context"
 	"encoding/json"
 	"math/big"
 
+	ethereum "github.com/ethereum-optimism/optimism/l2geth"
+	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 )
@@ -11,6 +14,30 @@ import (
 // IsPreBedrock returns if the given block number is before the bedrock block.
 func (c *Client) IsPreBedrock(b *big.Int) bool {
 	return c.bedrockBlock == nil || b.Cmp(c.bedrockBlock) < 0
+}
+
+// SuggestGasPrice retrieves the currently suggested gas price
+func (ec *Client) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	var hex hexutil.Big
+	if err := ec.c.CallContext(ctx, &hex, "eth_maxPriorityFeePerGas"); err != nil {
+		return nil, err
+	}
+	return (*big.Int)(&hex), nil
+}
+
+// BaseFee returns the current base fee per gas
+func (ec *Client) BaseFee(ctx context.Context) (*big.Int, error) {
+	type header struct {
+		BaseFee hexutil.Big `json:"baseFeePerGas"`
+	}
+	var head *header
+	if err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", "latest", false); err != nil {
+		return nil, err
+	}
+	if head == nil {
+		return nil, ethereum.NotFound
+	}
+	return head.BaseFee.ToInt(), nil
 }
 
 // rpcBedrockBlock is a post-bedrock block.

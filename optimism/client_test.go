@@ -26,12 +26,14 @@ import (
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum-optimism/optimism/l2geth/common"
-	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
-	"github.com/ethereum-optimism/optimism/l2geth/core/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+
+	l2gethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/sync/semaphore"
@@ -156,14 +158,14 @@ func TestCall_GetTransactionReceipt(t *testing.T) {
 		nil,
 	).Run(
 		func(args mock.Arguments) {
-			r := args.Get(1).(**types.Receipt)
+			r := args.Get(1).(**l2gethTypes.Receipt)
 
 			file, err := os.ReadFile(
 				"testdata/tx_receipt_1.json",
 			)
 			assert.NoError(t, err)
 
-			*r = new(types.Receipt)
+			*r = new(l2gethTypes.Receipt)
 
 			assert.NoError(t, (*r).UnmarshalJSON(file))
 		},
@@ -562,9 +564,9 @@ func TestBlock_Current(t *testing.T) {
 			)
 			assert.NoError(t, err)
 
-			receipt := new(types.Receipt)
+			receipt := new(l2gethTypes.Receipt)
 			assert.NoError(t, receipt.UnmarshalJSON(file))
-			*(r[0].Result.(**types.Receipt)) = receipt
+			*(r[0].Result.(**l2gethTypes.Receipt)) = receipt
 		},
 	).Once()
 
@@ -676,9 +678,9 @@ func TestBlock_Hash(t *testing.T) {
 			)
 			assert.NoError(t, err)
 
-			receipt := new(types.Receipt)
+			receipt := new(l2gethTypes.Receipt)
 			assert.NoError(t, receipt.UnmarshalJSON(file))
-			*(r[0].Result.(**types.Receipt)) = receipt
+			*(r[0].Result.(**l2gethTypes.Receipt)) = receipt
 		},
 	).Once()
 
@@ -808,9 +810,9 @@ func TestBlock_Index(t *testing.T) {
 			)
 			assert.NoError(t, err)
 
-			receipt := new(types.Receipt)
+			receipt := new(l2gethTypes.Receipt)
 			assert.NoError(t, receipt.UnmarshalJSON(file))
-			*(r[0].Result.(**types.Receipt)) = receipt
+			*(r[0].Result.(**l2gethTypes.Receipt)) = receipt
 		},
 	).Once()
 
@@ -925,9 +927,9 @@ func TestBlock_985(t *testing.T) {
 			) // nolint
 			assert.NoError(t, err)
 
-			receipt := new(types.Receipt)
+			receipt := new(l2gethTypes.Receipt)
 			assert.NoError(t, receipt.UnmarshalJSON(file))
-			*(r[0].Result.(**types.Receipt)) = receipt
+			*(r[0].Result.(**l2gethTypes.Receipt)) = receipt
 		},
 	).Once()
 
@@ -1046,9 +1048,9 @@ func TestBlock_87673(t *testing.T) {
 			) // nolint
 			assert.NoError(t, err)
 
-			receipt := new(types.Receipt)
+			receipt := new(l2gethTypes.Receipt)
 			assert.NoError(t, receipt.UnmarshalJSON(file))
-			*(r[0].Result.(**types.Receipt)) = receipt
+			*(r[0].Result.(**l2gethTypes.Receipt)) = receipt
 		},
 	).Once()
 
@@ -1167,9 +1169,9 @@ func TestBlock_22698(t *testing.T) {
 			) // nolint
 			assert.NoError(t, err)
 
-			receipt := new(types.Receipt)
+			receipt := new(l2gethTypes.Receipt)
 			assert.NoError(t, receipt.UnmarshalJSON(file))
-			*(r[0].Result.(**types.Receipt)) = receipt
+			*(r[0].Result.(**l2gethTypes.Receipt)) = receipt
 		},
 	).Once()
 
@@ -1288,9 +1290,9 @@ func TestBlock_985465(t *testing.T) { // updated
 			) // nolint
 			assert.NoError(t, err)
 
-			receipt := new(types.Receipt)
+			receipt := new(l2gethTypes.Receipt)
 			assert.NoError(t, receipt.UnmarshalJSON(file))
-			*(r[0].Result.(**types.Receipt)) = receipt
+			*(r[0].Result.(**l2gethTypes.Receipt)) = receipt
 		},
 	).Once()
 

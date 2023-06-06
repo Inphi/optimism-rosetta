@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	ethereum "github.com/ethereum-optimism/optimism/l2geth"
-	"github.com/ethereum-optimism/optimism/l2geth/common"
-	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
+	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
 
 	"github.com/stretchr/testify/mock"

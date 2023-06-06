@@ -28,12 +28,13 @@ import (
 	"github.com/inphi/optimism-rosetta/optimism"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
-	ethereum "github.com/ethereum-optimism/optimism/l2geth"
-	"github.com/ethereum-optimism/optimism/l2geth/common"
-	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 var (
@@ -45,7 +46,10 @@ var (
 	tokenContractAddress = "0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e"
 
 	transferValue         = uint64(20211004)
+	transferBaseFee       = uint64(200)
 	transferGasPrice      = uint64(5000000000)
+	transferGasTipCap     = uint64(1000)
+	transferGasFeeCap     = uint64(transferBaseFee + transferGasTipCap)
 	transferGasLimit      = uint64(21000)
 	transferGasLimitERC20 = uint64(65000)
 	transferNonce         = uint64(67)
@@ -53,6 +57,8 @@ var (
 
 	transferValueHex         = hexutil.EncodeUint64(transferValue)
 	transferGasPriceHex      = hexutil.EncodeUint64(transferGasPrice)
+	transferGasTipCapHex     = hexutil.EncodeUint64(transferGasTipCap)
+	transferGasFeeCapHex     = hexutil.EncodeUint64(transferGasFeeCap)
 	transferGasLimitHex      = hexutil.EncodeUint64(transferGasLimit)
 	transferGasLimitERC20Hex = hexutil.EncodeUint64(transferGasLimitERC20)
 	transferNonceHex         = hexutil.EncodeUint64(transferNonce)
@@ -157,6 +163,7 @@ func TestConstructionService(t *testing.T) {
 		big.NewInt(1000000000),
 		nil,
 	).Once()
+	mockClient.On("BaseFee", ctx).Return(nil, nil)
 	mockClient.On(
 		"PendingNonceAt",
 		ctx,
@@ -224,7 +231,7 @@ func TestConstructionService(t *testing.T) {
 		Transaction:       unsignedRaw,
 	})
 	assert.Nil(t, err)
-	parseMetadata := &parseMetadata{
+	parseMeta := &parseMetadata{
 		Nonce:    metadata.Nonce,
 		GasPrice: metadata.GasPrice,
 		GasLimit: metadata.GasLimit,
@@ -233,7 +240,7 @@ func TestConstructionService(t *testing.T) {
 	assert.Equal(t, &types.ConstructionParseResponse{
 		Operations:               parseOps,
 		AccountIdentifierSigners: []*types.AccountIdentifier{},
-		Metadata:                 forceMarshalMap(t, parseMetadata),
+		Metadata:                 forceMarshalMap(t, parseMeta),
 	}, parseUnsignedResponse)
 
 	// Test Combine
@@ -242,7 +249,7 @@ func TestConstructionService(t *testing.T) {
 	assert.NoError(t, json.Unmarshal([]byte(signaturesRaw), &signatures))
 	// The tx hash isn't computed on l2geth right now
 	// signedRaw := `{"type":"0x0","nonce":"0x0","gasPrice":"0x3b9aca00","maxPriorityFeePerGas":null,"maxFeePerGas":null,"gas":"0x5208","value":"0x9864aac3510d02","input":"0x","v":"0x2a","r":"0x8c712c64bc65c4a88707fa93ecd090144dffb1bf133805a10a51d354c2f9f2b2","s":"0x5a63cea6989f4c58372c41f31164036a6b25dce1d5c05e1d31c16c0590c176e8","to":"0x57b414a0332b5cab885a451c2a28a07d1e9b8a8d","hash":"0x424969b1a98757bcd748c60bad2a7de9745cfb26bfefb4550e780a098feada42"}` // nolint
-	signedRaw := `{"nonce":"0x0","gasPrice":"0x3b9aca00","gas":"0x5208","to":"0x57b414a0332b5cab885a451c2a28a07d1e9b8a8d","value":"0x9864aac3510d02","input":"0x","v":"0x2a","r":"0x8c712c64bc65c4a88707fa93ecd090144dffb1bf133805a10a51d354c2f9f2b2","s":"0x5a63cea6989f4c58372c41f31164036a6b25dce1d5c05e1d31c16c0590c176e8","hash":null}`
+	signedRaw := `{"type":"0x0","nonce":"0x0","gasPrice":"0x3b9aca00","maxPriorityFeePerGas":null,"maxFeePerGas":null,"gas":"0x5208","value":"0x9864aac3510d02","input":"0x","v":"0x2a","r":"0x8c712c64bc65c4a88707fa93ecd090144dffb1bf133805a10a51d354c2f9f2b2","s":"0x5a63cea6989f4c58372c41f31164036a6b25dce1d5c05e1d31c16c0590c176e8","to":"0x57b414a0332b5cab885a451c2a28a07d1e9b8a8d","hash":"0x424969b1a98757bcd748c60bad2a7de9745cfb26bfefb4550e780a098feada42"}`
 	combineResponse, err := servicer.ConstructionCombine(ctx, &types.ConstructionCombineRequest{
 		NetworkIdentifier:   networkIdentifier,
 		UnsignedTransaction: unsignedRaw,
@@ -260,12 +267,20 @@ func TestConstructionService(t *testing.T) {
 		Transaction:       signedRaw,
 	})
 	assert.Nil(t, err)
+	signedParseMeta := &parseMetadata{
+		Nonce:     metadata.Nonce,
+		GasPrice:  metadata.GasPrice,
+		GasTipCap: metadata.GasPrice, // defaults to GasPrice for Signed Legacy transactions
+		GasFeeCap: metadata.GasPrice, // defaults to GasPrice for Signed Legacy transactions
+		GasLimit:  metadata.GasLimit,
+		ChainID:   big.NewInt(3),
+	}
 	assert.Equal(t, &types.ConstructionParseResponse{
 		Operations: parseOps,
 		AccountIdentifierSigners: []*types.AccountIdentifier{
 			{Address: "0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309"},
 		},
-		Metadata: forceMarshalMap(t, parseMetadata),
+		Metadata: forceMarshalMap(t, signedParseMeta),
 	}, parseSignedResponse)
 
 	// Test Hash
@@ -299,6 +314,51 @@ func TestConstructionService(t *testing.T) {
 	}, submitResponse)
 
 	mockClient.AssertExpectations(t)
+}
+
+func TestPayloads_EIP1559Transaction(t *testing.T) {
+	networkIdentifier = &types.NetworkIdentifier{
+		Network:    optimism.TestnetNetwork,
+		Blockchain: optimism.Blockchain,
+	}
+
+	cfg := &configuration.Configuration{
+		Mode:    configuration.Online,
+		Network: networkIdentifier,
+		Params:  params.TestnetChainConfig,
+	}
+
+	mockClient := &mocks.Client{}
+	servicer := NewConstructionAPIService(cfg, mockClient)
+	ctx := context.Background()
+
+	metadata := &metadata{
+		GasLimit:  21000,
+		GasPrice:  big.NewInt(1000000000),
+		GasTipCap: big.NewInt(20),
+		GasFeeCap: big.NewInt(300),
+		Nonce:     0,
+		To:        "0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d",
+		Value:     big.NewInt(42894881044106498),
+	}
+
+	intent := `[{"operation_identifier":{"index":0},"type":"CALL","account":{"address":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309"},"amount":{"value":"-42894881044106498","currency":{"symbol":"ETH","decimals":18}}},{"operation_identifier":{"index":1},"type":"CALL","account":{"address":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d"},"amount":{"value":"42894881044106498","currency":{"symbol":"ETH","decimals":18}}}]` // nolint
+	var ops []*types.Operation
+	assert.NoError(t, json.Unmarshal([]byte(intent), &ops))
+	unsignedRaw := `{"from":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309","to":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d","value":"0x9864aac3510d02","data":"0x","nonce":"0x0","gas_price":"0x3b9aca00","gas_tip_cap":"0x14","gas_fee_cap":"0x12c","gas":"0x5208","chain_id":"0x3"}` // nolint
+	payloadsResponse, err := servicer.ConstructionPayloads(ctx, &types.ConstructionPayloadsRequest{
+		NetworkIdentifier: networkIdentifier,
+		Operations:        ops,
+		Metadata:          forceMarshalMap(t, metadata),
+	})
+	assert.Nil(t, err)
+	payloadsRaw := `[{"address":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309","hex_bytes":"7aea6574304f62268cf75aa5c833de2f88f7b0440b7b07a22f8a8388bfdc17bc","account_identifier":{"address":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309"},"signature_type":"ecdsa_recovery"}]` // nolint
+	var payloads []*types.SigningPayload
+	assert.NoError(t, json.Unmarshal([]byte(payloadsRaw), &payloads))
+	assert.Equal(t, &types.ConstructionPayloadsResponse{
+		UnsignedTransaction: unsignedRaw,
+		Payloads:            payloads,
+	}, payloadsResponse)
 }
 
 func TestMetadata_Offline(t *testing.T) {
@@ -355,6 +415,35 @@ func TestMetadata(t *testing.T) {
 			mocks: func(ctx context.Context, client *mocks.Client) {
 				client.On("SuggestGasPrice", ctx).
 					Return(big.NewInt(int64(transferGasPrice)), nil)
+				client.On("BaseFee", ctx).Return(nil, nil)
+			},
+		},
+		"happy path: native currency with nonce and gas price, tip and fee caps": {
+			options: map[string]interface{}{
+				"from":        metadataFrom,
+				"to":          metadataTo,
+				"value":       transferValueHex,
+				"nonce":       transferNonceHex2,
+				"gas_price":   hexutil.EncodeUint64(2 * transferGasPrice),
+				"gas_tip_cap": transferGasTipCapHex,
+				"gas_fee_cap": transferGasFeeCapHex,
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":          metadataTo,
+					"value":       transferValueHex,
+					"nonce":       transferNonceHex2,
+					"gas_price":   hexutil.EncodeUint64(2 * transferGasPrice),
+					"gas_tip_cap": hexutil.EncodeUint64(transferGasTipCap),
+					"gas_fee_cap": hexutil.EncodeUint64(transferGasFeeCap),
+					"gas_limit":   transferGasLimitHex,
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", (transferBaseFee+transferGasTipCap)*transferGasLimit),
+						Currency: optimism.Currency,
+					},
+				},
 			},
 		},
 		"happy path: native currency with nonce and gas price": {
@@ -380,6 +469,9 @@ func TestMetadata(t *testing.T) {
 					},
 				},
 			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				client.On("BaseFee", ctx).Return(nil, nil)
+			},
 		},
 		"happy path: native currency without nonce": {
 			options: map[string]interface{}{
@@ -393,6 +485,7 @@ func TestMetadata(t *testing.T) {
 
 				client.On("SuggestGasPrice", ctx).
 					Return(big.NewInt(int64(transferGasPrice)), nil)
+				client.On("BaseFee", ctx).Return(nil, nil)
 			},
 			expectedResponse: &types.ConstructionMetadataResponse{
 				Metadata: map[string]interface{}{
@@ -408,6 +501,39 @@ func TestMetadata(t *testing.T) {
 						Currency: optimism.Currency,
 					},
 				},
+			},
+		},
+		"happy path: EIP-1559 native currency with nonce": {
+			options: map[string]interface{}{
+				"from":  metadataFrom,
+				"to":    metadataTo,
+				"value": transferValueHex,
+				"nonce": transferNonceHex2,
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":          metadataTo,
+					"value":       transferValueHex,
+					"nonce":       transferNonceHex2,
+					"gas_price":   transferGasPriceHex,
+					"gas_tip_cap": transferGasTipCapHex,
+					"gas_fee_cap": transferGasFeeCapHex,
+					"gas_limit":   transferGasLimitHex,
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", (transferBaseFee+transferGasTipCap)*transferGasLimit),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				client.On("SuggestGasPrice", ctx).
+					Return(big.NewInt(int64(transferGasPrice)), nil)
+				client.On("BaseFee", ctx).
+					Return(big.NewInt(int64(transferBaseFee)), nil)
+				client.On("SuggestGasTipCap", ctx).
+					Return(big.NewInt(int64(transferGasTipCap)), nil)
 			},
 		},
 		"happy path: ERC20 currency with nonce": {
@@ -430,6 +556,7 @@ func TestMetadata(t *testing.T) {
 
 				client.On("SuggestGasPrice", ctx).
 					Return(big.NewInt(int64(transferGasPrice)), nil)
+				client.On("BaseFee", ctx).Return(nil, nil)
 			},
 			expectedResponse: &types.ConstructionMetadataResponse{
 				Metadata: map[string]interface{}{
@@ -443,6 +570,50 @@ func TestMetadata(t *testing.T) {
 				SuggestedFee: []*types.Amount{
 					{
 						Value:    fmt.Sprintf("%d", transferGasPrice*transferGasLimitERC20),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+		},
+		"happy path: EIP-1559 ERC20 currency with nonce": {
+			options: map[string]interface{}{
+				"from":          metadataFrom,
+				"to":            metadataTo,
+				"value":         "0x0",
+				"nonce":         transferNonceHex2,
+				"token_address": tokenContractAddress,
+				"data":          metadataData,
+			},
+			mocks: func(ctx context.Context, client *mocks.Client) {
+				to := common.HexToAddress(tokenContractAddress)
+				dataBytes, _ := hexutil.Decode(metadataData)
+				client.On("EstimateGas", ctx, ethereum.CallMsg{
+					From: common.HexToAddress(metadataFrom),
+					To:   &to,
+					Data: dataBytes,
+				}).Return(transferGasLimitERC20, nil)
+
+				client.On("SuggestGasPrice", ctx).
+					Return(big.NewInt(int64(transferGasPrice)), nil)
+				client.On("BaseFee", ctx).
+					Return(big.NewInt(int64(transferBaseFee)), nil)
+				client.On("SuggestGasTipCap", ctx).
+					Return(big.NewInt(int64(transferGasTipCap)), nil)
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":          tokenContractAddress,
+					"value":       "0x0",
+					"nonce":       transferNonceHex2,
+					"gas_price":   transferGasPriceHex,
+					"gas_tip_cap": transferGasTipCapHex,
+					"gas_fee_cap": transferGasFeeCapHex,
+					"gas_limit":   transferGasLimitERC20Hex,
+					"data":        metadataData,
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", (transferBaseFee+transferGasTipCap)*transferGasLimitERC20),
 						Currency: optimism.Currency,
 					},
 				},
@@ -462,6 +633,7 @@ func TestMetadata(t *testing.T) {
 
 				client.On("SuggestGasPrice", ctx).
 					Return(big.NewInt(int64(delegateGasPrice)), nil)
+				client.On("BaseFee", ctx).Return(nil, nil)
 
 				to := common.HexToAddress(tokenContractAddress)
 				client.On("EstimateGas", ctx, ethereum.CallMsg{
@@ -509,6 +681,7 @@ func TestMetadata(t *testing.T) {
 
 				client.On("SuggestGasPrice", ctx).
 					Return(big.NewInt(int64(transferGasPrice)), nil)
+				client.On("BaseFee", ctx).Return(nil, nil)
 			},
 			expectedResponse: &types.ConstructionMetadataResponse{
 				Metadata: map[string]interface{}{
@@ -552,6 +725,7 @@ func TestMetadata(t *testing.T) {
 
 				client.On("SuggestGasPrice", ctx).
 					Return(big.NewInt(int64(transferGasPrice)), nil)
+				client.On("BaseFee", ctx).Return(nil, nil)
 			},
 			expectedResponse: &types.ConstructionMetadataResponse{
 				Metadata: map[string]interface{}{
@@ -653,6 +827,12 @@ func TestParse(t *testing.T) {
 		unsignedERC20VotesDelegateTx    = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e","value":"0x0","data":"0x5c19a95c000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7","nonce":"0x43","gas_price":"0x12a05f200","gas":"0xfde8","chain_id":"0x45"}`                                                                                                                                                                                                                                    //nolint:lll
 		delegateSignerAddress           = "0xc5e5C23544113877F7fF09B4Fe9B8CcE41ea3C49"
 		signedERC20VotesDelegateTx      = `{"from":"0xc5e5C23544113877F7fF09B4Fe9B8CcE41ea3C49","to":"0x2d7882beDcbfDDce29Ba99965dd3cdF7fcB10A1e","value":"0x0","input":"0x5c19a95c000000000000000000000000efd3dc58d60af3295b92ecd484caeb3a2f30b3e7","nonce":"0x43","gasPrice":"0x12a05f200","gas":"0xfde8","chain_id":"0x45","v":"0xad","r":"0x3e86670c25c42e1735b770a0cbea2276ce1771bff7401f3e7087f6296f187d2a","s":"0x52e9934a1efddf5f55073eb6aa4638a131ca2c2e482bce2ab9a0b13ff45547f8","hash":"0x4fa571a8450dae225492ea11dffc5c89ca328f751cedac0e43e4e0919aaf8297"}` //nolint:lll
+
+		eip1559UnsignedOPTransferTx = `{"from":"0x14791697260E4c9A71f18484C9f997B308e59325","to":"0xefD3dc58D60aF3295B92ecd484CAEB3A2f30b3e7","value":"0x134653c","data":"0x","nonce":"0x43","gas_price":"0x12a05f200","gas_tip_cap":"0x3e8","gas_fee_cap":"0x4b0","gas":"0x5208","chain_id":"0x45"}` //nolint:lll
+
+		// Random account generated with private key - 0x1ebf74280e08804c79893f92429c0c042ce4e18c72c8f859da1eaecf53ead7a7
+		eip1559SignedOPTransferTxSender = "0x822F91Fe6DFb2c81F0709daFb8df2a0a13917C80"
+		eip1559SignedOPTransferTx       = `{"type":"0x2","nonce":"0x43","gasPrice":null,"maxPriorityFeePerGas":"0x3e8","maxFeePerGas":"0x4b0","gas":"0x5208","value":"0x134653c","input":"0x","v":"0x1","r":"0xa2dedfee9d74c53ac62fd70d8e6547eb1aecbf2ba0b6726bdfd7016c4d7b14f1","s":"0x501188fa54d94b3c01c6a7116ab95d26e2a240b41f2ed92a0a7955b753c4addb","to":"0xefd3dc58d60af3295b92ecd484caeb3a2f30b3e7","chainId":"0x45","accessList":[],"hash":"0xbf8404d09cf5114afa496c6ee1fdb670256fea20fb3c72ff22b5ceb434162091"}` //nolint:lll
 	)
 
 	tests := map[string]struct {
@@ -677,6 +857,25 @@ func TestParse(t *testing.T) {
 				},
 			},
 		},
+		"happy path: unsigned OP transfer EIP-1559 tx": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            false,
+				Transaction:       eip1559UnsignedOPTransferTx,
+			},
+			expectedResponse: &types.ConstructionParseResponse{
+				Operations:               templateOperations(transferValue, optimism.Currency, false),
+				AccountIdentifierSigners: []*types.AccountIdentifier{},
+				Metadata: map[string]interface{}{
+					"nonce":       transferNonceHex,
+					"gas_price":   transferGasPriceHex,
+					"gas_tip_cap": transferGasTipCapHex,
+					"gas_fee_cap": transferGasFeeCapHex,
+					"gas_limit":   transferGasLimitHex,
+					"chain_id":    chainIDHex,
+				},
+			},
+		},
 		"happy path: signed OP transfer tx": {
 			request: &types.ConstructionParseRequest{
 				NetworkIdentifier: networkIdentifier,
@@ -691,10 +890,35 @@ func TestParse(t *testing.T) {
 					},
 				},
 				Metadata: map[string]interface{}{
-					"nonce":     transferNonceHex,
-					"gas_price": transferGasPriceHex,
-					"gas_limit": transferGasLimitHex,
-					"chain_id":  chainIDHex,
+					"nonce":       transferNonceHex,
+					"gas_price":   transferGasPriceHex,
+					"gas_fee_cap": transferGasPriceHex,
+					"gas_tip_cap": transferGasPriceHex,
+					"gas_limit":   transferGasLimitHex,
+					"chain_id":    chainIDHex,
+				},
+			},
+		},
+		"happy path: signed OP transfer EIP-1559 tx": {
+			request: &types.ConstructionParseRequest{
+				NetworkIdentifier: networkIdentifier,
+				Signed:            true,
+				Transaction:       eip1559SignedOPTransferTx,
+			},
+			expectedResponse: &types.ConstructionParseResponse{
+				Operations: rosettaOperations(eip1559SignedOPTransferTxSender, toAddress, big.NewInt(int64(transferValue)), optimism.Currency, optimism.CallOpType),
+				AccountIdentifierSigners: []*types.AccountIdentifier{
+					{
+						Address: eip1559SignedOPTransferTxSender,
+					},
+				},
+				Metadata: map[string]interface{}{
+					"nonce":       transferNonceHex,
+					"gas_price":   transferGasFeeCapHex,
+					"gas_fee_cap": transferGasFeeCapHex,
+					"gas_tip_cap": transferGasTipCapHex,
+					"gas_limit":   transferGasLimitHex,
+					"chain_id":    chainIDHex,
 				},
 			},
 		},
@@ -741,10 +965,12 @@ func TestParse(t *testing.T) {
 					},
 				},
 				Metadata: map[string]interface{}{
-					"nonce":     transferNonceHex,
-					"gas_price": transferGasPriceHex,
-					"gas_limit": transferGasLimitERC20Hex,
-					"chain_id":  chainIDHex,
+					"nonce":       transferNonceHex,
+					"gas_price":   transferGasPriceHex,
+					"gas_tip_cap": transferGasPriceHex,
+					"gas_fee_cap": transferGasPriceHex,
+					"gas_limit":   transferGasLimitERC20Hex,
+					"chain_id":    chainIDHex,
 				},
 			},
 		},
@@ -787,10 +1013,12 @@ func TestParse(t *testing.T) {
 				}),
 				AccountIdentifierSigners: []*types.AccountIdentifier{{Address: delegateSignerAddress}},
 				Metadata: map[string]interface{}{
-					"nonce":     delegateNonceHex,
-					"gas_price": delegateGasPriceHex,
-					"gas_limit": delegateGasLimitHex,
-					"chain_id":  chainIDHex,
+					"nonce":       delegateNonceHex,
+					"gas_price":   delegateGasPriceHex,
+					"gas_fee_cap": delegateGasPriceHex,
+					"gas_tip_cap": delegateGasPriceHex,
+					"gas_limit":   delegateGasLimitHex,
+					"chain_id":    chainIDHex,
 				},
 			},
 		},

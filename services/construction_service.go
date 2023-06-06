@@ -28,14 +28,14 @@ import (
 	"strconv"
 	"strings"
 
-	ethereum "github.com/ethereum-optimism/optimism/l2geth"
-	"github.com/ethereum-optimism/optimism/l2geth/accounts/abi"
-	"github.com/ethereum-optimism/optimism/l2geth/common"
 	"github.com/inphi/optimism-rosetta/configuration"
 	"github.com/inphi/optimism-rosetta/optimism"
 
-	ethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
-	"github.com/ethereum-optimism/optimism/l2geth/crypto"
+	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -317,8 +317,12 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		}
 	}
 
-	// TODO(inphi): Upgrade to use EIP1559 on mainnet once available
+	// For backwards compatibility, the gasPrice is always provided in the response
 	gasPrice, err := s.calculateGasPrice(ctx, input.GasPrice)
+	if err != nil {
+		return nil, wrapErr(ErrGeth, err)
+	}
+	gasTipCap, gasFeeCap, err := s.calculateFeeCaps(ctx, input.GasTipCap, input.GasFeeCap)
 	if err != nil {
 		return nil, wrapErr(ErrGeth, err)
 	}
@@ -326,6 +330,8 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	metadata := &metadata{
 		Nonce:           nonce,
 		GasPrice:        gasPrice,
+		GasTipCap:       gasTipCap,
+		GasFeeCap:       gasFeeCap,
 		GasLimit:        gasLimit,
 		Data:            input.Data,
 		Value:           input.Value,
@@ -341,6 +347,9 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 
 	// Find suggested gas usage
 	suggestedFee := metadata.GasPrice.Int64() * int64(gasLimit)
+	if metadata.GasFeeCap != nil {
+		suggestedFee = metadata.GasFeeCap.Int64() * int64(gasLimit)
+	}
 
 	return &types.ConstructionMetadataResponse{
 		Metadata: metadataMap,
@@ -377,6 +386,8 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	toAdd := metadata.To
 	nonce := metadata.Nonce
 	gasPrice := metadata.GasPrice
+	gasTipCap := metadata.GasTipCap
+	gasFeeCap := metadata.GasFeeCap
 	chainID := s.config.Params.ChainID
 	transferGasLimit := metadata.GasLimit
 	transferData := metadata.Data
@@ -392,31 +403,24 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", toAdd))
 	}
 
-	tx := ethTypes.NewTransaction(
-		nonce,
-		common.HexToAddress(checkTo),
-		amount,
-		transferGasLimit,
-		gasPrice,
-		transferData,
-	)
-
 	unsignedTx := &transaction{
-		From:     checkFrom,
-		To:       checkTo,
-		Value:    amount,
-		Data:     tx.Data(),
-		Nonce:    tx.Nonce(),
-		GasPrice: gasPrice,
-		GasLimit: tx.Gas(),
-		ChainID:  chainID,
+		From:      checkFrom,
+		To:        checkTo,
+		Value:     amount,
+		Data:      transferData,
+		Nonce:     nonce,
+		GasPrice:  gasPrice,
+		GasTipCap: gasTipCap,
+		GasFeeCap: gasFeeCap,
+		GasLimit:  transferGasLimit,
+		ChainID:   chainID,
 	}
+	signer := ethTypes.NewLondonSigner(chainID)
+	sighash := signer.Hash(AsEthTransaction(unsignedTx))
 
-	// Construct SigningPayload
-	signer := ethTypes.NewEIP155Signer(chainID)
 	payload := &types.SigningPayload{
 		AccountIdentifier: &types.AccountIdentifier{Address: checkFrom},
-		Bytes:             signer.Hash(tx).Bytes(),
+		Bytes:             sighash.Bytes(),
 		SignatureType:     types.EcdsaRecovery,
 	}
 
@@ -449,16 +453,8 @@ func (s *ConstructionAPIService) ConstructionCombine(
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
 
-	ethTransaction := ethTypes.NewTransaction(
-		unsignedTx.Nonce,
-		common.HexToAddress(unsignedTx.To),
-		unsignedTx.Value,
-		unsignedTx.GasLimit,
-		unsignedTx.GasPrice,
-		unsignedTx.Data,
-	)
-
-	signer := ethTypes.NewEIP155Signer(unsignedTx.ChainID)
+	ethTransaction := AsEthTransaction(&unsignedTx)
+	signer := ethTypes.NewLondonSigner(unsignedTx.ChainID)
 	signedTx, err := ethTransaction.WithSignature(signer, request.Signatures[0].Bytes)
 	if err != nil {
 		return nil, wrapErr(ErrSignatureInvalid, err)
@@ -516,10 +512,12 @@ func (s *ConstructionAPIService) ConstructionParse(
 		tx.Data = t.Data()
 		tx.Nonce = t.Nonce()
 		tx.GasPrice = t.GasPrice()
+		tx.GasFeeCap = t.GasFeeCap()
+		tx.GasTipCap = t.GasTipCap()
 		tx.GasLimit = t.Gas()
 		tx.ChainID = t.ChainId()
 
-		msg, err := t.AsMessage(ethTypes.NewEIP155Signer(t.ChainId()))
+		msg, err := t.AsMessage(ethTypes.NewLondonSigner(t.ChainId()), nil)
 		if err != nil {
 			return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 		}
@@ -583,10 +581,12 @@ func (s *ConstructionAPIService) ConstructionParse(
 	ops := rosettaOperations(checkFrom, checkTo, tx.Value, currency, opType)
 
 	metadata := &parseMetadata{
-		Nonce:    tx.Nonce,
-		GasPrice: tx.GasPrice,
-		GasLimit: tx.GasLimit,
-		ChainID:  tx.ChainID,
+		Nonce:     tx.Nonce,
+		GasPrice:  tx.GasPrice,
+		GasTipCap: tx.GasTipCap,
+		GasFeeCap: tx.GasFeeCap,
+		GasLimit:  tx.GasLimit,
+		ChainID:   tx.ChainID,
 	}
 	metaMap, err := marshalJSONMap(metadata)
 	if err != nil {
@@ -699,6 +699,36 @@ func (s *ConstructionAPIService) calculateGasPrice(
 		return s.client.SuggestGasPrice(ctx)
 	}
 	return gasPriceInput, nil
+}
+
+// calculateGasFeeCaps returns suggested gas tip and fee caps if gas tip and fee caps are not provided
+func (s *ConstructionAPIService) calculateFeeCaps(ctx context.Context, gasTipCapInput *big.Int, gasFeeCapInput *big.Int) (
+	gasTipCap *big.Int,
+	gasFeeCap *big.Int,
+	err error,
+) {
+	if gasTipCapInput == nil || gasFeeCapInput == nil {
+		baseFee, err := s.client.BaseFee(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		// If baseFee is not nil, then add EIP-1559 fee parameters to metadata
+		if baseFee != nil {
+			gasTipCap, err := s.client.SuggestGasTipCap(ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			// TODO(inphi): Priority fee estimation doesn't quite work yet and may return an overestimate.
+			// For the time being, we hardcode a low gas tip to avoid overpaying.
+			// This is OK for the forseeable future as Optimism doesn't discriminate transactions based on gas tip.
+			// Although inefficient, the SuggestGasTipCap RPC call still occurs so tests can mock it properly
+			gasTipCap = big.NewInt(1000)
+			gasFeeCap := new(big.Int).Add(baseFee, gasTipCap)
+			return gasTipCap, gasFeeCap, nil
+		}
+	}
+
+	return gasTipCapInput, gasFeeCapInput, nil
 }
 
 // matchOperations attempts to match a slice of operations with both `transfer`

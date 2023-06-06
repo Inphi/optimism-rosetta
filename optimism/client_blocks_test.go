@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	OldEth "github.com/ethereum-optimism/optimism/l2geth"
+	ethereum "github.com/ethereum/go-ethereum"
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
 
 	mock "github.com/stretchr/testify/mock"
@@ -83,7 +83,7 @@ func (testSuite *ClientBlocksTestSuite) TestBlockByNumber() {
 		},
 	).Once()
 	fetchedBlock, err = testSuite.client.blockByNumber(ctx, &index, true)
-	testSuite.Equal(OldEth.NotFound, err)
+	testSuite.Equal(ethereum.NotFound, err)
 	testSuite.Nil(fetchedBlock)
 
 	// Let's construct a correct block
