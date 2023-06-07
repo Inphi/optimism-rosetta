@@ -176,8 +176,7 @@ func getBedrockBlock(network string) *big.Int {
 	case optimism.TestnetNetwork:
 		return big.NewInt(4061224)
 	case optimism.MainnetNetwork:
-		// TODO: Set this once it is known
-		return big.NewInt(0)
+		return big.NewInt(105235063)
 	default:
 		return big.NewInt(0)
 	}
