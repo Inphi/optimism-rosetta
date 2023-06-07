@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	logger "log"
 	"math/big"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -159,10 +160,15 @@ func (ec *Client) populateBedrockTransaction(
 			case TopicsInErc20Transfer:
 				currency, err := ec.currencyFetcher.FetchCurrency(ctx, head.Number.Uint64(), log.Address.Hex())
 				if err != nil {
-					return nil, err
-				}
-				if currency.Symbol == UnknownERC20Symbol || currency.Symbol == defaultERC20Symbol {
-					continue
+					// If an error is encountered while fetching currency details, return a default value and let the client handle it.
+					logger.Printf("error while fetching currency details for currency: %s: %v", log.Address.Hex(), err)
+					currency = &RosettaTypes.Currency{
+						Symbol:   defaultERC20Symbol,
+						Decimals: defaultERC20Decimals,
+						Metadata: map[string]interface{}{
+							ContractAddressKey: log.Address.Hex(),
+						},
+					}
 				}
 				erc20Ops := Erc20Ops(log, currency, int64(len(ops)))
 				ops = append(ops, erc20Ops...)
