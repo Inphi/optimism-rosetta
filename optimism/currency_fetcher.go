@@ -16,6 +16,8 @@ package optimism
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
@@ -35,6 +37,8 @@ const (
 
 	defaultERC20Symbol = "UNKNOWN"
 )
+
+var ErrBadCurrency = errors.New("bad currency")
 
 // CurrencyFetcher interface describes a struct that can fetch the details of
 // an Ethereum-based token given its contract address.
@@ -122,7 +126,7 @@ func (ecf ERC20CurrencyFetcher) FetchCurrency(
 
 	decodedDecimals, err := hexutil.Decode(decimalsResult)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: unable to decode decimals", ErrBadCurrency)
 	}
 	var decimalsBigInt *big.Int
 	// If the decodedDecimals byte slice has a non-zero length, parse it as an Int. Otherwise, let decimals default to 0.
@@ -135,7 +139,7 @@ func (ecf ERC20CurrencyFetcher) FetchCurrency(
 		}
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: unable to parse decimals: %s", ErrBadCurrency, err.Error())
 		}
 	} else {
 		decimalsBigInt = big.NewInt(defaultERC20Decimals)
@@ -143,14 +147,14 @@ func (ecf ERC20CurrencyFetcher) FetchCurrency(
 
 	decodedString, err := hexutil.Decode(symbolResult)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: unable to decode symbol: %s", ErrBadCurrency, err.Error())
 	}
 	var symbolString string
 	// Only attempt to parse string if decodedString is a byte slice of non-zero length
 	if len(decodedString) > 0 {
 		symbolString, err = parseStringReturn(artifacts.ERC20ABI, "symbol", decodedString)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: unable to parse symbol: %s", ErrBadCurrency, err.Error())
 		}
 	}
 
