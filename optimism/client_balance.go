@@ -10,7 +10,6 @@ import (
 	OptimismEth "github.com/ethereum-optimism/optimism/l2geth"
 	OptimismCommon "github.com/ethereum-optimism/optimism/l2geth/common"
 	OptimismHexUtil "github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
-	OptimismTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	OptimismRpc "github.com/ethereum-optimism/optimism/l2geth/rpc"
 	OptimismArtifacts "github.com/inphi/optimism-rosetta/optimism/utilities/artifacts"
 )
@@ -53,7 +52,12 @@ func (ec *Client) Balance(
 		return nil, OptimismEth.NotFound
 	}
 
-	var head *OptimismTypes.Header
+	// Rather than assume we're dealing with a legacy/bedrock header, just get the common fields we need
+	type numberHeader struct {
+		Number *OptimismHexUtil.Big `json:"number"`
+		Hash   OptimismCommon.Hash  `json:"hash"`
+	}
+	var head *numberHeader
 	if err := json.Unmarshal(raw, &head); err != nil {
 		return nil, err
 	}
@@ -64,7 +68,7 @@ func (ec *Client) Balance(
 		code    string
 	)
 
-	blockNum := OptimismHexUtil.EncodeUint64(head.Number.Uint64())
+	blockNum := OptimismHexUtil.EncodeUint64(head.Number.ToInt().Uint64())
 	reqs := []OptimismRpc.BatchElem{
 		{Method: "eth_getBalance", Args: []interface{}{account.Address, blockNum}, Result: &balance},
 		{Method: "eth_getTransactionCount", Args: []interface{}{account.Address, blockNum}, Result: &nonce},
@@ -121,8 +125,8 @@ func (ec *Client) Balance(
 	return &RosettaTypes.AccountBalanceResponse{
 		Balances: balances,
 		BlockIdentifier: &RosettaTypes.BlockIdentifier{
-			Hash:  head.Hash().Hex(),
-			Index: head.Number.Int64(),
+			Hash:  head.Hash.Hex(),
+			Index: head.Number.ToInt().Int64(),
 		},
 		Metadata: map[string]interface{}{
 			"nonce": int64(nonce),
