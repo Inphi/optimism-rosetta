@@ -318,7 +318,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	}
 
 	// TODO(inphi): Upgrade to use EIP1559 on mainnet once available
-	gasPrice, err := s.client.SuggestGasPrice(ctx)
+	gasPrice, err := s.calculateGasPrice(ctx, input.GasPrice)
 	if err != nil {
 		return nil, wrapErr(ErrGeth, err)
 	}
@@ -688,6 +688,17 @@ func (s *ConstructionAPIService) calculateNonce(
 		return nonce, nil
 	}
 	return nonceInput.Uint64(), nil
+}
+
+// calculateGasPrice returns a suggested gas price if gas price is not provided
+func (s *ConstructionAPIService) calculateGasPrice(
+	ctx context.Context,
+	gasPriceInput *big.Int,
+) (*big.Int, error) {
+	if gasPriceInput == nil {
+		return s.client.SuggestGasPrice(ctx)
+	}
+	return gasPriceInput, nil
 }
 
 // matchOperations attempts to match a slice of operations with both `transfer`
