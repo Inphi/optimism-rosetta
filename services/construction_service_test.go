@@ -357,6 +357,30 @@ func TestMetadata(t *testing.T) {
 					Return(big.NewInt(int64(transferGasPrice)), nil)
 			},
 		},
+		"happy path: native currency with nonce and gas price": {
+			options: map[string]interface{}{
+				"from":      metadataFrom,
+				"to":        metadataTo,
+				"value":     transferValueHex,
+				"nonce":     transferNonceHex2,
+				"gas_price": hexutil.EncodeUint64(2 * transferGasPrice),
+			},
+			expectedResponse: &types.ConstructionMetadataResponse{
+				Metadata: map[string]interface{}{
+					"to":        metadataTo,
+					"value":     transferValueHex,
+					"nonce":     transferNonceHex2,
+					"gas_price": hexutil.EncodeUint64(2 * transferGasPrice),
+					"gas_limit": transferGasLimitHex,
+				},
+				SuggestedFee: []*types.Amount{
+					{
+						Value:    fmt.Sprintf("%d", 2*transferGasPrice*transferGasLimit),
+						Currency: optimism.Currency,
+					},
+				},
+			},
+		},
 		"happy path: native currency without nonce": {
 			options: map[string]interface{}{
 				"from":  metadataFrom,
