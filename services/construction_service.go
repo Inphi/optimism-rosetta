@@ -752,6 +752,7 @@ func (s *ConstructionAPIService) calculateFeeCaps(ctx context.Context, gasTipCap
 		}
 		// If baseFee is not nil, then add EIP-1559 fee parameters to metadata
 		if baseFee != nil {
+			// Although this gasTipCap value isn't used here, the SuggestGasTipCap RPC call still occurs so tests can mock it properly
 			gasTipCap, err := s.client.SuggestGasTipCap(ctx)
 			if err != nil {
 				return nil, nil, err
@@ -761,9 +762,12 @@ func (s *ConstructionAPIService) calculateFeeCaps(ctx context.Context, gasTipCap
 			// chain is behind the unsafe chain by 50 blocks. This means the base fee is 50 blocks old and may be inaccurate.
 			// Based on a recent analysis on base fee changes on Optimism Mainnet, it was found that the 99th percentile error in base fees
 			// between the safe and unsafe chain shows an increase of approximately 76%. For extra safety, we set the gas price to be twice the base
-			// fee to ensure transaction inclusion. Ideally, Rosetta should lookup base fee info from the unsafe chain for more accurate gas pricing.
-			// Although inefficient, the SuggestGasTipCap RPC call still occurs so tests can mock it properly
-			gasTipCap = new(big.Int).Set(baseFee)
+			// fee to ensure transaction inclusion.
+			// The base fee increases at most 12.5% per block. So even assuming when the network is half-congested (at a ~6% increase),
+			// a 100% base fee tip won't be effective when the base fee is low. Thus, to ensure transaction inclusion when the base fee is low and
+			// congestion is ramping up, we also add a fixed 1000 wei tip to the gas price.
+			// Ideally, Rosetta should lookup base fee info from the unsafe chain for more accurate gas pricing.
+			gasTipCap = new(big.Int).Add(big.NewInt(1000), baseFee)
 			gasFeeCap := new(big.Int).Add(baseFee, gasTipCap)
 			return gasTipCap, gasFeeCap, nil
 		}

@@ -48,7 +48,7 @@ var (
 	transferValue         = uint64(20211004)
 	transferBaseFee       = uint64(200)
 	transferGasPrice      = uint64(5000000000)
-	transferGasTipCap     = transferBaseFee
+	transferGasTipCap     = transferBaseFee + 1000
 	transferGasFeeCap     = uint64(transferBaseFee + transferGasTipCap)
 	transferGasLimit      = uint64(21000)
 	transferGasLimitERC20 = uint64(65000)
