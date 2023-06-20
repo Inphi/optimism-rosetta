@@ -48,7 +48,7 @@ var (
 	transferValue         = uint64(20211004)
 	transferBaseFee       = uint64(200)
 	transferGasPrice      = uint64(5000000000)
-	transferGasTipCap     = uint64(1000)
+	transferGasTipCap     = transferBaseFee
 	transferGasFeeCap     = uint64(transferBaseFee + transferGasTipCap)
 	transferGasLimit      = uint64(21000)
 	transferGasLimitERC20 = uint64(65000)
@@ -869,8 +869,8 @@ func TestParse(t *testing.T) {
 				Metadata: map[string]interface{}{
 					"nonce":       transferNonceHex,
 					"gas_price":   transferGasPriceHex,
-					"gas_tip_cap": transferGasTipCapHex,
-					"gas_fee_cap": transferGasFeeCapHex,
+					"gas_tip_cap": "0x3e8",
+					"gas_fee_cap": "0x4b0",
 					"gas_limit":   transferGasLimitHex,
 					"chain_id":    chainIDHex,
 				},
@@ -914,9 +914,9 @@ func TestParse(t *testing.T) {
 				},
 				Metadata: map[string]interface{}{
 					"nonce":       transferNonceHex,
-					"gas_price":   transferGasFeeCapHex,
-					"gas_fee_cap": transferGasFeeCapHex,
-					"gas_tip_cap": transferGasTipCapHex,
+					"gas_price":   "0x4b0",
+					"gas_fee_cap": "0x4b0",
+					"gas_tip_cap": "0x3e8",
 					"gas_limit":   transferGasLimitHex,
 					"chain_id":    chainIDHex,
 				},

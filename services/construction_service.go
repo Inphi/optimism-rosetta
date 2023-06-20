@@ -756,11 +756,14 @@ func (s *ConstructionAPIService) calculateFeeCaps(ctx context.Context, gasTipCap
 			if err != nil {
 				return nil, nil, err
 			}
-			// TODO(inphi): Priority fee estimation doesn't quite work yet and may return an overestimate.
-			// For the time being, we hardcode a low gas tip to avoid overpaying.
-			// This is OK for the forseeable future as Optimism doesn't discriminate transactions based on gas tip.
+			// TODO(inphi): Priority fee estimation doesn't quite work yet and may return an overestimate so we don't use it for now.
+			// Furthermore, Rosetta currently retrieves fee estimates from an op-geth instance that syncs from L1. On average, the safe
+			// chain is behind the unsafe chain by 50 blocks. This means the base fee is 50 blocks old and may be inaccurate.
+			// Based on a recent analysis on base fee changes on Optimism Mainnet, it was found that the 99th percentile error in base fees
+			// between the safe and unsafe chain shows an increase of approximately 76%. For extra safety, we set the gas price to be twice the base
+			// fee to ensure transaction inclusion. Ideally, Rosetta should lookup base fee info from the unsafe chain for more accurate gas pricing.
 			// Although inefficient, the SuggestGasTipCap RPC call still occurs so tests can mock it properly
-			gasTipCap = big.NewInt(1000)
+			gasTipCap = new(big.Int).Set(baseFee)
 			gasFeeCap := new(big.Int).Add(baseFee, gasTipCap)
 			return gasTipCap, gasFeeCap, nil
 		}
