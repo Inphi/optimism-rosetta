@@ -213,6 +213,16 @@ var (
 		Code:    22, //nolint
 		Message: "Gas limit invalid",
 	}
+
+	ErrInvalidGasTipCap = &types.Error{
+		Code:    23, //nolint
+		Message: "Gas tip cap invalid",
+	}
+
+	ErrInvalidGasFeeCap = &types.Error{
+		Code:    24, //nolint
+		Message: "Gas fee cap invalid",
+	}
 )
 
 // wrapErr adds details to the types.Error provided. We use a function

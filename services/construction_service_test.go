@@ -1075,6 +1075,76 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestPreprocess(t *testing.T) {
+	networkIdentifier = &types.NetworkIdentifier{
+		Network:    optimism.TestnetNetwork,
+		Blockchain: optimism.Blockchain,
+	}
+
+	cfg := &configuration.Configuration{
+		Mode:    configuration.Online,
+		Network: networkIdentifier,
+		Params:  params.TestnetChainConfig,
+	}
+
+	mockClient := &mocks.Client{}
+	servicer := NewConstructionAPIService(cfg, mockClient)
+	ctx := context.Background()
+
+	intent := `
+	[
+		{
+			"operation_identifier": {"index":0},
+			"type": "CALL",
+			"account": {"address":"0x9670d6977d0b10130E5d4916c9134363281B6B0e"},
+			"amount": {"value": "-10", "currency": {"symbol":"ETH","decimals":18}}
+		},
+		{
+			"operation_identifier": {"index":1},
+			"type": "CALL",
+			"account": {"address":"0x705f9aE78b11a3ED5080c053Fa4Fa0c52359c674"},
+			"amount": {"value":"10","currency":{"symbol":"ETH","decimals":18}}
+		}
+	]` // nolint
+
+	metadata := map[string]interface{}{
+		"nonce":       "2",
+		"gas_price":   "10",
+		"gas_limit":   "21000",
+		"gas_tip_cap": "10",
+		"gas_fee_cap": "20",
+	}
+
+	var ops []*types.Operation
+	assert.NoError(t, json.Unmarshal([]byte(intent), &ops))
+	preprocessResponse, err := servicer.ConstructionPreprocess(
+		ctx,
+		&types.ConstructionPreprocessRequest{
+			NetworkIdentifier: networkIdentifier,
+			Operations:        ops,
+			Metadata:          forceMarshalMap(t, &metadata),
+		},
+	)
+	assert.Nil(t, err)
+	optionsRaw := `
+	{
+		"from":"0x9670d6977d0b10130E5d4916c9134363281B6B0e",
+		"to":"0x705f9aE78b11a3ED5080c053Fa4Fa0c52359c674",
+		"data":"0x",
+		"nonce": "0x2",
+		"value": "0xa",
+		"gas_price": "0xa",
+		"gas_limit": "0x5208",
+		"gas_tip_cap": "0xa",
+		"gas_fee_cap": "0x14"
+	}`
+	var options options
+	assert.NoError(t, json.Unmarshal([]byte(optionsRaw), &options))
+	assert.Equal(t, &types.ConstructionPreprocessResponse{
+		Options: forceMarshalMap(t, &options),
+	}, preprocessResponse)
+}
+
 func TestPreprocessERC20(t *testing.T) {
 	networkIdentifier = &types.NetworkIdentifier{
 		Network:    optimism.TestnetNetwork,

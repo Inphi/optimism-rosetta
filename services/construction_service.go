@@ -158,6 +158,44 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 		preprocessOutputOptions.GasPrice = bigObj
 	}
 
+	// Override gas_tip_cap
+	if v, ok := request.Metadata["gas_tip_cap"]; ok {
+		stringObj, ok := v.(string)
+		if !ok {
+			return nil, wrapErr(
+				ErrInvalidGasTipCap,
+				fmt.Errorf("%s is not a valid gas_tip_cap string", v),
+			)
+		}
+		bigObj, ok := new(big.Int).SetString(stringObj, 10) //nolint:gomnd
+		if !ok {
+			return nil, wrapErr(
+				ErrInvalidGasTipCap,
+				fmt.Errorf("%s is not a valid gas_tip_cap", v),
+			)
+		}
+		preprocessOutputOptions.GasTipCap = bigObj
+	}
+
+	// Override gas_fee_cap
+	if v, ok := request.Metadata["gas_fee_cap"]; ok {
+		stringObj, ok := v.(string)
+		if !ok {
+			return nil, wrapErr(
+				ErrInvalidGasFeeCap,
+				fmt.Errorf("%s is not a valid gas_fee_cap string", v),
+			)
+		}
+		bigObj, ok := new(big.Int).SetString(stringObj, 10) //nolint:gomnd
+		if !ok {
+			return nil, wrapErr(
+				ErrInvalidGasFeeCap,
+				fmt.Errorf("%s is not a valid gas_fee_cap", v),
+			)
+		}
+		preprocessOutputOptions.GasFeeCap = bigObj
+	}
+
 	// Override gas_limit
 	if v, ok := request.Metadata["gas_limit"]; ok {
 		stringObj, ok := v.(string)
