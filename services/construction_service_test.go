@@ -48,8 +48,8 @@ var (
 	transferValue         = uint64(20211004)
 	transferBaseFee       = uint64(200)
 	transferGasPrice      = uint64(5000000000)
-	transferGasTipCap     = transferBaseFee + 1000
-	transferGasFeeCap     = uint64(transferBaseFee + transferGasTipCap)
+	transferGasTipCap     = uint64(10)
+	transferGasFeeCap     = uint64(4*transferBaseFee + transferGasTipCap + 2000)
 	transferGasLimit      = uint64(21000)
 	transferGasLimitERC20 = uint64(65000)
 	transferNonce         = uint64(67)
@@ -440,7 +440,7 @@ func TestMetadata(t *testing.T) {
 				},
 				SuggestedFee: []*types.Amount{
 					{
-						Value:    fmt.Sprintf("%d", (transferBaseFee+transferGasTipCap)*transferGasLimit),
+						Value:    fmt.Sprintf("%d", transferGasFeeCap*transferGasLimit),
 						Currency: optimism.Currency,
 					},
 				},
@@ -522,7 +522,7 @@ func TestMetadata(t *testing.T) {
 				},
 				SuggestedFee: []*types.Amount{
 					{
-						Value:    fmt.Sprintf("%d", (transferBaseFee+transferGasTipCap)*transferGasLimit),
+						Value:    fmt.Sprintf("%d", transferGasFeeCap*transferGasLimit),
 						Currency: optimism.Currency,
 					},
 				},
@@ -613,7 +613,7 @@ func TestMetadata(t *testing.T) {
 				},
 				SuggestedFee: []*types.Amount{
 					{
-						Value:    fmt.Sprintf("%d", (transferBaseFee+transferGasTipCap)*transferGasLimitERC20),
+						Value:    fmt.Sprintf("%d", transferGasFeeCap*transferGasLimitERC20),
 						Currency: optimism.Currency,
 					},
 				},

@@ -764,11 +764,15 @@ func (s *ConstructionAPIService) calculateFeeCaps(ctx context.Context, gasTipCap
 			// between the safe and unsafe chain shows an increase of approximately 76%. For extra safety, we set the gas price to be twice the base
 			// fee to ensure transaction inclusion.
 			// The base fee increases at most 12.5% per block. So even assuming when the network is half-congested (at a ~6% increase),
-			// a 100% base fee tip won't be effective when the base fee is low. Thus, to ensure transaction inclusion when the base fee is low and
-			// congestion is ramping up, we also add a fixed 1000 wei tip to the gas price.
+			// a 100% base fee won't be effective when the base fee is low. Thus, to ensure transaction inclusion when the base fee is low and
+			// congestion is ramping up, the gas fee cap is further increased by 2000 wei.
 			// Ideally, Rosetta should lookup base fee info from the unsafe chain for more accurate gas pricing.
-			gasTipCap = new(big.Int).Add(big.NewInt(1000), baseFee)
-			gasFeeCap := new(big.Int).Add(baseFee, gasTipCap)
+			lowBaseFeeAdjustment := big.NewInt(2000)
+			baseFeeIncreaseMultiplier := big.NewInt(4)
+			gasTipCap = big.NewInt(10)
+			gasFeeCap := new(big.Int).Mul(baseFee, baseFeeIncreaseMultiplier)
+			gasFeeCap.Add(gasFeeCap, lowBaseFeeAdjustment)
+			gasFeeCap.Add(gasFeeCap, gasTipCap)
 			return gasTipCap, gasFeeCap, nil
 		}
 	}
