@@ -50,9 +50,6 @@ func (testSuite *ClientBlocksTestSuite) TestToBlockNumArg() {
 	// A nil block number is the latest block.
 	testSuite.Equal("latest", toBlockNumArg(nil))
 
-	// A block number of -1 is pending.
-	testSuite.Equal("pending", toBlockNumArg(big.NewInt(-1)))
-
 	// All other block numbers are hex encoded.
 	testSuite.Equal("0x0", toBlockNumArg(big.NewInt(0)))
 	testSuite.Equal("0x1", toBlockNumArg(big.NewInt(1)))

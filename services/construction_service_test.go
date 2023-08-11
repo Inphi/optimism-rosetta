@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 	"testing"
@@ -47,9 +48,10 @@ var (
 
 	transferValue         = uint64(20211004)
 	transferBaseFee       = uint64(200)
+	transferBaseFeeFloor  = uint64(100)
 	transferGasPrice      = uint64(5000000000)
 	transferGasTipCap     = uint64(10)
-	transferGasFeeCap     = uint64(4*transferBaseFee + transferGasTipCap + 2000)
+	transferGasFeeCap     = uint64(uint64(math.Max(float64(2*transferBaseFee), float64(transferBaseFeeFloor))) + transferGasTipCap)
 	transferGasLimit      = uint64(21000)
 	transferGasLimitERC20 = uint64(65000)
 	transferNonce         = uint64(67)

@@ -52,7 +52,7 @@ func TestStatus_NotReady(t *testing.T) {
 		ctx,
 		mock.Anything,
 		"eth_getBlockByNumber",
-		"latest",
+		"safe",
 		false,
 	).Return(
 		nil,
@@ -86,7 +86,7 @@ func TestStatus_NotSyncing(t *testing.T) {
 		ctx,
 		mock.Anything,
 		"eth_getBlockByNumber",
-		"latest",
+		"safe",
 		false,
 	).Return(
 		nil,
@@ -159,7 +159,7 @@ func TestStatus_Syncing(t *testing.T) {
 		ctx,
 		mock.Anything,
 		"eth_getBlockByNumber",
-		"latest",
+		"safe",
 		false,
 	).Return(
 		nil,
