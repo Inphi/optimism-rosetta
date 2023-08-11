@@ -22,7 +22,7 @@ func (ec *Client) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
 	if err := ec.c.CallContext(ctx, &hex, "eth_maxPriorityFeePerGas"); err != nil {
 		return nil, err
 	}
-	return (*big.Int)(&hex), nil
+	return hex.ToInt(), nil
 }
 
 // BaseFee returns the current base fee per gas

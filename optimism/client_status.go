@@ -3,7 +3,6 @@ package optimism
 import (
 	"context"
 	"encoding/json"
-	"math/big"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
@@ -20,7 +19,7 @@ func (ec *Client) Status(ctx context.Context) (
 	[]*RosettaTypes.Peer,
 	error,
 ) {
-	header, err := ec.blockHeader(ctx, nil)
+	header, err := ec.safeBlockHeader(ctx)
 	if err != nil {
 		return nil, -1, nil, nil, err
 	}
@@ -67,11 +66,12 @@ func (ec *Client) Status(ctx context.Context) (
 		nil
 }
 
-// Header returns a block header from the current canonical chain. If number is
-// nil, the latest known header is returned.
-func (ec *Client) blockHeader(ctx context.Context, number *big.Int) (*types.Header, error) {
+// safeBlockHeader returns the current height from safe chain
+// the /network/status should always interact with safe chain to ensure the safety of sync
+func (ec *Client) safeBlockHeader(ctx context.Context) (*types.Header, error) {
 	var head *types.Header
-	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", toBlockNumArg(number), false)
+
+	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", "safe", false)
 	if err == nil && head == nil {
 		return nil, ethereum.NotFound
 	}
