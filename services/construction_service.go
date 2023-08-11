@@ -752,27 +752,20 @@ func (s *ConstructionAPIService) calculateFeeCaps(ctx context.Context, gasTipCap
 		}
 		// If baseFee is not nil, then add EIP-1559 fee parameters to metadata
 		if baseFee != nil {
-			// Although this gasTipCap value isn't used here, the SuggestGasTipCap RPC call still occurs so tests can mock it properly
+			// Get max priority fee per gas
 			gasTipCap, err := s.client.SuggestGasTipCap(ctx)
 			if err != nil {
 				return nil, nil, err
 			}
-			// TODO(inphi): Priority fee estimation doesn't quite work yet and may return an overestimate so we don't use it for now.
-			// Furthermore, Rosetta currently retrieves fee estimates from an op-geth instance that syncs from L1. On average, the safe
-			// chain is behind the unsafe chain by 50 blocks. This means the base fee is 50 blocks old and may be inaccurate.
-			// Based on a recent analysis on base fee changes on Optimism Mainnet, it was found that the 99th percentile error in base fees
-			// between the safe and unsafe chain shows an increase of approximately 76%. For extra safety, we set the gas price to be twice the base
-			// fee to ensure transaction inclusion.
-			// The base fee increases at most 12.5% per block. So even assuming when the network is half-congested (at a ~6% increase),
-			// a 100% base fee won't be effective when the base fee is low. Thus, to ensure transaction inclusion when the base fee is low and
-			// congestion is ramping up, the gas fee cap is further increased by 2000 wei.
-			// Ideally, Rosetta should lookup base fee info from the unsafe chain for more accurate gas pricing.
-			lowBaseFeeAdjustment := big.NewInt(2000)
-			baseFeeIncreaseMultiplier := big.NewInt(4)
-			gasTipCap = big.NewInt(10)
-			gasFeeCap := new(big.Int).Mul(baseFee, baseFeeIncreaseMultiplier)
-			gasFeeCap.Add(gasFeeCap, lowBaseFeeAdjustment)
+
+			// Calculate max fee per gas
+			// Formula: GasFeeCap = max(BaseFeeMultiplier * BaseFee, BaseFeeFloor) + GasTipCap
+			baseFeeFloor := big.NewInt(100)
+			baseFeeMultiplier := big.NewInt(2)
+			adjustedBaseFee := new(big.Int).Mul(baseFee, baseFeeMultiplier)
+			gasFeeCap := bigIntMax(adjustedBaseFee, baseFeeFloor)
 			gasFeeCap.Add(gasFeeCap, gasTipCap)
+
 			return gasTipCap, gasFeeCap, nil
 		}
 	}
@@ -1196,4 +1189,12 @@ func contractCallMethodID(methodSig string) []byte {
 	fnSignature := []byte(methodSig)
 	hash := crypto.Keccak256(fnSignature)
 	return hash[:4]
+}
+
+func bigIntMax(a *big.Int, b *big.Int) *big.Int {
+	if a.Cmp(b) == -1 {
+		return b
+	}
+
+	return a
 }
