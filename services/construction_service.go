@@ -370,31 +370,17 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	}
 
 	// Build eth transaction for L1 fee calculation
-	var toAddress common.Address
-	var ethTx *ethTypes.Transaction
-	if to != "" {
-		toAddress = common.HexToAddress(to)
+	unsignedTx := &transaction{
+		To:        to,
+		Value:     input.Value,
+		Data:      input.Data,
+		Nonce:     nonce,
+		GasPrice:  gasPrice,
+		GasTipCap: gasTipCap,
+		GasFeeCap: gasFeeCap,
+		GasLimit:  gasLimit,
 	}
-	if isEIP1559 := gasTipCap != nil && gasFeeCap != nil; isEIP1559 {
-		ethTx = ethTypes.NewTx(&ethTypes.DynamicFeeTx{
-			Nonce:     nonce,
-			GasTipCap: gasTipCap,
-			GasFeeCap: gasFeeCap,
-			Gas:       gasLimit,
-			To:        &toAddress,
-			Value:     input.Value,
-			Data:      input.Data,
-		})
-	} else {
-		ethTx = ethTypes.NewTx(&ethTypes.LegacyTx{
-			Nonce:    nonce,
-			GasPrice: gasPrice,
-			Gas:      gasLimit,
-			To:       &toAddress,
-			Value:    input.Value,
-			Data:     input.Data,
-		})
-	}
+	ethTx := AsEthTransaction(unsignedTx)
 	ethTxBytes, err := ethTx.MarshalBinary()
 	if err != nil {
 		return nil, wrapErr(ErrL1DataFee, err)
@@ -411,7 +397,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		if err != nil {
 			return nil, wrapErr(ErrL1DataFee, err)
 		}
-		l1Fee, err = gpoContract.GetL1Fee(&bind.CallOpts{}, ethTxBytes)
+		l1Fee, err = gpoContract.GetL1Fee(&bind.CallOpts{Context: ctx}, ethTxBytes)
 		if err != nil {
 			return nil, wrapErr(ErrL1DataFee, err)
 		}
