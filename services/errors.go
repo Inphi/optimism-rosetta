@@ -44,6 +44,10 @@ var (
 		ErrInvalidSignature,
 		ErrFetchFunctionSignatureMethodID,
 		ErrInvalidTransaction,
+		ErrInvalidGasLimit,
+		ErrInvalidGasTipCap,
+		ErrInvalidGasFeeCap,
+		ErrL1DataFee,
 	}
 
 	// ErrUnimplemented is returned when an endpoint
@@ -222,6 +226,11 @@ var (
 	ErrInvalidGasFeeCap = &types.Error{
 		Code:    24, //nolint
 		Message: "Gas fee cap invalid",
+	}
+
+	ErrL1DataFee = &types.Error{
+		Code:    25, //nolint
+		Message: "Failed to get L1 data fee",
 	}
 )
 

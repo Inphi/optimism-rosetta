@@ -28,14 +28,18 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
+	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/inphi/optimism-rosetta/configuration"
 	"github.com/inphi/optimism-rosetta/optimism"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -365,6 +369,54 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		return nil, wrapErr(ErrGeth, err)
 	}
 
+	// Build eth transaction for L1 fee calculation
+	var toAddress common.Address
+	var ethTx *ethTypes.Transaction
+	if to != "" {
+		toAddress = common.HexToAddress(to)
+	}
+	if isEIP1559 := gasTipCap != nil && gasFeeCap != nil; isEIP1559 {
+		ethTx = ethTypes.NewTx(&ethTypes.DynamicFeeTx{
+			Nonce:     nonce,
+			GasTipCap: gasTipCap,
+			GasFeeCap: gasFeeCap,
+			Gas:       gasLimit,
+			To:        &toAddress,
+			Value:     input.Value,
+			Data:      input.Data,
+		})
+	} else {
+		ethTx = ethTypes.NewTx(&ethTypes.LegacyTx{
+			Nonce:    nonce,
+			GasPrice: gasPrice,
+			Gas:      gasLimit,
+			To:       &toAddress,
+			Value:    input.Value,
+			Data:     input.Data,
+		})
+	}
+	ethTxBytes, err := ethTx.MarshalBinary()
+	if err != nil {
+		return nil, wrapErr(ErrL1DataFee, err)
+	}
+
+	// Get L1 data fee
+	var l1Fee *big.Int
+	if s.config.GethURL != "" {
+		client, err := ethclient.DialContext(ctx, s.config.GethURL)
+		if err != nil {
+			return nil, wrapErr(ErrL1DataFee, err)
+		}
+		gpoContract, err := bindings.NewGasPriceOracle(predeploys.GasPriceOracleAddr, client)
+		if err != nil {
+			return nil, wrapErr(ErrL1DataFee, err)
+		}
+		l1Fee, err = gpoContract.GetL1Fee(&bind.CallOpts{}, ethTxBytes)
+		if err != nil {
+			return nil, wrapErr(ErrL1DataFee, err)
+		}
+	}
+
 	metadata := &metadata{
 		Nonce:           nonce,
 		GasPrice:        gasPrice,
@@ -376,6 +428,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		To:              to,
 		MethodSignature: input.MethodSignature,
 		MethodArgs:      input.MethodArgs,
+		L1DataFee:       l1Fee,
 	}
 
 	metadataMap, err := marshalJSONMap(metadata)

@@ -228,6 +228,7 @@ type metadata struct {
 	Value           *big.Int    `json:"value,omitempty"`
 	MethodSignature string      `json:"method_signature,omitempty"`
 	MethodArgs      interface{} `json:"method_args,omitempty"`
+	L1DataFee       *big.Int    `json:"l1_data_fee,omitempty"`
 }
 
 type metadataWire struct {
