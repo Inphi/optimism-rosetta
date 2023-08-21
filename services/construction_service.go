@@ -39,7 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -71,6 +70,10 @@ func NewConstructionAPIService(
 		config: cfg,
 		client: client,
 	}
+}
+
+func (s *ConstructionAPIService) GetClient() Client {
+	return s.client
 }
 
 // ConstructionDerive implements the /construction/derive endpoint.
@@ -389,11 +392,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	// Get L1 data fee
 	var l1Fee *big.Int
 	if s.config.GethURL != "" {
-		client, err := ethclient.DialContext(ctx, s.config.GethURL)
-		if err != nil {
-			return nil, wrapErr(ErrL1DataFee, err)
-		}
-		gpoContract, err := bindings.NewGasPriceOracle(predeploys.GasPriceOracleAddr, client)
+		gpoContract, err := bindings.NewGasPriceOracle(predeploys.GasPriceOracleAddr, s.GetClient())
 		if err != nil {
 			return nil, wrapErr(ErrL1DataFee, err)
 		}

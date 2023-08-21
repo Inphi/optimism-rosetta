@@ -65,6 +65,18 @@ type Client interface {
 		ctx context.Context,
 		request *types.CallRequest,
 	) (*types.CallResponse, error)
+
+	CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error)
+
+	CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error)
+
+	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
+
+	HeaderByNumber(ctx context.Context, number *big.Int) (*ethTypes.Header, error)
+
+	FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]ethTypes.Log, error)
+
+	SubscribeFilterLogs(ctx context.Context, query ethereum.FilterQuery, ch chan<- ethTypes.Log) (ethereum.Subscription, error)
 }
 
 // Nonce is a *big.Int so that its value can be checked against nil
