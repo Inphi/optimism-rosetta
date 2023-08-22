@@ -17,6 +17,7 @@ package optimism
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math/big"
 
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
@@ -185,22 +186,23 @@ func (ec *Client) CallContract(ctx context.Context, call Eth.CallMsg, blockNumbe
 }
 
 // Dummy implementations to ensure we can leverage bind.ContractBackend interface for reusing the TCP connection
+// Error out for now, and we can implement in the future if it's necessary
 func (ec *Client) CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
-	return nil, nil
+	return nil, errors.New("CodeAt is not implemented")
 }
 
 func (ec *Client) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
-	return nil, nil
+	return nil, errors.New("PendingCodeAt is not implemented")
 }
 
 func (ec *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*EthTypes.Header, error) {
-	return nil, nil
+	return nil, errors.New("HeaderByNumber is not implemented")
 }
 
 func (ec *Client) FilterLogs(ctx context.Context, query Eth.FilterQuery) ([]EthTypes.Log, error) {
-	return nil, nil
+	return nil, errors.New("FilterLogs is not implemented")
 }
 
 func (ec *Client) SubscribeFilterLogs(ctx context.Context, query Eth.FilterQuery, ch chan<- EthTypes.Log) (Eth.Subscription, error) {
-	return nil, nil
+	return nil, errors.New("SubscribeFilterLogs is not implemented")
 }
