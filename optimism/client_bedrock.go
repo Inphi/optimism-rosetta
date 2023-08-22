@@ -1,12 +1,29 @@
+// Copyright 2023 Coinbase, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package optimism
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math/big"
 
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
 	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
+	Eth "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 )
@@ -137,4 +154,55 @@ func (tx *BedrockRPCTransaction) LoadTransaction() *bedrockTransaction {
 		BlockHash:   tx.TxExtraInfo.BlockHash,
 	}
 	return ethTx
+}
+
+func toCallArg(msg Eth.CallMsg) interface{} {
+	arg := map[string]interface{}{
+		"from": msg.From,
+		"to":   msg.To,
+	}
+	if len(msg.Data) > 0 {
+		arg["data"] = hexutil.Bytes(msg.Data)
+	}
+	if msg.Value != nil {
+		arg["value"] = (*hexutil.Big)(msg.Value)
+	}
+	if msg.Gas != 0 {
+		arg["gas"] = hexutil.Uint64(msg.Gas)
+	}
+	if msg.GasPrice != nil {
+		arg["gasPrice"] = (*hexutil.Big)(msg.GasPrice)
+	}
+	return arg
+}
+
+func (ec *Client) CallContract(ctx context.Context, call Eth.CallMsg, blockNumber *big.Int) ([]byte, error) {
+	var hex hexutil.Bytes
+	err := ec.c.CallContext(ctx, &hex, "eth_call", toCallArg(call), toBlockNumArg(blockNumber))
+	if err != nil {
+		return nil, err
+	}
+	return hex, nil
+}
+
+// Dummy implementations to ensure we can leverage bind.ContractBackend interface for reusing the TCP connection
+// Error out for now, and we can implement in the future if it's necessary
+func (ec *Client) CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
+	return nil, errors.New("CodeAt is not implemented")
+}
+
+func (ec *Client) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
+	return nil, errors.New("PendingCodeAt is not implemented")
+}
+
+func (ec *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*EthTypes.Header, error) {
+	return nil, errors.New("HeaderByNumber is not implemented")
+}
+
+func (ec *Client) FilterLogs(ctx context.Context, query Eth.FilterQuery) ([]EthTypes.Log, error) {
+	return nil, errors.New("FilterLogs is not implemented")
+}
+
+func (ec *Client) SubscribeFilterLogs(ctx context.Context, query Eth.FilterQuery, ch chan<- EthTypes.Log) (Eth.Subscription, error) {
+	return nil, errors.New("SubscribeFilterLogs is not implemented")
 }

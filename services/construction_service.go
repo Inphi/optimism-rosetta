@@ -28,11 +28,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
+	"github.com/ethereum-optimism/optimism/op-bindings/predeploys"
 	"github.com/inphi/optimism-rosetta/configuration"
 	"github.com/inphi/optimism-rosetta/optimism"
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -67,6 +70,10 @@ func NewConstructionAPIService(
 		config: cfg,
 		client: client,
 	}
+}
+
+func (s *ConstructionAPIService) GetClient() Client {
+	return s.client
 }
 
 // ConstructionDerive implements the /construction/derive endpoint.
@@ -365,6 +372,36 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		return nil, wrapErr(ErrGeth, err)
 	}
 
+	// Build eth transaction for L1 fee calculation
+	unsignedTx := &transaction{
+		To:        to,
+		Value:     input.Value,
+		Data:      input.Data,
+		Nonce:     nonce,
+		GasPrice:  gasPrice,
+		GasTipCap: gasTipCap,
+		GasFeeCap: gasFeeCap,
+		GasLimit:  gasLimit,
+	}
+	ethTx := AsEthTransaction(unsignedTx)
+	ethTxBytes, err := ethTx.MarshalBinary()
+	if err != nil {
+		return nil, wrapErr(ErrL1DataFee, err)
+	}
+
+	// Get L1 data fee
+	var l1Fee *big.Int
+	if s.config.GethURL != "" {
+		gpoContract, err := bindings.NewGasPriceOracle(predeploys.GasPriceOracleAddr, s.GetClient())
+		if err != nil {
+			return nil, wrapErr(ErrL1DataFee, err)
+		}
+		l1Fee, err = gpoContract.GetL1Fee(&bind.CallOpts{Context: ctx}, ethTxBytes)
+		if err != nil {
+			return nil, wrapErr(ErrL1DataFee, err)
+		}
+	}
+
 	metadata := &metadata{
 		Nonce:           nonce,
 		GasPrice:        gasPrice,
@@ -376,6 +413,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		To:              to,
 		MethodSignature: input.MethodSignature,
 		MethodArgs:      input.MethodArgs,
+		L1DataFee:       l1Fee,
 	}
 
 	metadataMap, err := marshalJSONMap(metadata)
