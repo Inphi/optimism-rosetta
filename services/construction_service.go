@@ -390,13 +390,13 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	}
 
 	// Get L1 data fee
-	var l1Fee *big.Int
+	var l1DataFee *big.Int
 	if s.config.GethURL != "" {
 		gpoContract, err := bindings.NewGasPriceOracle(predeploys.GasPriceOracleAddr, s.GetClient())
 		if err != nil {
 			return nil, wrapErr(ErrL1DataFee, err)
 		}
-		l1Fee, err = gpoContract.GetL1Fee(&bind.CallOpts{Context: ctx}, ethTxBytes)
+		l1DataFee, err = gpoContract.GetL1Fee(&bind.CallOpts{Context: ctx}, ethTxBytes)
 		if err != nil {
 			return nil, wrapErr(ErrL1DataFee, err)
 		}
@@ -413,7 +413,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		To:              to,
 		MethodSignature: input.MethodSignature,
 		MethodArgs:      input.MethodArgs,
-		L1DataFee:       l1Fee,
+		L1DataFee:       l1DataFee,
 	}
 
 	metadataMap, err := marshalJSONMap(metadata)
