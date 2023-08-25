@@ -254,6 +254,7 @@ type metadataWire struct {
 	Value           string      `json:"value,omitempty"`
 	MethodSignature string      `json:"method_signature,omitempty"`
 	MethodArgs      interface{} `json:"method_args,omitempty"`
+	L1DataFee       string      `json:"l1_data_fee,omitempty"`
 }
 
 func (m *metadata) MarshalJSON() ([]byte, error) {
@@ -278,6 +279,9 @@ func (m *metadata) MarshalJSON() ([]byte, error) {
 	}
 	if m.GasTipCap != nil {
 		mw.GasTipCap = hexutil.EncodeBig(m.GasTipCap)
+	}
+	if m.L1DataFee != nil {
+		mw.L1DataFee = hexutil.EncodeBig(m.L1DataFee)
 	}
 
 	return json.Marshal(mw)
@@ -343,6 +347,14 @@ func (m *metadata) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		m.GasTipCap = gasTipCap
+	}
+
+	if len(mw.L1DataFee) > 0 {
+		l1DataFee, err := hexutil.DecodeBig(mw.L1DataFee)
+		if err != nil {
+			return err
+		}
+		m.L1DataFee = l1DataFee
 	}
 
 	return nil
