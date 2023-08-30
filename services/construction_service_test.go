@@ -1296,6 +1296,7 @@ func TestConstructContractCallData(t *testing.T) {
 		methodSig      string
 		methodArgs     interface{}
 		expectedResult string
+		shouldError    bool
 	}{
 		"transfer": {
 			methodSig: "transfer(address,uint256)",
@@ -1329,13 +1330,42 @@ func TestConstructContractCallData(t *testing.T) {
 			},
 			expectedResult: "cf9d137c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deaddeaddeaddeaddeaddeaddeaddeaddead0000000000000000000000000000b0935a466e6fa8fda8143c7f4a8c149ca56d06fe",
 		},
+		"invalid bytes format": {
+			methodSig: "deploy(bytes32,address)",
+			methodArgs: []string{
+				"not-bytes",
+				"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000",
+			},
+			shouldError: true,
+		},
+		"bytes0 not supported": {
+			methodSig: "deploy(bytes0,address)",
+			methodArgs: []string{
+				"0x",
+				"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000",
+			},
+			shouldError: true,
+		},
+		"invalid bytes size": {
+			methodSig: "deploy(bytes33,address)",
+			methodArgs: []string{
+				"0x000000000000000000000000000000000000000000000000000000000000000000",
+				"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000",
+			},
+			shouldError: true,
+		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			data, err := constructContractCallData(test.methodSig, test.methodArgs)
-			assert.Equal(t, test.expectedResult, hex.EncodeToString(data))
-			assert.NoError(t, err)
+
+			if test.shouldError {
+				assert.Error(t, err)
+			} else {
+				assert.Equal(t, test.expectedResult, hex.EncodeToString(data))
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
