@@ -1063,6 +1063,13 @@ func encodeMethodArgsStrings(sigData []byte, methodSig string, methodArgs []stri
 				if err != nil {
 					log.Fatal(err)
 				}
+				if size < 1 || size > 32 {
+					return nil, fmt.Errorf(
+						"received invalid type %s; size %d must be between 1 and 32",
+						v, size,
+					)
+				}
+
 				bytes, err := hexutil.Decode(methodArgs[i])
 				if err != nil {
 					return nil, err
@@ -1076,7 +1083,7 @@ func encodeMethodArgsStrings(sigData []byte, methodSig string, methodArgs []stri
 
 				arrayType := reflect.ArrayOf(size, reflect.TypeOf(byte(0)))
 				arrayValue := reflect.New(arrayType).Elem()
-				for i := 0; i < arrayValue.Len() && i < len(bytes); i++ {
+				for i := 0; i < len(bytes); i++ {
 					arrayValue.Index(i).Set(reflect.ValueOf(bytes[i]))
 				}
 				argData = arrayValue.Interface()
