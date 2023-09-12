@@ -1061,7 +1061,10 @@ func encodeMethodArgsStrings(sigData []byte, methodSig string, methodArgs []stri
 				sizeStr := strings.TrimPrefix(v, "bytes")
 				size, err := strconv.Atoi(sizeStr)
 				if err != nil {
-					log.Fatal(err)
+					return nil, fmt.Errorf(
+						"received invalid type %s; size %s must be an integer between 1 and 32",
+						v, sizeStr,
+					)
 				}
 				if size < 1 || size > 32 {
 					return nil, fmt.Errorf(

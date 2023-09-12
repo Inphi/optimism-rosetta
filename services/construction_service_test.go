@@ -1354,6 +1354,14 @@ func TestConstructContractCallData(t *testing.T) {
 			},
 			shouldError: true,
 		},
+		"non-integer bytes size": {
+			methodSig: "deploy(bytesType,address)",
+			methodArgs: []string{
+				"0x000000000000000000000000000000000000000000000000000000000000000000",
+				"0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000",
+			},
+			shouldError: true,
+		},
 	}
 
 	for name, test := range tests {
