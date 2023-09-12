@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -1048,10 +1049,47 @@ func encodeMethodArgsStrings(sigData []byte, methodSig string, methodArgs []stri
 				argData = value
 			}
 		case strings.HasPrefix(v, "bytes"):
-			{
-				var value []byte
-				copy(value, methodArgs[i])
+			if v == "bytes" {
+				// Converts dynamically-sized byte array to a slice
+				value, err := hexutil.Decode(methodArgs[i])
+				if err != nil {
+					return nil, err
+				}
 				argData = value
+			} else {
+				// Converts fixed-size byte array (like bytes32) to array
+				sizeStr := strings.TrimPrefix(v, "bytes")
+				size, err := strconv.Atoi(sizeStr)
+				if err != nil {
+					return nil, fmt.Errorf(
+						"received invalid type %s; size %s must be an integer between 1 and 32",
+						v, sizeStr,
+					)
+				}
+				if size < 1 || size > 32 {
+					return nil, fmt.Errorf(
+						"received invalid type %s; size %d must be between 1 and 32",
+						v, size,
+					)
+				}
+
+				bytes, err := hexutil.Decode(methodArgs[i])
+				if err != nil {
+					return nil, err
+				}
+				if len(bytes) != size {
+					return nil, fmt.Errorf(
+						"received %d bytes for argument of type %s; expected %d bytes",
+						len(bytes), v, size,
+					)
+				}
+
+				arrayType := reflect.ArrayOf(size, reflect.TypeOf(byte(0)))
+				arrayValue := reflect.New(arrayType).Elem()
+				for i := 0; i < len(bytes); i++ {
+					arrayValue.Index(i).Set(reflect.ValueOf(bytes[i]))
+				}
+				argData = arrayValue.Interface()
 			}
 		case strings.HasPrefix(v, "string"):
 			{
