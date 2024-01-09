@@ -92,6 +92,9 @@ const (
 	// in TestnetNetworkIdentifier.
 	TestnetNetwork string = "Testnet"
 
+	// SepoliaNetwork is the value of the sepolia network.
+	SepoliaNetwork string = "Sepolia"
+
 	// GoerliNetwork is the value of the network
 	// in GoerliNetworkNetworkIdentifier.
 	GoerliNetwork string = "Goerli"
@@ -226,6 +229,11 @@ var (
 	// of the Goerli genesis block.
 	GoerliGenesisBlockIdentifier = &types.BlockIdentifier{
 		Hash:  "0xb643d8aa991fb19f47b9178818886afb4eb54589eb500967beb444ea64f9761b",
+		Index: GenesisBlockIndex,
+	}
+
+	SepoliaGenesisBlockIdentifier = &types.BlockIdentifier{
+		Hash:  "0x102de6ffb001480cc9b8b548fd05c34cd4f46ae4aa91759393db90ea0409887d",
 		Index: GenesisBlockIndex,
 	}
 

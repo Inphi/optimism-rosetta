@@ -47,6 +47,9 @@ const (
 	// Goerli is the Ethereum Görli testnet.
 	Goerli string = "GOERLI"
 
+	// Sepolia is the Ethereum Sepolia testnet.
+	Sepolia string = "SEPOLIA"
+
 	// Testnet defaults to `Ropsten` for backwards compatibility (even though we don't have a ropsten network on Optimism).
 	Testnet string = "TESTNET"
 
@@ -182,6 +185,16 @@ func LoadConfiguration() (*Configuration, error) {
 		config.GenesisBlockIdentifier = optimism.GoerliGenesisBlockIdentifier
 		config.Params = params.GoerliChainConfig
 		config.GethArguments = optimism.GoerliGethArguments
+	case Sepolia:
+		// TODO: Testnet should eventually be using Sepolia configs
+		config.Network = &types.NetworkIdentifier{
+			Blockchain: optimism.Blockchain,
+			Network:    optimism.SepoliaNetwork,
+		}
+		config.GenesisBlockIdentifier = optimism.SepoliaGenesisBlockIdentifier
+		config.Params = params.TestnetChainConfig
+		config.Params.ChainID = big.NewInt(11155420) // TODO: temporary fix without param update
+		config.GethArguments = optimism.TestnetGethArguments
 	case "":
 		return nil, errors.New("NETWORK must be populated")
 	default:
