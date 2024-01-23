@@ -44,6 +44,10 @@ type ClientBlocksHandlerTestSuite struct {
 	client              *Client
 }
 
+func (t *ClientBlocksHandlerTestSuite) MockJSONRPC() *mocks.JSONRPC {
+	return t.mockJSONRPC
+}
+
 // SetupTest configures the test suite.
 func (testSuite *ClientBlocksHandlerTestSuite) SetupTest() {
 	testSuite.mockJSONRPC = &mocks.JSONRPC{}
@@ -106,36 +110,7 @@ func (testSuite *ClientBlocksHandlerTestSuite) TestBlock_ERC20Mint() {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	testSuite.mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			testSuite.Len(r, 1)
-			testSuite.Len(r[0].Args, 2)
-			testSuite.Equal(
-				common.HexToHash("0xd919fe87c4bc24f767d1b7a165266658d542af9e3f9bc11dd1a2d1f4695df009").Hex(),
-				r[0].Args[0],
-			)
-			testSuite.Equal(tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_1241186.json",
-			)
-			testSuite.NoError(err)
-
-			call := new(Call)
-			testSuite.NoError(call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, testSuite, "testdata/tx_trace_1241186.json", common.HexToHash("0xd919fe87c4bc24f767d1b7a165266658d542af9e3f9bc11dd1a2d1f4695df009").Hex(), tc)
 	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -231,36 +206,7 @@ func (testSuite *ClientBlocksHandlerTestSuite) TestBlock_1502839_OPCriticalBug()
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	testSuite.mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			testSuite.Len(r, 1)
-			testSuite.Len(r[0].Args, 2)
-			testSuite.Equal(
-				common.HexToHash("0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc").Hex(),
-				r[0].Args[0],
-			)
-			testSuite.Equal(tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_1502839.json",
-			)
-			testSuite.NoError(err)
-
-			call := new(Call)
-			testSuite.NoError(call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, testSuite, "testdata/tx_trace_1502839.json", common.HexToHash("0x3ff079ba4ea0745401e9661d623550d24c9412ea9ad578bfbb0d441dadcce9bc").Hex(), tc)
 	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -439,36 +385,7 @@ func (testSuite *ClientBlocksHandlerTestSuite) TestBlock_ERC20TransferFailed() {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	testSuite.mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			testSuite.Len(r, 1)
-			testSuite.Len(r[0].Args, 2)
-			testSuite.Equal(
-				common.HexToHash("0x5a1ec671315432cf8b6a67d95b857109fcafae277ae2c673db40b44ca8dd5c1b").Hex(),
-				r[0].Args[0],
-			)
-			testSuite.Equal(tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_14930491.json",
-			)
-			testSuite.NoError(err)
-
-			call := new(Call)
-			testSuite.NoError(call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, testSuite, "testdata/tx_trace_14930491.json", common.HexToHash("0x5a1ec671315432cf8b6a67d95b857109fcafae277ae2c673db40b44ca8dd5c1b").Hex())
 	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -562,36 +479,7 @@ func (testSuite *ClientBlocksHandlerTestSuite) TestBlock_GoerliNoFeeEnforcement(
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	testSuite.mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			testSuite.Len(r, 1)
-			testSuite.Len(r[0].Args, 2)
-			testSuite.Equal(
-				common.HexToHash("0x2992c7d87b09484c5940f7d649bd9957c629a43ac477473b655dbb07d8c742a5").Hex(),
-				r[0].Args[0],
-			)
-			testSuite.Equal(tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_goerli_367675.json",
-			)
-			testSuite.NoError(err)
-
-			call := new(Call)
-			testSuite.NoError(call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, testSuite, "testdata/tx_trace_goerli_367675.json", common.HexToHash("0x2992c7d87b09484c5940f7d649bd9957c629a43ac477473b655dbb07d8c742a5").Hex(), tc)
 	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -672,36 +560,7 @@ func (testSuite *ClientBlocksHandlerTestSuite) TestBlock_OVMSelfDestruct() {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	testSuite.mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			testSuite.Len(r, 1)
-			testSuite.Len(r[0].Args, 2)
-			testSuite.Equal(
-				common.HexToHash("0xfa6db346b928db4c98ebf72a14ac52d0c884e2cfa70cf40816542c9d7d1caf13").Hex(),
-				r[0].Args[0],
-			)
-			testSuite.Equal(tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_1909952.json",
-			)
-			testSuite.NoError(err)
-
-			call := new(Call)
-			testSuite.NoError(call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, testSuite, "testdata/tx_trace_1909952.json", common.HexToHash("0xfa6db346b928db4c98ebf72a14ac52d0c884e2cfa70cf40816542c9d7d1caf13").Hex(), tc)
 	testSuite.mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,

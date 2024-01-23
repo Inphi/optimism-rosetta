@@ -25,7 +25,6 @@ import (
 
 	"github.com/ethereum-optimism/optimism/l2geth/eth"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
-	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthHexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	mocks "github.com/inphi/optimism-rosetta/mocks/optimism"
@@ -50,6 +49,10 @@ type BedrockTracersTestSuite struct {
 	mockJSONRPC         *mocks.JSONRPC
 	mockGraphQL         *mocks.GraphQL
 	mockCurrencyFetcher *mocks.CurrencyFetcher
+}
+
+func (testSuite *BedrockTracersTestSuite) MockJSONRPC() *mocks.JSONRPC {
+	return testSuite.mockJSONRPC
 }
 
 func (testSuite *BedrockTracersTestSuite) SetupTest() {
@@ -644,26 +647,4 @@ func constructTxTwoExpectedCalls(m map[string][]*FlatCall, txTwoHash EthCommon.H
 			ErrorMessage: "",
 		},
 	}
-}
-
-func mockTraceTransaction(ctx context.Context, testSuite *BedrockTracersTestSuite, txFileData string) {
-	testSuite.mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-			file, err := os.ReadFile(txFileData)
-			testSuite.NoError(err)
-
-			call := new(Call)
-			testSuite.NoError(call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
 }

@@ -509,37 +509,7 @@ func TestBlock_Current(t *testing.T) {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			assert.Len(t, r, 1)
-			assert.Len(t, r[0].Args, 2)
-			assert.Equal(
-				t,
-				common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(),
-				r[0].Args[0],
-			)
-			assert.Equal(t, tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_1.json",
-			)
-			assert.NoError(t, err)
-
-			call := new(Call)
-			assert.NoError(t, call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, &simpleMocking{mockJSONRPC, assert.New(t)}, "testdata/tx_trace_1.json", common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(), tc)
 	mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -623,37 +593,7 @@ func TestBlock_Hash(t *testing.T) {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			assert.Len(t, r, 1)
-			assert.Len(t, r[0].Args, 2)
-			assert.Equal(
-				t,
-				common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(),
-				r[0].Args[0],
-			)
-			assert.Equal(t, tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_1.json",
-			)
-			assert.NoError(t, err)
-
-			call := new(Call)
-			assert.NoError(t, call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, &simpleMocking{mockJSONRPC, assert.New(t)}, "testdata/tx_trace_1.json", common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(), tc)
 	mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -755,37 +695,7 @@ func TestBlock_Index(t *testing.T) {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			assert.Len(t, r, 1)
-			assert.Len(t, r[0].Args, 2)
-			assert.Equal(
-				t,
-				common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(),
-				r[0].Args[0],
-			)
-			assert.Equal(t, tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_1.json",
-			)
-			assert.NoError(t, err)
-
-			call := new(Call)
-			assert.NoError(t, call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, &simpleMocking{mockJSONRPC, assert.New(t)}, "testdata/tx_trace_1.json", common.HexToHash("0x5e77a04531c7c107af1882d76cbff9486d0a9aa53701c30888509d4f5f2b003a").Hex(), tc)
 	mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -872,37 +782,7 @@ func TestBlock_985(t *testing.T) {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			assert.Len(t, r, 1)
-			assert.Len(t, r[0].Args, 2)
-			assert.Equal(
-				t,
-				common.HexToHash("0x9ed8f713b2cc6439657db52dcd2fdb9cc944915428f3c6e2a7703e242b259cb9").Hex(),
-				r[0].Args[0],
-			)
-			assert.Equal(t, tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_985.json",
-			)
-			assert.NoError(t, err)
-
-			call := new(Call)
-			assert.NoError(t, call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, &simpleMocking{mockJSONRPC, assert.New(t)}, "testdata/tx_trace_985.json", common.HexToHash("0x9ed8f713b2cc6439657db52dcd2fdb9cc944915428f3c6e2a7703e242b259cb9").Hex(), tc)
 	mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -993,37 +873,7 @@ func TestBlock_87673(t *testing.T) {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			assert.Len(t, r, 1)
-			assert.Len(t, r[0].Args, 2)
-			assert.Equal(
-				t,
-				common.HexToHash("0xcf6e46a1f41e1678fba10590f9d092690c5e8fd2e85a3614715fb21caa74655d").Hex(),
-				r[0].Args[0],
-			)
-			assert.Equal(t, tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_87673.json",
-			)
-			assert.NoError(t, err)
-
-			call := new(Call)
-			assert.NoError(t, call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, &simpleMocking{mockJSONRPC, assert.New(t)}, "testdata/tx_trace_87673.json", common.HexToHash("0xcf6e46a1f41e1678fba10590f9d092690c5e8fd2e85a3614715fb21caa74655d").Hex(), tc)
 	mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -1114,37 +964,7 @@ func TestBlock_22698(t *testing.T) {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			assert.Len(t, r, 1)
-			assert.Len(t, r[0].Args, 2)
-			assert.Equal(
-				t,
-				common.HexToHash("0xe58efba2da474da0cd5d32d4a9781629fb832391bc9d8897879790843225b1a9").Hex(),
-				r[0].Args[0],
-			)
-			assert.Equal(t, tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_22698.json",
-			)
-			assert.NoError(t, err)
-
-			call := new(Call)
-			assert.NoError(t, call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, &simpleMocking{mockJSONRPC, assert.New(t)}, "testdata/tx_trace_22698.json", common.HexToHash("0xe58efba2da474da0cd5d32d4a9781629fb832391bc9d8897879790843225b1a9").Hex(), tc)
 	mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
@@ -1235,37 +1055,7 @@ func TestBlock_985465(t *testing.T) { // updated
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-
-			assert.Len(t, r, 1)
-			assert.Len(t, r[0].Args, 2)
-			assert.Equal(
-				t,
-				common.HexToHash("0x4ee3a15e4ff6c8e8c6ff64c6a2e74ebce90eccb2e479d7488f5bb070727a3e5c").Hex(),
-				r[0].Args[0],
-			)
-			assert.Equal(t, tc, r[0].Args[1])
-
-			file, err := os.ReadFile(
-				"testdata/tx_trace_985465.json",
-			)
-			assert.NoError(t, err)
-
-			call := new(Call)
-			assert.NoError(t, call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
+	mockTraceTransaction(ctx, &simpleMocking{mockJSONRPC, assert.New(t)}, "testdata/tx_trace_985465.json", common.HexToHash("0x4ee3a15e4ff6c8e8c6ff64c6a2e74ebce90eccb2e479d7488f5bb070727a3e5c").Hex(), tc)
 	mockJSONRPC.On(
 		"BatchCallContext",
 		ctx,
