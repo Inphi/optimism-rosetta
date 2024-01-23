@@ -49,6 +49,10 @@ type ClientBedrockTestSuite struct {
 	mockCurrencyFetcher *mocks.CurrencyFetcher
 }
 
+func (t *ClientBedrockTestSuite) MockJSONRPC() *mocks.JSONRPC {
+	return t.mockJSONRPC
+}
+
 func TestClientBedrock(t *testing.T) {
 	suite.Run(t, new(ClientBedrockTestSuite))
 }
@@ -284,8 +288,8 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 		tx2 := EthCommon.HexToHash("0x6103c9a945fabd69b2cfe25cd0f5c9ebe73b7f68f4fed2c68b2cfdd8429a6a88")
 
 		// Execute the transaction trace
-		mockBedrockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_1.json")
-		mockBedrockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_2.json")
+		mockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_1.json")
+		mockTraceTransaction(ctx, testSuite, "testdata/goerli_bedrock_tx_trace_5003318_2.json")
 		// mockDebugTraceBedrockBlock(ctx, testSuite, "testdata/goerli_bedrock_block_trace_5003318.json")
 		mockGetBedrockTransactionReceipt(ctx, testSuite, []EthCommon.Hash{tx1, tx2}, []string{"testdata/goerli_bedrock_tx_receipt_5003318_1.json", "testdata/goerli_bedrock_tx_receipt_5003318_2.json"})
 
@@ -317,28 +321,6 @@ func (testSuite *ClientBedrockTestSuite) TestBedrockBlockCurrent() {
 	client.filterTokens = true
 	client.supportedTokens = map[string]bool{strings.ToLower(tokenAddress): true}
 	runTest(client)
-}
-
-func mockBedrockTraceTransaction(ctx context.Context, testSuite *ClientBedrockTestSuite, txFileData string) {
-	testSuite.mockJSONRPC.On(
-		"BatchCallContext",
-		ctx,
-		mock.MatchedBy(func(rpcs []rpc.BatchElem) bool {
-			return len(rpcs) == 1 && rpcs[0].Method == "debug_traceTransaction"
-		}),
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).([]rpc.BatchElem)
-			file, err := os.ReadFile(txFileData)
-			testSuite.NoError(err)
-
-			call := new(Call)
-			testSuite.NoError(call.UnmarshalJSON(file))
-			*(r[0].Result.(**Call)) = call
-		},
-	).Once()
 }
 
 //nolint:unused
