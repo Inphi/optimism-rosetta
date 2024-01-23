@@ -271,17 +271,8 @@ func (ec *Client) getTransactionTraces(
 
 	// Fetch traces sequentially to avoid DoS'ing the backend
 	for i := range txs {
-		req := rpc.BatchElem{
-			Method: "debug_traceTransaction",
-			Args:   []interface{}{txs[i].tx.Hash().Hex(), ec.tc},
-			Result: &traces[i],
-		}
-		// TODO: Don't batch 1-sized requests
-		if err := ec.c.BatchCallContext(ctx, []rpc.BatchElem{req}); err != nil {
+		if err := ec.c.CallContext(ctx, &traces[i], "debug_traceTransaction", txs[i].tx.Hash().Hex(), ec.tc); err != nil {
 			return nil, err
-		}
-		if req.Error != nil {
-			return nil, req.Error
 		}
 		if traces[i] == nil {
 			return nil, fmt.Errorf("got empty trace for %x", txs[i].tx.Hash().Hex())

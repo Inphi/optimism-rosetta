@@ -21,7 +21,6 @@ import (
 
 	"github.com/ethereum-optimism/optimism/l2geth/common"
 	L2Eth "github.com/ethereum-optimism/optimism/l2geth/eth"
-	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 )
 
@@ -69,16 +68,8 @@ func (ec *Client) TraceTransactions(
 	// Fetch traces sequentially to avoid DoS'ing the backend
 	for i := range txs {
 		txHash := common.Hash(*txs[i].TxHash).Hex()
-		req := rpc.BatchElem{
-			Method: "debug_traceTransaction",
-			Args:   []interface{}{txHash, ec.getBedrockTraceConfig()},
-			Result: &traces[i],
-		}
-		if err := ec.c.BatchCallContext(ctx, []rpc.BatchElem{req}); err != nil {
+		if err := ec.c.CallContext(ctx, &traces[i], "debug_traceTransaction", txHash, ec.getBedrockTraceConfig()); err != nil {
 			return nil, err
-		}
-		if req.Error != nil {
-			return nil, req.Error
 		}
 		if traces[i] == nil {
 			return nil, fmt.Errorf("got empty trace for %x", txHash)
