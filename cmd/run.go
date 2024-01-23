@@ -103,6 +103,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 			EnableCustomBedrockTracer: cfg.EnableCustomBedrockTracer,
 			BedrockBlock:              getBedrockBlock(cfg.Network.Network),
 			TraceCacheSize:            cfg.TraceCacheSize,
+			TraceByBlock:              cfg.TraceByBlock,
 		}
 		var err error
 		client, err = optimism.NewClient(cfg.GethURL, cfg.Params, opts)
