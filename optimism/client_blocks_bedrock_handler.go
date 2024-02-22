@@ -22,8 +22,8 @@ import (
 	"math/big"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum-optimism/optimism/l2geth/common/hexutil"
 	EthCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -131,7 +131,7 @@ func (ec *Client) getParsedBedrockBlock(
 	return &RosettaTypes.Block{
 		BlockIdentifier: &RosettaTypes.BlockIdentifier{
 			Index: head.Number.Int64(),
-			Hash:  head.Hash().String(),
+			Hash:  head.Hash.String(),
 		},
 		ParentBlockIdentifier: &RosettaTypes.BlockIdentifier{
 			Hash:  head.ParentHash.Hex(),
@@ -146,7 +146,7 @@ func (ec *Client) getParsedBedrockBlock(
 // populateBedrockTransaction populates a Rosetta transaction from a bedrock transaction.
 func (ec *Client) populateBedrockTransaction(
 	ctx context.Context,
-	head *EthTypes.Header,
+	head *rpcHeader,
 	tx *bedrockTransaction,
 ) (*RosettaTypes.Transaction, error) {
 	ops, err := ec.ParseOps(tx)

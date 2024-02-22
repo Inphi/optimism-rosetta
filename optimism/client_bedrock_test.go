@@ -25,6 +25,7 @@ import (
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/params"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
+	"github.com/ethereum/go-ethereum/common"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthHexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
@@ -131,23 +132,26 @@ func (testSuite *ClientBedrockTestSuite) TestParseBedrockBlock() {
 	testSuite.NoError(json.Unmarshal(file, &correctHeader))
 	// var correctBlock *rpcBedrockBlock
 	// testSuite.NoError(json.Unmarshal(file, &correctBlock))
-	expectedHeader := &EthTypes.Header{
-		ParentHash:  EthCommon.HexToHash("0x70a4f8a536e03c2bb46ceafeafabe4070c3ecf56039c70bc0b4a5584684f664a"),
-		UncleHash:   EthCommon.HexToHash("0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
-		Coinbase:    EthCommon.HexToAddress("0x4200000000000000000000000000000000000011"),
-		Root:        EthCommon.HexToHash("0x64fc9af5be01af062cfd137cf1f2cfd78dd28dac15b499b227fb0e7183da4769"),
-		TxHash:      EthCommon.HexToHash("0xada45aa72d8206747ec7a2dcbaed701b921389ca9b8275a516e6fac044f23357"),
-		ReceiptHash: EthCommon.HexToHash("0x7be5f73e807a2564853738e784008e499fd8498ce803d8c0b3a814c996840105"),
-		Bloom:       EthTypes.BytesToBloom(EthCommon.FromHex("0x000000000000000000000003001000000001100000002000000002000000001002108040000000000000020000000000000000000204000400000000002000080040210000000000000080084000000000000040000100000008000000000000100020000000002000000000200009000000000000000000000000100000002000204000080000000000000008000008000100000000a2000800020000000000020000000000000000000000000000000400000000000000408000000000000004000002000000000000000000024800000000000000004010010001000000000010200000005000008000040000000000000000000000000000000800800000")),
-		Difficulty:  correctHeader.Difficulty,
-		Number:      convertBigInt("0x4c5836"),
-		GasLimit:    convertBigInt("0x17d7840").Uint64(),
-		GasUsed:     convertBigInt("0x4a853").Uint64(),
-		Time:        convertBigInt("0x63dd1ad0").Uint64(),
-		Extra:       []byte{},
-		MixDigest:   EthCommon.HexToHash("0x11bca9946ac51ed6451e9182f41b3513d27839aad5e102aead7b1f7f5f55bbdf"),
-		Nonce:       EthTypes.BlockNonce{},
-		BaseFee:     big.NewInt(49),
+	expectedHeader := &rpcHeader{
+		Header: EthTypes.Header{
+			ParentHash:  EthCommon.HexToHash("0x70a4f8a536e03c2bb46ceafeafabe4070c3ecf56039c70bc0b4a5584684f664a"),
+			UncleHash:   EthCommon.HexToHash("0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
+			Coinbase:    EthCommon.HexToAddress("0x4200000000000000000000000000000000000011"),
+			Root:        EthCommon.HexToHash("0x64fc9af5be01af062cfd137cf1f2cfd78dd28dac15b499b227fb0e7183da4769"),
+			TxHash:      EthCommon.HexToHash("0xada45aa72d8206747ec7a2dcbaed701b921389ca9b8275a516e6fac044f23357"),
+			ReceiptHash: EthCommon.HexToHash("0x7be5f73e807a2564853738e784008e499fd8498ce803d8c0b3a814c996840105"),
+			Bloom:       EthTypes.BytesToBloom(EthCommon.FromHex("0x000000000000000000000003001000000001100000002000000002000000001002108040000000000000020000000000000000000204000400000000002000080040210000000000000080084000000000000040000100000008000000000000100020000000002000000000200009000000000000000000000000100000002000204000080000000000000008000008000100000000a2000800020000000000020000000000000000000000000000000400000000000000408000000000000004000002000000000000000000024800000000000000004010010001000000000010200000005000008000040000000000000000000000000000000800800000")),
+			Difficulty:  correctHeader.Difficulty,
+			Number:      convertBigInt("0x4c5836"),
+			GasLimit:    convertBigInt("0x17d7840").Uint64(),
+			GasUsed:     convertBigInt("0x4a853").Uint64(),
+			Time:        convertBigInt("0x63dd1ad0").Uint64(),
+			Extra:       []byte{},
+			MixDigest:   EthCommon.HexToHash("0x11bca9946ac51ed6451e9182f41b3513d27839aad5e102aead7b1f7f5f55bbdf"),
+			Nonce:       EthTypes.BlockNonce{},
+			BaseFee:     big.NewInt(49),
+		},
+		Hash: common.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774"),
 	}
 	expectedBlockHash := EthCommon.HexToHash("0x4503cbd671b3ca292e9f54998b2d566b705a32a178fc467f311c79b43e8e1774")
 

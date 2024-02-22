@@ -1,0 +1,68 @@
+{
+  "block": {
+    "block_identifier": {
+      "index": 4089330,
+      "hash": "0xf1e1eb6735860e60bfbb19fb9c3a3ade2a1e2fc51bc5549e47939aac30bc8092"
+    },
+    "parent_block_identifier": {
+      "index": 4089329,
+      "hash": "0x2ea5dc85c900443e6ee9615876a413ef3f7f800792886e646f03cae258e30dc4"
+    },
+    "timestamp": 1699981200000,
+    "transactions": [
+      {
+        "transaction_identifier": {
+          "hash": "0xd62fb327dc8df4e8f6a1ad70c9ff03099d2f85c75b9d943d5d6885e62be31069"
+        },
+        "operations": [
+          {
+            "operation_identifier": {
+              "index": 0
+            },
+            "type": "CALL",
+            "status": "SUCCESS",
+            "account": {
+              "address": "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001"
+            },
+            "amount": {
+              "value": "0",
+              "currency": {
+                "symbol": "ETH",
+                "decimals": 18
+              }
+            }
+          }
+        ],
+        "metadata": {
+          "gas_limit": "0xf4240",
+          "gas_price": "0x0",
+          "receipt": {
+            "GasPrice": 0,
+            "GasUsed": 46853,
+            "Logs": [],
+            "RawMessage": {
+              "blockHash": "0xf1e1eb6735860e60bfbb19fb9c3a3ade2a1e2fc51bc5549e47939aac30bc8092",
+              "blockNumber": "0x3e65f2",
+              "contractAddress": null,
+              "cumulativeGasUsed": "0xb705",
+              "depositNonce": "0x3e65f1",
+              "depositReceiptVersion": "0x1",
+              "effectiveGasPrice": "0x0",
+              "from": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001",
+              "gasUsed": "0xb705",
+              "logs": [],
+              "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+              "status": "0x1",
+              "to": "0x4200000000000000000000000000000000000015",
+              "transactionHash": "0xd62fb327dc8df4e8f6a1ad70c9ff03099d2f85c75b9d943d5d6885e62be31069",
+              "transactionIndex": "0x0",
+              "type": "0x7e"
+            },
+            "TransactionFee": 0,
+            "type": 126
+          }
+        }
+      }
+    ]
+  }
+}
