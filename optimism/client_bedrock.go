@@ -89,12 +89,12 @@ type TxExtraInfo struct {
 
 // parseBedrockBlock returns a [EthTypes.Header] and [rpcBedrockBlock] for a given block or a respective error.
 func (c *Client) parseBedrockBlock(raw *json.RawMessage) (
-	*EthTypes.Header,
+	*rpcHeader,
 	*rpcBedrockBlock,
 	error,
 ) {
 	// Decode bedrock header and transactions
-	var head EthTypes.Header
+	var head rpcHeader
 	var body rpcBedrockBlock
 	if err := json.Unmarshal(*raw, &head); err != nil {
 		return nil, nil, err
