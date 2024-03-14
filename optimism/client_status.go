@@ -20,7 +20,6 @@ import (
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	ethereum "github.com/ethereum-optimism/optimism/l2geth"
-	types "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	p2p "github.com/ethereum/go-ethereum/p2p"
 )
 
@@ -71,7 +70,7 @@ func (ec *Client) Status(ctx context.Context) (
 	}
 
 	return &RosettaTypes.BlockIdentifier{
-			Hash:  header.Hash().Hex(),
+			Hash:  header.Hash.String(),
 			Index: header.Number.Int64(),
 		},
 		convertTime(header.Time),
@@ -82,8 +81,8 @@ func (ec *Client) Status(ctx context.Context) (
 
 // safeBlockHeader returns the current height from safe chain
 // the /network/status should always interact with safe chain to ensure the safety of sync
-func (ec *Client) safeBlockHeader(ctx context.Context) (*types.Header, error) {
-	var head *types.Header
+func (ec *Client) safeBlockHeader(ctx context.Context) (*rpcHeader, error) {
+	var head *rpcHeader
 
 	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", "safe", false)
 	if err == nil && head == nil {
