@@ -83,7 +83,7 @@ run-optimism-goerli:
 ##################################################################################
 
 build:
-	go build -v -o rosetta-ethereum ./cmd/...
+	go build -v -o optimism-rosetta ./cmd/...
 
 build-docker:
 	docker build -t rosetta-ethereum:latest https://github.com/inphi/optimism-rosetta.git
@@ -162,3 +162,6 @@ mocks:
 	mockery --dir optimism --all --case underscore --outpkg optimism --output mocks/optimism;
 	${ADDLICENSE_INSTALL}
 	${ADDLICENCE_SCRIPT} .;
+
+local_rosetta:
+	NETWORK=MAINNET MODE=ONLINE PORT=3045 MAX_CONCURRENT_TRACES=12 ENABLE_GETH_TRACER=false ENABLE_TRACE_CACHE=false TRACE_BY_BLOCK=true GETH=https://c3-chainproxy-optimism-mainnet.cbhq.net:8545 ./optimism-rosetta run
