@@ -83,7 +83,7 @@ run-optimism-goerli:
 ##################################################################################
 
 build:
-	go build -v -o rosetta-ethereum ./cmd/...
+	go build -v -o optimism-rosetta ./cmd/...
 
 build-docker:
 	docker build -t rosetta-ethereum:latest https://github.com/inphi/optimism-rosetta.git

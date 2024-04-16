@@ -19,9 +19,9 @@ import (
 	"encoding/json"
 	"math/big"
 	"os"
+	"reflect"
 	"testing"
 
-	L2GethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthHexutil "github.com/ethereum/go-ethereum/common/hexutil"
@@ -63,7 +63,7 @@ func (testSuite *ClientBedrockReceiptsTestSuite) TestExtractL1Fee() {
 	file, err := os.ReadFile("testdata/goerli_bedrock_tx_receipt_5003318_2.json")
 	testSuite.NoError(err)
 	readTxReceipt := json.RawMessage(file)
-	var receipt L2GethTypes.Receipt
+	var receipt L2Receipt
 	err = json.Unmarshal(readTxReceipt, &receipt)
 	testSuite.Nil(err)
 
@@ -131,6 +131,68 @@ func (testSuite *ClientBedrockReceiptsTestSuite) TestGetBlockReceipts() {
 	txReceipts, err := testSuite.client.getBedrockBlockReceipts(ctx, hash, txs, baseFee)
 	testSuite.NoError(err)
 	testSuite.Equal([]*RosettaTxReceipt{receipt}, txReceipts)
+}
+
+// TestGetBlockReceiptsL2 tests fetching bedrock block receipts from the op client with L1 fees
+func (testSuite *ClientBedrockReceiptsTestSuite) TestGetBlockReceiptsL2() {
+	// Construct arguments
+	ctx := context.Background()
+	hash := EthCommon.HexToHash("0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d")
+	gasPrice := big.NewInt(10000)
+	blockNumber := big.NewInt(1)
+	blockNumberString := blockNumber.String()
+	to := EthCommon.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	nonce := uint64(0)
+	myTx := &transaction{
+		Nonce:     (*EthHexutil.Uint64)(&nonce),
+		Recipient: &to,
+		Value:     (*EthHexutil.Big)(big.NewInt(0)),
+		GasLimit:  (EthHexutil.Uint64)(0),
+		Price:     (*EthHexutil.Big)(gasPrice),
+		Data:      (*EthHexutil.Bytes)(nil),
+	}
+	txs := []BedrockRPCTransaction{
+		{
+			Tx: myTx,
+			TxExtraInfo: TxExtraInfo{
+				BlockNumber: &blockNumberString,
+				BlockHash:   &hash,
+				From:        &to,
+				TxHash:      &hash,
+			},
+		},
+	}
+	baseFee := big.NewInt(10000)
+
+	// Mock the internal call to the mock client
+	ethReceipt := mockBedrockReceipt(testSuite.mockJSONRPC)
+
+	// Perform internal calculations
+	gasPrice, _ = EffectiveGasPrice(myTx, baseFee)
+	gasUsed := new(big.Int).SetUint64(ethReceipt.GasUsed)
+	feeAmount := new(big.Int).Mul(gasUsed, gasPrice)
+
+	l1FeeBigInt := new(big.Int).SetUint64(uint64(0))
+	feeAmount.Add(feeAmount, l1FeeBigInt)
+	receiptJSON, _ := json.Marshal(ethReceipt)
+	receipt := &RosettaTxReceipt{
+		Type:           ethReceipt.Type,
+		GasPrice:       gasPrice,
+		GasUsed:        gasUsed,
+		Logs:           ethReceipt.Logs,
+		RawMessage:     receiptJSON,
+		TransactionFee: feeAmount,
+	}
+
+	// Execute and validate the call
+	txReceipts, err := testSuite.client.getBedrockBlockReceipts(ctx, hash, txs, baseFee)
+	testSuite.NoError(err)
+	testSuite.Require().Len(txReceipts, 1, "Should have one receipt")
+
+	if !reflect.DeepEqual(receipt, txReceipts[0]) {
+		testSuite.Fail("Received receipt does not match expected",
+			"Expected: \n%s, \n\nActual: %s", receipt, txReceipts[0])
+	}
 }
 
 func mockBedrockReceipt(mocker *mocks.JSONRPC) EthTypes.Receipt {

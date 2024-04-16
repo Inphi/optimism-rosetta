@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"math/big"
 
-	L2GethTypes "github.com/ethereum-optimism/optimism/l2geth/core/types"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
 	EthCommon "github.com/ethereum/go-ethereum/common"
 	EthTypes "github.com/ethereum/go-ethereum/core/types"
@@ -61,11 +60,20 @@ func ExtractStatus(rosettaTxReceipt *RosettaTxReceipt) (uint64, error) {
 // ExtractL1Fee attempts to unmarshal an [L1Fee] from the RawMessage field in a [RosettaTxReceipt]
 // TODO: hoist this up to initial receipt unmarshalling in the bedrock block handler so we can error early
 func ExtractL1Fee(rosettaTxReceipt *RosettaTxReceipt) *big.Int {
-	var receipt L2GethTypes.Receipt
+	var receipt L2Receipt
 	if err := json.Unmarshal(rosettaTxReceipt.RawMessage, &receipt); err != nil {
 		return nil
 	}
-	return receipt.L1Fee
+
+	if receipt.L1Fee == nil {
+		return nil
+	}
+
+	// Convert to uint64
+	l1FeeUint64 := uint64(*receipt.L1Fee)
+
+	// Convert to *big.Int
+	return big.NewInt(0).SetUint64(l1FeeUint64)
 }
 
 // getBedrockBlockReceipts returns the receipts for all transactions in a block.
@@ -120,9 +128,14 @@ func (ec *Client) getBedrockBlockReceipts(
 		}
 		gasUsed := new(big.Int).SetUint64(ethReceipts[i].GasUsed)
 		feeAmount := new(big.Int).Mul(gasUsed, gasPrice)
-		var r L2GethTypes.Receipt
+
+		// Print the error if we can't unmarshal the receipt
+		var r L2Receipt
 		if err := json.Unmarshal(rawReceipts[i], &r); err == nil {
-			feeAmount.Add(feeAmount, r.L1Fee)
+			if r.L1Fee != nil {
+				l1FeeBigInt := new(big.Int).SetUint64(uint64(*r.L1Fee))
+				feeAmount.Add(feeAmount, l1FeeBigInt)
+			}
 		}
 
 		receipt := &RosettaTxReceipt{

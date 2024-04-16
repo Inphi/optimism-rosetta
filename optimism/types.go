@@ -17,6 +17,11 @@ package optimism
 import (
 	"context"
 	"fmt"
+	"math/big"
+
+	"github.com/ethereum-optimism/optimism/l2geth/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum-optimism/optimism/l2geth/rpc"
@@ -298,6 +303,46 @@ type JSONRPC interface {
 // GraphQL is the interface for accessing go-ethereum's GraphQL endpoint.
 type GraphQL interface {
 	Query(ctx context.Context, input string) (string, error)
+}
+
+// L2Receipt represents the results of a transaction.
+type L2Receipt struct {
+	// Consensus fields: These fields are defined by the Yellow Paper
+	Type              *hexutil.Uint64 `json:"type,omitempty"`
+	PostState         []byte          `json:"root"`
+	Status            *hexutil.Uint64 `json:"status"`
+	CumulativeGasUsed *hexutil.Uint64 `json:"cumulativeGasUsed"`
+	Bloom             ethTypes.Bloom  `json:"logsBloom"`
+	Logs              []*ethTypes.Log `json:"logs"`
+
+	// Implementation fields: These fields are added by geth when processing a transaction or retrieving a receipt.
+	// gencodec annotated fields: these are stored in the chain database.
+	TxHash            common.Hash     `json:"transactionHash"`
+	ContractAddress   *common.Address `json:"contractAddress"`
+	GasUsed           *hexutil.Uint64 `json:"gasUsed"`
+	EffectiveGasPrice *hexutil.Uint64 `json:"effectiveGasPrice,omitempty"` // required, but tag omitted for backwards compatibility
+	BlobGasUsed       *hexutil.Uint64 `json:"blobGasUsed,omitempty"`
+	BlobGasPrice      *hexutil.Uint64 `json:"blobGasPrice,omitempty"`
+
+	// DepositNonce was introduced in Regolith to store the actual nonce used by deposit transactions
+	// The state transition process ensures this is only set for Regolith deposit transactions.
+	DepositNonce *hexutil.Uint64 `json:"depositNonce,omitempty"`
+	// DepositReceiptVersion was introduced in Canyon to indicate an update to how receipt hashes
+	// should be computed when set. The state transition process ensures this is only set for
+	// post-Canyon deposit transactions.
+	DepositReceiptVersion *hexutil.Uint64 `json:"depositReceiptVersion,omitempty"`
+
+	// Inclusion information: These fields provide information about the inclusion of the
+	// transaction corresponding to this receipt.
+	BlockHash        common.Hash     `json:"blockHash,omitempty"`
+	BlockNumber      *hexutil.Uint64 `json:"blockNumber,omitempty"`
+	TransactionIndex *hexutil.Uint64 `json:"transactionIndex"`
+
+	// OVM legacy: extend receipts with their L1 price (if a rollup tx)
+	L1GasPrice *hexutil.Uint64 `json:"l1GasPrice,omitempty"`
+	L1GasUsed  *hexutil.Uint64 `json:"l1GasUsed,omitempty"`
+	L1Fee      *hexutil.Uint64 `json:"l1Fee,omitempty"`
+	FeeScalar  *big.Float      `json:"l1FeeScalar,omitempty"` // always nil after Ecotone hardfork
 }
 
 // CallType returns a boolean indicating
