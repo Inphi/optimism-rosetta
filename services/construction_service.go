@@ -49,6 +49,8 @@ const (
 	// TokenContractAddressKey is the key in the currency metadata map
 	// that represents the contract address of a token
 	TokenContractAddressKey = "token_address"
+	// NoMethodSig is the method signature name when a contract call does not have one
+	NoMethodSig = "NO-METHOD-SIG"
 )
 
 var (
@@ -958,8 +960,14 @@ func constructERC20VotesDelegateData(to string) []byte {
 func constructContractCallData(methodSig string, methodArgsGeneric interface{}) ([]byte, error) {
 	data := contractCallMethodID(methodSig)
 
+	// preprocess method args for contract call with no method signature
+	args, err := preprocessArgs(methodSig, methodArgsGeneric)
+	if err != nil {
+		return nil, err
+	}
+
 	// switch on the type of the method args. method args can come in from json as either a string or list of strings
-	switch methodArgs := methodArgsGeneric.(type) {
+	switch methodArgs := args.(type) {
 	// case 0: no method arguments, return the selector
 	case nil:
 		return data, nil
@@ -1262,9 +1270,36 @@ func rosettaOperations(
 // contractCallMethodID calculates the first 4 bytes of the method
 // signature for function call on contract
 func contractCallMethodID(methodSig string) []byte {
+	if methodSig == "" || methodSig == NoMethodSig {
+		// contract call without method signature (fallback pattern)
+		return []byte{}
+	}
+
 	fnSignature := []byte(methodSig)
 	hash := crypto.Keccak256(fnSignature)
 	return hash[:4]
+}
+
+// preprocessArgs converts methodArgs to a string value if a contract call has no method signature.
+// In this case, methodArgs contains the pre-compiled ABI data.
+func preprocessArgs(methodSig string, methodArgs interface{}) (interface{}, error) {
+	if methodSig == "" || methodSig == NoMethodSig {
+		switch args := methodArgs.(type) {
+		case []interface{}:
+			if len(args) == 1 {
+				if argStr, ok := args[0].(string); ok {
+					return argStr, nil
+				}
+				return nil, fmt.Errorf("failed to convert method arg \"%T\" to string", args[0])
+			}
+		case []string:
+			if len(args) == 1 {
+				return args[0], nil
+			}
+		}
+	}
+
+	return methodArgs, nil
 }
 
 func bigIntMax(a *big.Int, b *big.Int) *big.Int {
